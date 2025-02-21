@@ -57,8 +57,9 @@ export default function RecipesPage() {
           {filteredRecipes?.map((recipe) => (
             <RecipeCard 
               key={recipe.id} 
-              recipe={recipe} 
-              showDelete={recipe.createdBy === user?.id} 
+              recipe={recipe}
+              showDelete={recipe.createdBy === user?.id}  // Show delete only for recipes created by the current user
+              hideEditDelete={false}  // Never hide edit/delete in recipes tab
             />
           ))}
         </div>

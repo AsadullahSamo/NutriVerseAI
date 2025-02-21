@@ -78,7 +78,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validated = insertRecipeSchema.parse(req.body);
       const recipe = await storage.createRecipe({
         ...validated,
-        createdBy: req.user.id,
+        createdBy: req.user!.id,
         createdAt: new Date(),
         nutritionInfo: validated.nutritionInfo,
         title: typeof validated.title === "string" ? validated.title : "",
@@ -86,8 +86,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ingredients: validated.ingredients,
         instructions: validated.instructions,
         imageUrl: typeof validated.imageUrl === "string" ? validated.imageUrl : "",
-        prepTime:
-          typeof validated.prepTime === "string" ? parseInt(validated.prepTime, 10) : 0,
+        prepTime: typeof validated.prepTime === "number" ? validated.prepTime : 0,
         likes: 0,
         forkedFrom: null,
         sustainabilityScore: null,
@@ -289,7 +288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validated = insertCommunityPostSchema.parse(req.body);
       const post = await storage.createCommunityPost({
         ...validated,
-        userId: req.user.id,
+        userId: req.user!.id,
         createdAt: new Date(),
         recipeId: validated.recipeId ?? null,
         location: validated.location ?? null,
@@ -313,6 +312,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     asyncHandler(async (req, res) => {
       await storage.deleteCommunityPost(parseInt(req.params.id));
       res.sendStatus(204);
+    })
+  );
+
+  app.post(
+    "/api/pantryItems",
+    asyncHandler(async (req, res) => {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const validated = insertPantryItemSchema.parse(req.body);
+      const item = await storage.createPantryItem({
+        ...validated,
+        userId: req.user!.id,
+      });
+      res.status(201).json(item);
     })
   );
 

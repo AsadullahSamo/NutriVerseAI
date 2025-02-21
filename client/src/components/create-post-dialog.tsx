@@ -8,6 +8,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Share2 } from "lucide-react";
+import { Recipe } from "@shared/schema";
 
 interface CreatePostDialogProps {
   trigger?: React.ReactNode;
@@ -20,7 +21,7 @@ export function CreatePostDialog({ trigger }: CreatePostDialogProps) {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const { data: recipes } = useQuery({
+  const { data: recipes } = useQuery<Recipe[]>({
     queryKey: ["/api/recipes"],
     enabled: type === "RECIPE_SHARE"
   });
@@ -29,11 +30,27 @@ export function CreatePostDialog({ trigger }: CreatePostDialogProps) {
 
   const createPostMutation = useMutation({
     mutationFn: async (data: any) => {
-      const payload = { ...data };
-      if (data.type === "RECIPE_SHARE" && selectedRecipeId) {
-        payload.recipeId = parseInt(selectedRecipeId);
+      try {
+        const payload = {
+          content: data.content,
+          type: data.type,
+          userId: data.userId
+        };
+        
+        if (data.type === "RECIPE_SHARE" && data.recipeId) {
+          payload.recipeId = data.recipeId;
+        }
+
+        const res = await apiRequest("POST", "/api/community", payload);
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.message || "Failed to create post");
+        }
+        return res.json();
+      } catch (error) {
+        console.error("Create post error:", error);
+        throw error;
       }
-      return apiRequest("POST", "/api/community", payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/community"] });
@@ -45,7 +62,34 @@ export function CreatePostDialog({ trigger }: CreatePostDialogProps) {
         description: "Your post has been shared with the community.",
       });
     },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create post. Please try again.",
+        variant: "destructive"
+      });
+    }
   });
+
+  const handleCreatePost = () => {
+    if (type === "RECIPE_SHARE" && !selectedRecipeId) {
+      toast({
+        title: "Error",
+        description: "Please select a recipe to share",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const postData = {
+      content,
+      type,
+      userId: user?.id,
+      ...(type === "RECIPE_SHARE" && selectedRecipeId ? { recipeId: parseInt(selectedRecipeId) } : {})
+    };
+
+    createPostMutation.mutate(postData);
+  };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -79,7 +123,7 @@ export function CreatePostDialog({ trigger }: CreatePostDialogProps) {
                 <SelectValue placeholder="Select a recipe to share" />
               </SelectTrigger>
               <SelectContent>
-                {recipes?.map((recipe) => (
+                {recipes && recipes.map((recipe: Recipe) => (
                   <SelectItem key={recipe.id} value={recipe.id.toString()}>
                     {recipe.title}
                   </SelectItem>
@@ -96,10 +140,10 @@ export function CreatePostDialog({ trigger }: CreatePostDialogProps) {
           />
           <Button 
             className="w-full" 
-            onClick={() => createPostMutation.mutate({content, type, userId: user?.id})} // Added data to mutation call
-            disabled={!content.trim() || createPostMutation.isPending}
+            onClick={handleCreatePost}
+            disabled={!content.trim() || createPostMutation.isPending || (type === "RECIPE_SHARE" && !selectedRecipeId)}
           >
-            Post
+            {createPostMutation.isPending ? "Creating..." : "Post"}
           </Button>
         </div>
       </DialogContent>
