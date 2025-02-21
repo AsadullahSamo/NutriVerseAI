@@ -12,13 +12,15 @@ interface RecipeActionsProps {
   recipe: Recipe & { postId?: number };
   size?: "default" | "sm";
   showDelete?: boolean;
+  hideEditDelete?: boolean;  // New prop to hide edit/delete buttons completely
 }
 
-export function RecipeActions({ recipe, size = "default", showDelete = false }: RecipeActionsProps) {
+export function RecipeActions({ recipe, size = "default", showDelete = false, hideEditDelete = false }: RecipeActionsProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [hasLiked, setHasLiked] = useState(false);
   const [localLikeCount, setLocalLikeCount] = useState(recipe.likes);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { data: likeStatus } = useQuery({
     queryKey: ["/api/recipes", recipe.id, "liked"],
@@ -39,9 +41,16 @@ export function RecipeActions({ recipe, size = "default", showDelete = false }: 
     setLocalLikeCount(recipe.likes);
   }, [recipe.likes]);
 
-  const deleteMutation = useMutation({
+  const deleteRecipeMutation = useMutation({
     mutationFn: async () => {
+      setIsDeleting(true);
       try {
+        if (recipe.likes > 0) {
+          setIsDeleting(false);
+          return Promise.reject({
+            message: "Cannot delete recipe that has likes"
+          });
+        }
         await apiRequest("DELETE", `/api/recipes/${recipe.id}`);
       } catch (error) {
         toast({
@@ -50,17 +59,28 @@ export function RecipeActions({ recipe, size = "default", showDelete = false }: 
           variant: "destructive"
         });
         throw error;
+      } finally {
+        setIsDeleting(false);
       }
     },
     onSuccess: () => {
-      // Invalidate both recipes and community queries
       queryClient.invalidateQueries({ queryKey: ["/api/recipes"] });
       queryClient.invalidateQueries({ queryKey: ["/api/community"] });
+      queryClient.invalidateQueries({ queryKey: ["recommendedRecipes"] });
       toast({
         title: "Recipe deleted",
-        description: "Your recipe has been deleted.",
+        description: "Recipe has been deleted. Any shared posts will show this recipe as deleted.",
       });
     },
+    onError: (error: any) => {
+      if (error.message === "Cannot delete recipe that has likes") {
+        toast({
+          title: "Cannot delete recipe",
+          description: "This recipe has been liked by others in the community. As it's valuable to them, it cannot be deleted.",
+          variant: "destructive"
+        });
+      }
+    }
   });
 
   const likeMutation = useMutation({
@@ -80,9 +100,10 @@ export function RecipeActions({ recipe, size = "default", showDelete = false }: 
     onSuccess: (data) => {
       setHasLiked(!hasLiked);
       setLocalLikeCount(data.likes);
-      // Invalidate both recipes and community queries to sync likes
+      // Invalidate all related queries to sync likes
       queryClient.invalidateQueries({ queryKey: ["/api/recipes"] });
       queryClient.invalidateQueries({ queryKey: ["/api/community"] });
+      queryClient.invalidateQueries({ queryKey: ["recommendedRecipes"] });
       queryClient.invalidateQueries({ 
         queryKey: ["/api/recipes", recipe.id, "liked"],
         exact: true
@@ -110,6 +131,7 @@ export function RecipeActions({ recipe, size = "default", showDelete = false }: 
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/recipes"] });
+      queryClient.invalidateQueries({ queryKey: ["recommendedRecipes"] });
       toast({
         title: "Recipe forked!",
         description: "The recipe has been added to your collection.",
@@ -117,42 +139,19 @@ export function RecipeActions({ recipe, size = "default", showDelete = false }: 
     },
   });
 
-  const deletePostMutation = useMutation({
-    mutationFn: async () => {
-      if (!recipe.postId) return;
-      try {
-        await apiRequest("DELETE", `/api/community/${recipe.postId}`);
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to delete post. Please try again.",
-          variant: "destructive"
-        });
-        throw error;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/community"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/recipes"] });
-      toast({
-        title: "Post deleted",
-        description: "Your post has been deleted.",
-      });
-    },
-  });
-
   if (!user) return null;
 
   return (
-    <div className="flex gap-2">
+    <div className="flex items-center justify-end -mr-1">
       <Button
         variant="ghost"
         size={size}
         onClick={() => likeMutation.mutate()}
         disabled={likeMutation.isPending || !user}
+        className="h-7 px-3 text-sm hover:bg-secondary"
       >
-        <Heart className={`h-4 w-4 mr-2 ${hasLiked ? "fill-current text-red-500" : ""}`} />
-        {localLikeCount}
+        <Heart className={`h-4 w-4 ${hasLiked ? "fill-current text-red-500" : ""}`} />
+        <span className="ml-2 tabular-nums">{localLikeCount}</span>
       </Button>
       
       <Button
@@ -160,32 +159,36 @@ export function RecipeActions({ recipe, size = "default", showDelete = false }: 
         size={size}
         onClick={() => forkMutation.mutate()}
         disabled={forkMutation.isPending}
+        className="h-7 px-3 text-sm hover:bg-secondary"
       >
-        <GitFork className="h-4 w-4 mr-2" />
-        Fork
+        <GitFork className="h-4 w-4" />
+        <span className="ml-2">Fork</span>
       </Button>
-      {recipe.postId && showDelete && (
-        <Button
-          variant="ghost"
-          size={size}
-          onClick={() => deletePostMutation.mutate()}
-          disabled={deletePostMutation.isPending}
-        >
-          <Trash2 className="h-4 w-4 text-destructive mr-2" />
-          Delete Post
-        </Button>
-      )}
-      {!recipe.postId && showDelete && (
+
+      {!hideEditDelete && showDelete && (
         <>
-          <EditRecipeDialog recipe={recipe} />
+          <EditRecipeDialog 
+            recipe={recipe} 
+            trigger={
+              <Button variant="ghost" size={size} className="h-7 px-3 text-sm hover:bg-secondary">
+                <Pencil className="h-4 w-4" />
+                <span className="ml-2">Edit</span>
+              </Button>
+            }
+          />
           <Button
             variant="ghost"
             size={size}
-            onClick={() => deleteMutation.mutate()}
-            disabled={deleteMutation.isPending}
+            onClick={() => {
+              if (window.confirm("Are you sure you want to delete this recipe? This action cannot be undone.")) {
+                deleteRecipeMutation.mutate();
+              }
+            }}
+            disabled={isDeleting || deleteRecipeMutation.isPending}
+            className="h-7 px-3 text-sm hover:bg-secondary"
           >
-            <Trash2 className="h-4 w-4 text-destructive mr-2" />
-            Delete Recipe
+            <Trash2 className="h-4 w-4 text-destructive" />
+            <span className="ml-2">{isDeleting ? "..." : "Delete"}</span>
           </Button>
         </>
       )}

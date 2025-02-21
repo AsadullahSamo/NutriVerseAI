@@ -44,13 +44,23 @@ export function EditRecipeDialog({ recipe, trigger }: EditRecipeDialogProps) {
       return res.json();
     },
     onSuccess: () => {
+      // Invalidate all related queries to ensure synchronization
       queryClient.invalidateQueries({ queryKey: ["/api/recipes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/community"] });
+      queryClient.invalidateQueries({ queryKey: ["recommendedRecipes"] });
       setOpen(false);
       toast({
         title: "Recipe updated!",
         description: "Your recipe has been updated successfully.",
       });
     },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update recipe. Please try again.",
+        variant: "destructive"
+      });
+    }
   });
 
   return (
@@ -63,7 +73,7 @@ export function EditRecipeDialog({ recipe, trigger }: EditRecipeDialogProps) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Recipe</DialogTitle>
         </DialogHeader>
@@ -97,12 +107,59 @@ export function EditRecipeDialog({ recipe, trigger }: EditRecipeDialogProps) {
             />
             <FormField
               control={form.control}
+              name="ingredients"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ingredients (one per line)</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      {...field} 
+                      value={Array.isArray(field.value) ? field.value.join('\n') : ''} 
+                      onChange={e => field.onChange(e.target.value.split('\n').filter(Boolean))}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="instructions"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Instructions (one per line)</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      {...field} 
+                      value={Array.isArray(field.value) ? field.value.join('\n') : ''} 
+                      onChange={e => field.onChange(e.target.value.split('\n').filter(Boolean))}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="prepTime"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Preparation Time (minutes)</FormLabel>
                   <FormControl>
                     <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="imageUrl"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Image URL</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -162,6 +219,25 @@ export function EditRecipeDialog({ recipe, trigger }: EditRecipeDialogProps) {
                 )}
               />
             </div>
+            <FormField
+              control={form.control}
+              name="sustainabilityScore"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Sustainability Score (0-100)</FormLabel>
+                  <FormControl>
+                    <Input 
+                      type="number" 
+                      {...field} 
+                      min={0} 
+                      max={100}
+                      onChange={e => field.onChange(parseInt(e.target.value))} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <Button type="submit" className="w-full" disabled={editRecipeMutation.isPending}>
               {editRecipeMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Update Recipe

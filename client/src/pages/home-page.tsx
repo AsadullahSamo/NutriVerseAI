@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { GroceryList as GroceryListType, Recipe } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Plus, ShoppingCart, Utensils } from "lucide-react";
+import { Loader2, Plus, ShoppingCart, Utensils, Clock, Users } from "lucide-react";
 import { GroceryList } from "@/components/grocery-list";
 import { Link } from "wouter";
 import { RecipeCard } from "@/components/recipe-card";
@@ -74,10 +74,33 @@ export default function HomePage() {
                 </Button>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-4">
+                <div className="grid gap-6">
                   {recommendedRecipes && recommendedRecipes.length > 0 ? (
                     recommendedRecipes.slice(0, 3).map((recipe) => (
-                      <RecipeCard key={recipe.id} recipe={recipe} compact />
+                      <Link key={recipe.id} href={`/recipes?id=${recipe.id}`}>
+                        <Card className="overflow-hidden hover:shadow-md transition-all duration-200 border-0 bg-muted/30 hover:bg-muted/50 cursor-pointer group">
+                          <CardHeader className="p-4">
+                            <div>
+                              <h3 className="font-medium text-lg group-hover:text-primary transition-colors">
+                                {recipe.title}
+                              </h3>
+                              <p className="text-sm text-muted-foreground mt-2 leading-relaxed line-clamp-2">
+                                {recipe.description}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground mt-3">
+                              <span className="flex items-center gap-2">
+                                <Clock className="h-4 w-4 flex-shrink-0" />
+                                {recipe.prepTime} mins
+                              </span>
+                              <span className="flex items-center gap-2">
+                                <Users className="h-4 w-4 flex-shrink-0" />
+                                {Array.isArray(recipe.ingredients) ? recipe.ingredients.length : 0} ingredients
+                              </span>
+                            </div>
+                          </CardHeader>
+                        </Card>
+                      </Link>
                     ))
                   ) : (
                     <p className="text-muted-foreground text-center py-8">

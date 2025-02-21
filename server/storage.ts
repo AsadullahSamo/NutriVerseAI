@@ -242,13 +242,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteRecipe(id: number): Promise<void> {
-    // First, update any recipes that were forked from this one to remove the reference
-    await db
-      .update(recipes)
-      .set({ forkedFrom: null })
-      .where(eq(recipes.forkedFrom, id));
-    // Then delete the recipe
-    await db.delete(recipes).where(eq(recipes.id, id));
+    await db.transaction(async (tx) => {
+      // First, update any recipes that were forked from this one to remove the reference
+      await tx
+        .update(recipes)
+        .set({ forkedFrom: null })
+        .where(eq(recipes.forkedFrom, id));
+
+      // Update any community posts that reference this recipe to mark it as deleted
+      await tx
+        .update(communityPosts)
+        .set({ recipeId: null })
+        .where(eq(communityPosts.recipeId, id));
+
+      // Finally delete the recipe
+      await tx.delete(recipes).where(eq(recipes.id, id));
+    });
   }
 }
 

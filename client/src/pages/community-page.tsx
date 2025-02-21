@@ -92,30 +92,50 @@ export default function CommunityPage() {
         <div className="grid gap-6">
           {filteredPosts?.map((post) => (
             <Card key={post.id}>
-              <CardContent className="p-6">
-                {post.type === "RECIPE_SHARE" && post.recipe && (
-                  <RecipeCard 
-                    recipe={{...post.recipe, postId: post.id}} 
-                    showDelete={post.userId === user?.id}
-                  />
+              <CardContent className="p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">
+                      Posted by {post.userId === user?.id ? "you" : "someone"}
+                    </span>
+                  </div>
+                  {post.userId === user?.id && (
+                    <div className="flex gap-2">
+                      <EditPostDialog post={post} />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => deleteMutation.mutate(post.id)}
+                        className="text-destructive"
+                        title="Delete post"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete Post
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {post.type === "RECIPE_SHARE" && (
+                  <>
+                    <p className="text-sm">{post.content}</p>
+                    {post.recipe ? (
+                      <RecipeCard
+                        recipe={{...post.recipe, postId: post.id}} 
+                        hideEditDelete={true}
+                      />
+                    ) : (
+                      <div className="p-4 border rounded-md bg-muted">
+                        <p className="text-sm text-muted-foreground">This recipe has been deleted</p>
+                      </div>
+                    )}
+                  </>
                 )}
                 {post.type === "FOOD_RESCUE" && (
                   <div className="space-y-4">
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start">
                       <h3 className="font-semibold text-lg">Food Rescue Opportunity</h3>
-                      {post.userId === user?.id && (
-                        <div className="flex gap-2">
-                          <EditPostDialog post={post} />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deleteMutation.mutate(post.id)}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
                     </div>
                     <p>{post.content}</p>
                     {post.location && typeof post.location === 'string' && (
@@ -128,21 +148,8 @@ export default function CommunityPage() {
                 )}
                 {post.type === "COOKING_TIP" && (
                   <div className="space-y-4">
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start">
                       <h3 className="font-semibold text-lg">Cooking Tip</h3>
-                      {post.userId === user?.id && (
-                        <div className="flex gap-2">
-                          <EditPostDialog post={post} />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => deleteMutation.mutate(post.id)}
-                            className="text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
                     </div>
                     <p>{post.content}</p>
                   </div>
