@@ -7,6 +7,7 @@ import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
 export default defineConfig({
   plugins: [
     react(),
@@ -20,7 +21,10 @@ export default defineConfig({
         ]
       : []),
   ],
-  envPrefix: 'VITE_',
+  define: {
+    'process.env': process.env
+  },
+  envPrefix: ['VITE_'],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "client", "src"),
