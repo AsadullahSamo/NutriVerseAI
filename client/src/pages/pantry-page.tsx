@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, AlertTriangle, Loader2, ArrowUpDown, Trash2, Leaf } from "lucide-react";
+import { Plus, Search, AlertTriangle, Loader2, ArrowUpDown, Trash2, ChevronDown, ChevronUp, Leaf } from "lucide-react";
 import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
@@ -20,7 +20,8 @@ import { useToast } from "@/hooks/use-toast";
 import { NutritionDisplay } from "@/components/nutrition-display";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-
+import { StatsDashboard } from "@/components/stats-dashboard";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 type NutritionInfo = {
   calories: number;
   protein: number;
@@ -38,6 +39,7 @@ export default function PantryPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const { toast } = useToast();
+  const [showStats, setShowStats] = useState(false);
 
   const { data: pantryItems, isLoading } = useQuery<PantryItem[]>({
     queryKey: ["/api/pantry"],
@@ -141,6 +143,25 @@ export default function PantryPage() {
             </div>
           </div>
         </header>
+
+        <Collapsible open={showStats} onOpenChange={setShowStats} className="mb-8">
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="outline"
+              className="flex items-center gap-2 w-full mb-4"
+            >
+              <span>Pantry Analytics</span>
+              {showStats ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            {pantryItems && <StatsDashboard pantryItems={pantryItems} />}
+          </CollapsibleContent>
+        </Collapsible>
 
         {expiringItems && expiringItems.length > 0 && (
           <Card className="mb-6 border-orange-200 bg-orange-50/50 dark:bg-orange-950/20">
