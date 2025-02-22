@@ -88,113 +88,21 @@ export function EditPantryItemDialog({ item, trigger }: EditPantryItemDialogProp
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent>
-        <DialogHeader className="flex flex-row items-center justify-between">
-          <DialogTitle>Edit Pantry Item</DialogTitle>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete the item from your pantry.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <Button variant="outline" onClick={() => document.querySelector('[role="alertdialog"] button:first-of-type')?.click()}>
-                  Cancel
-                </Button>
-                <Button 
-                  variant="destructive" 
-                  onClick={() => deletePantryItemMutation.mutate()}
-                  disabled={deletePantryItemMutation.isPending}
-                >
-                  {deletePantryItemMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Delete
-                </Button>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit Pantry</DialogTitle>
         </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit((data) => editPantryItemMutation.mutate(data))} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Item Name</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="quantity"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Quantity</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="category"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Category</FormLabel>
-                  <FormControl>
-                    <Input {...field} value={field.value || ''} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="expiryDate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Expiry Date</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="date" 
-                      value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''}
-                      onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : null)}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="grid grid-cols-2 gap-4">
+        <div className="px-1 pb-6">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit((data) => editPantryItemMutation.mutate(data))} className="space-y-6">
               <FormField
                 control={form.control}
-                name="nutritionInfo"
-                render={({ field: { value, onChange, ...field } }) => (
+                name="name"
+                render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Calories</FormLabel>
+                    <FormLabel>Item Name</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        {...field}
-                        value={(value as NutritionInfo)?.calories ?? '0'} 
-                        onChange={e => {
-                          const newValue = e.target.value ? parseInt(e.target.value) : 0;
-                          onChange({ ...(value as NutritionInfo), calories: newValue });
-                        }}
-                      />
+                      <Input {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -202,20 +110,12 @@ export function EditPantryItemDialog({ item, trigger }: EditPantryItemDialogProp
               />
               <FormField
                 control={form.control}
-                name="nutritionInfo"
-                render={({ field: { value, onChange, ...field } }) => (
+                name="quantity"
+                render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Protein (g)</FormLabel>
+                    <FormLabel>Quantity</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        {...field}
-                        value={(value as NutritionInfo)?.protein ?? '0'} 
-                        onChange={e => {
-                          const newValue = e.target.value ? parseInt(e.target.value) : 0;
-                          onChange({ ...(value as NutritionInfo), protein: newValue });
-                        }}
-                      />
+                      <Input {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -223,20 +123,12 @@ export function EditPantryItemDialog({ item, trigger }: EditPantryItemDialogProp
               />
               <FormField
                 control={form.control}
-                name="nutritionInfo"
-                render={({ field: { value, onChange, ...field } }) => (
+                name="category"
+                render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Carbs (g)</FormLabel>
+                    <FormLabel>Category</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        {...field}
-                        value={(value as NutritionInfo)?.carbs ?? '0'} 
-                        onChange={e => {
-                          const newValue = e.target.value ? parseInt(e.target.value) : 0;
-                          onChange({ ...(value as NutritionInfo), carbs: newValue });
-                        }}
-                      />
+                      <Input {...field} value={field.value || ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -244,45 +136,128 @@ export function EditPantryItemDialog({ item, trigger }: EditPantryItemDialogProp
               />
               <FormField
                 control={form.control}
-                name="nutritionInfo"
-                render={({ field: { value, onChange, ...field } }) => (
+                name="expiryDate"
+                render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Fat (g)</FormLabel>
+                    <FormLabel>Expiry Date</FormLabel>
                     <FormControl>
                       <Input 
-                        type="number" 
-                        {...field}
-                        value={(value as NutritionInfo)?.fat ?? '0'} 
-                        onChange={e => {
-                          const newValue = e.target.value ? parseInt(e.target.value) : 0;
-                          onChange({ ...(value as NutritionInfo), fat: newValue });
-                        }}
+                        type="date" 
+                        min={new Date().toISOString().split('T')[0]}
+                        value={field.value ? new Date(field.value).toISOString().split('T')[0] : ''}
+                        onChange={(e) => field.onChange(e.target.value ? new Date(e.target.value) : null)}
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-            </div>
-            <FormField
-              control={form.control}
-              name="sustainabilityInfo"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Sustainability Information</FormLabel>
-                  <FormControl>
-                    <Input {...field} value={field.value?.toString() || ''} placeholder="Enter sustainability details" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <Button type="submit" className="w-full" disabled={editPantryItemMutation.isPending}>
-              {editPantryItemMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Update Item
-            </Button>
-          </form>
-        </Form>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="nutritionInfo"
+                  render={({ field: { value, onChange, ...field } }) => (
+                    <FormItem>
+                      <FormLabel>Calories</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          {...field}
+                          value={(value as NutritionInfo)?.calories ?? '0'} 
+                          onChange={e => {
+                            const newValue = e.target.value ? parseInt(e.target.value) : 0;
+                            onChange({ ...(value as NutritionInfo), calories: newValue });
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="nutritionInfo"
+                  render={({ field: { value, onChange, ...field } }) => (
+                    <FormItem>
+                      <FormLabel>Protein (g)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          {...field}
+                          value={(value as NutritionInfo)?.protein ?? '0'} 
+                          onChange={e => {
+                            const newValue = e.target.value ? parseInt(e.target.value) : 0;
+                            onChange({ ...(value as NutritionInfo), protein: newValue });
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="nutritionInfo"
+                  render={({ field: { value, onChange, ...field } }) => (
+                    <FormItem>
+                      <FormLabel>Carbs (g)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          {...field}
+                          value={(value as NutritionInfo)?.carbs ?? '0'} 
+                          onChange={e => {
+                            const newValue = e.target.value ? parseInt(e.target.value) : 0;
+                            onChange({ ...(value as NutritionInfo), carbs: newValue });
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="nutritionInfo"
+                  render={({ field: { value, onChange, ...field } }) => (
+                    <FormItem>
+                      <FormLabel>Fat (g)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          {...field}
+                          value={(value as NutritionInfo)?.fat ?? '0'} 
+                          onChange={e => {
+                            const newValue = e.target.value ? parseInt(e.target.value) : 0;
+                            onChange({ ...(value as NutritionInfo), fat: newValue });
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormField
+                control={form.control}
+                name="sustainabilityInfo"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sustainability Information</FormLabel>
+                    <FormControl>
+                      <Input {...field} value={field.value?.toString() || ''} placeholder="Enter sustainability details" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" className="w-full" disabled={editPantryItemMutation.isPending}>
+                {editPantryItemMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Update Item
+              </Button>
+            </form>
+          </Form>
+        </div>
       </DialogContent>
     </Dialog>
   );
