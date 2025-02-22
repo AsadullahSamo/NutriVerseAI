@@ -10,13 +10,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Search, AlertTriangle, Loader2, ArrowUpDown, Trash2 } from "lucide-react";
+import { Plus, Search, AlertTriangle, Loader2, ArrowUpDown, Trash2, Leaf } from "lucide-react";
 import { useState } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { CreatePantryItemDialog } from "@/components/create-pantry-item-dialog";
 import { EditPantryItemDialog } from "@/components/edit-pantry-item-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { NutritionDisplay } from "@/components/nutrition-display";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 
 type NutritionInfo = {
   calories: number;
@@ -140,7 +143,7 @@ export default function PantryPage() {
         </header>
 
         {expiringItems && expiringItems.length > 0 && (
-          <Card className="mb-6 border-orange-200 bg-orange-50 dark:bg-orange-950">
+          <Card className="mb-6 border-orange-200 bg-orange-50/50 dark:bg-orange-950/20">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-orange-600">
                 <AlertTriangle className="h-5 w-5" />
@@ -150,14 +153,14 @@ export default function PantryPage() {
             <CardContent>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {expiringItems.map((item) => (
-                  <Card key={item.id} className="bg-white dark:bg-background">
+                  <Card key={item.id} className="bg-card border-muted">
                     <CardContent className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-medium">{item.name}</h3>
-                          <p className="text-sm text-muted-foreground">{item.quantity}</p>
+                      <div className="flex justify-between items-start gap-4">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium truncate">{item.name}</h3>
+                          <p className="text-sm text-muted-foreground mt-1">{item.quantity}</p>
                         </div>
-                        <p className="text-sm text-orange-600">
+                        <p className="text-sm font-medium text-orange-600 whitespace-nowrap">
                           Expires {format(new Date(item.expiryDate!), "MMM d")}
                         </p>
                       </div>
@@ -171,50 +174,85 @@ export default function PantryPage() {
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {filteredItems?.map((item) => (
-            <Card key={item.id}>
+            <Card key={item.id} className="group hover:shadow-md transition-shadow">
               <CardContent className="p-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-medium">{item.name}</h3>
-                    <p className="text-sm text-muted-foreground">{item.quantity}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {item.expiryDate && (
-                      <p className="text-sm text-muted-foreground">
-                        Expires {format(new Date(item.expiryDate), "MMM d")}
-                      </p>
-                    )}
-                    <EditPantryItemDialog item={item} />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => deleteMutation.mutate(item.id)}
-                      className="h-8 w-8"
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </div>
-                {item.category && (
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Category: {item.category}
-                  </p>
-                )}
-                <div className="mt-4 space-y-2">
-                  <div className="text-sm">
-                    <span className="font-medium">Nutrition:</span>
-                    <div className="grid grid-cols-2 gap-2 mt-1">
-                      <span>Calories: {(item.nutritionInfo as NutritionInfo).calories || 0}</span>
-                      <span>Protein: {(item.nutritionInfo as NutritionInfo).protein || 0}g</span>
-                      <span>Carbs: {(item.nutritionInfo as NutritionInfo).carbs || 0}g</span>
-                      <span>Fat: {(item.nutritionInfo as NutritionInfo).fat || 0}g</span>
+                <div className="flex justify-between items-start gap-4">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-medium text-lg truncate">{item.name}</h3>
+                    <div className="flex flex-col gap-1 mt-2">
+                      <p className="text-sm text-muted-foreground">Quantity: {item.quantity}</p>
+                      {item.category && (
+                        <p className="text-sm text-muted-foreground">
+                          Category: {item.category}
+                        </p>
+                      )}
+                      {item.expiryDate && (
+                        <p className="text-sm text-muted-foreground">
+                          Expires: {format(new Date(item.expiryDate), "MMM d, yyyy")}
+                        </p>
+                      )}
                     </div>
                   </div>
-                  <div className="text-sm">
-                    <span className="font-medium">Sustainability:</span>
-                    <div className="grid grid-cols-2 gap-2 mt-1">
-                      <span>Score: {(item.sustainabilityInfo as SustainabilityInfo).score || 0}</span>
-                      <span>Packaging: {(item.sustainabilityInfo as SustainabilityInfo).packaging || 'N/A'}</span>
+                  <div className="flex flex-col items-end gap-2">
+                    <div className="flex items-center gap-1">
+                      <EditPantryItemDialog item={item} />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteMutation.mutate(item.id)}
+                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-4 pt-4 border-t">
+                  <NutritionDisplay nutrition={item.nutritionInfo as NutritionInfo} />
+
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Leaf className="h-4 w-4 text-green-500" />
+                      <h4 className="text-sm font-medium">Sustainability Details</h4>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span>Eco Score</span>
+                        <Badge variant="outline" className={`${
+                          (item.sustainabilityInfo as SustainabilityInfo).score >= 70 
+                            ? 'text-green-500 border-green-200' 
+                            : (item.sustainabilityInfo as SustainabilityInfo).score >= 40 
+                            ? 'text-yellow-500 border-yellow-200'
+                            : 'text-red-500 border-red-200'
+                        }`}>
+                          {(item.sustainabilityInfo as SustainabilityInfo).score || 0}/100
+                        </Badge>
+                      </div>
+                      <Progress 
+                        value={(item.sustainabilityInfo as SustainabilityInfo).score || 0} 
+                        className={`h-2 ${
+                          (item.sustainabilityInfo as SustainabilityInfo).score >= 70 
+                            ? '[&>div]:bg-green-500' 
+                            : (item.sustainabilityInfo as SustainabilityInfo).score >= 40 
+                            ? '[&>div]:bg-yellow-500'
+                            : '[&>div]:bg-red-500'
+                        }`}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Packaging Type</span>
+                      <Badge variant="secondary" className={`${
+                        (item.sustainabilityInfo as SustainabilityInfo).packaging?.toLowerCase() === 'recyclable'
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                          : (item.sustainabilityInfo as SustainabilityInfo).packaging?.toLowerCase() === 'biodegradable'
+                          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                          : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                      }`}>
+                        {(item.sustainabilityInfo as SustainabilityInfo).packaging || 'N/A'}
+                      </Badge>
                     </div>
                   </div>
                 </div>
