@@ -28,15 +28,15 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="min-h-screen flex">
-      <div className="flex-1 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold">Welcome to NutriCart</CardTitle>
+    <div className="min-h-screen flex flex-col lg:flex-row">
+      <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
+        <Card className="w-full max-w-md mx-auto">
+          <CardHeader className="text-center sm:text-left">
+            <CardTitle className="text-xl sm:text-2xl font-bold">Welcome to NutriCart AI</CardTitle>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="login">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
                 <TabsTrigger value="login">Login</TabsTrigger>
                 <TabsTrigger value="register">Register</TabsTrigger>
               </TabsList>
@@ -70,7 +70,7 @@ export default function AuthPage() {
                         </FormItem>
                       )}
                     />
-                    <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
+                    <Button type="submit" className="w-full mt-6" disabled={loginMutation.isPending}>
                       {loginMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Login
                     </Button>
@@ -107,7 +107,7 @@ export default function AuthPage() {
                         </FormItem>
                       )}
                     />
-                    <Button type="submit" className="w-full" disabled={registerMutation.isPending}>
+                    <Button type="submit" className="w-full mt-6" disabled={registerMutation.isPending}>
                       {registerMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Register
                     </Button>
@@ -118,10 +118,10 @@ export default function AuthPage() {
           </CardContent>
         </Card>
       </div>
-      <div className="hidden lg:flex flex-1 bg-primary items-center justify-center p-8">
-        <div className="max-w-2xl text-primary-foreground">
-          <h1 className="text-4xl font-bold mb-4">Your Smart Nutrition Assistant</h1>
-          <p className="text-lg opacity-90">
+      <div className="hidden lg:flex flex-1 bg-primary">
+        <div className="max-w-2xl mx-auto px-8 py-12 flex flex-col justify-center text-primary-foreground">
+          <h1 className="text-3xl sm:text-4xl font-bold mb-4">Your Smart Nutrition Assistant</h1>
+          <p className="text-base sm:text-lg opacity-90">
             Join NutriCart to discover personalized recipes, track your nutrition, and make healthy grocery shopping easier than ever.
           </p>
         </div>
