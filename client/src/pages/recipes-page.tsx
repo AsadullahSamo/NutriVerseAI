@@ -7,11 +7,12 @@ import { Plus, Search, Loader2, Utensils } from "lucide-react";
 import { useState } from "react";
 import { CreateRecipeDialog } from "@/components/create-recipe-dialog";
 import { useAuth } from "@/hooks/use-auth";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RecipeRecommendations } from "@/components/recipe-recommendations";
 
 export default function RecipesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const { user } = useAuth();
-
   const { data: recipes, isLoading } = useQuery<Recipe[]>({
     queryKey: ["/api/recipes"],
   });
@@ -41,38 +42,50 @@ export default function RecipesPage() {
             </div>
             <CreateRecipeDialog />
           </div>
-
-          <div className="mt-6 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Search recipes..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
         </header>
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredRecipes?.map((recipe) => (
-            <RecipeCard 
-              key={recipe.id} 
-              recipe={recipe}
-              showDelete={recipe.createdBy === user?.id}  // Show delete only for recipes created by the current user
-              hideEditDelete={false}  // Never hide edit/delete in recipes tab
-            />
-          ))}
-        </div>
+        <Tabs defaultValue="my-recipes" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="my-recipes">My Recipes</TabsTrigger>
+            <TabsTrigger value="ai-recommendations">AI Recommendations</TabsTrigger>
+          </TabsList>
 
-        {filteredRecipes?.length === 0 && (
-          <div className="text-center py-12">
-            <Utensils className="h-12 w-12 mx-auto text-muted-foreground" />
-            <h3 className="mt-4 text-lg font-semibold">No recipes found</h3>
-            <p className="text-muted-foreground">
-              Try adjusting your search or create a new recipe
-            </p>
-          </div>
-        )}
+          <TabsContent value="my-recipes">
+            <div className="relative mb-6">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search recipes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredRecipes?.map((recipe) => (
+                <RecipeCard 
+                  key={recipe.id} 
+                  recipe={recipe}
+                  showDelete={recipe.createdBy === user?.id}
+                  hideEditDelete={false}
+                />
+              ))}
+            </div>
+            {filteredRecipes?.length === 0 && (
+              <div className="text-center py-12">
+                <Utensils className="h-12 w-12 mx-auto text-muted-foreground" />
+                <h3 className="mt-4 text-lg font-semibold">No recipes found</h3>
+                <p className="text-muted-foreground">
+                  Try adjusting your search or create a new recipe
+                </p>
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="ai-recommendations">
+            <RecipeRecommendations />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
