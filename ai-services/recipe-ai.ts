@@ -137,3 +137,81 @@ export async function getMealPlanSuggestions(
 
   return response.choices[0]?.message?.content || '';
 }
+
+export async function analyzeMoodSentiment(entry: string) {
+  const response = await groq.chat.completions.create({
+    messages: [
+      {
+        role: "system",
+        content: "You are a mood analysis expert. Analyze the sentiment of cooking experiences and return a JSON response with sentiment analysis and emotions detected. Be specific about cooking-related emotions."
+      },
+      {
+        role: "user",
+        content: `Analyze the mood and sentiment in this cooking experience entry: "${entry}". Return a JSON object with 'sentiment' and 'emotions' fields.`
+      }
+    ],
+    model: "mixtral-8x7b-32768",
+    temperature: 0.3,
+    max_tokens: 1000,
+  });
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error('No response from mood analysis');
+  }
+
+  try {
+    const result = JSON.parse(content);
+    return {
+      sentiment: result.sentiment,
+      emotions: result.emotions || extractEmotions(result.sentiment)
+    };
+  } catch (error) {
+    console.error('Failed to parse mood analysis:', error);
+    return {
+      sentiment: content,
+      emotions: extractEmotions(content)
+    };
+  }
+}
+
+export async function generateMoodInsights(entries: Array<{ entry: string; timestamp: string }>) {
+  const entriesText = entries.map(e => `${e.timestamp}: ${e.entry}`).join('\n');
+  
+  const response = await groq.chat.completions.create({
+    messages: [
+      {
+        role: "system",
+        content: "You are a mood analysis expert. Analyze patterns in cooking experiences and provide structured insights. Focus on cooking-related patterns, skill development, and emotional growth in the kitchen."
+      },
+      {
+        role: "user",
+        content: `Analyze these cooking experience entries and provide insights about mood patterns:\n${entriesText}`
+      }
+    ],
+    model: "mixtral-8x7b-32768",
+    temperature: 0.5,
+    max_tokens: 1500,
+  });
+
+  const insights = response.choices[0]?.message?.content;
+  if (!insights) {
+    throw new Error('No response from insights generation');
+  }
+
+  return { insights };
+}
+
+function extractEmotions(sentiment: string): string[] {
+  const cookingEmotions = [
+    'happy', 'satisfied', 'proud', 'excited', 'relaxed',
+    'stressed', 'frustrated', 'disappointed', 'anxious',
+    'confident', 'creative', 'accomplished', 'inspired',
+    'curious', 'determined', 'adventurous', 'patient',
+    'overwhelmed', 'grateful', 'energized'
+  ];
+  
+  return cookingEmotions.filter(emotion => 
+    sentiment.toLowerCase().includes(emotion)
+  );
+}

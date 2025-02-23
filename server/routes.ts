@@ -6,8 +6,11 @@ import {
   insertRecipeSchema, 
   insertGroceryListSchema, 
   insertPantryItemSchema, 
-  insertCommunityPostSchema 
+  insertCommunityPostSchema,
+  moodEntrySchema, 
+  type MoodEntry 
 } from "@shared/schema";
+import { analyzeMoodSentiment, generateMoodInsights } from "../ai-services/recipe-ai";
 
 // Middleware to check if user is authenticated
 const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
@@ -330,23 +333,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
   );
 
-  // ----------------- Mood Journal Route -----------------
+  // ----------------- Mood Journal Routes -----------------
   app.post(
     "/api/mood-journal",
     isAuthenticated,
     asyncHandler(async (req, res) => {
       const { recipeId, entry } = req.body;
-      if (!req.user) {
+      if (!req.user?.id) {
         return res.status(401).json({ message: "Unauthorized" });
       }
+      
       const user = await storage.getUser(req.user.id);
       if (!user) return res.sendStatus(404);
 
-      const moodJournal = user.moodJournal || [];
+      // Analyze sentiment using AI
+      const { sentiment, emotions } = await analyzeMoodSentiment(entry);
+
+      const moodJournal = (user.moodJournal || []) as MoodEntry[];
       moodJournal.push({
         recipeId,
         entry,
         timestamp: new Date().toISOString(),
+        sentiment,
+        emotions
       });
 
       const updatedUser = await storage.updateUser(user.id, {
@@ -355,6 +364,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json(updatedUser);
+    })
+  );
+
+  app.get(
+    "/api/mood-journal/:recipeId",
+    isAuthenticated,
+    asyncHandler(async (req, res) => {
+      if (!req.user?.id) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(req.user.id);
+      if (!user) return res.sendStatus(404);
+
+      const recipeEntries = ((user.moodJournal || []) as MoodEntry[]).filter(
+        entry => entry.recipeId === parseInt(req.params.recipeId)
+      );
+
+      res.json(recipeEntries);
+    })
+  );
+
+  app.get(
+    "/api/mood-journal/:recipeId/insights",
+    isAuthenticated,
+    asyncHandler(async (req, res) => {
+      if (!req.user?.id) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(req.user.id);
+      if (!user) return res.sendStatus(404);
+
+      const recipeEntries = ((user.moodJournal || []) as MoodEntry[]).filter(
+        entry => entry.recipeId === parseInt(req.params.recipeId)
+      );
+
+      if (recipeEntries.length === 0) {
+        return res.json({ insights: "Not enough entries to generate insights yet." });
+      }
+
+      const { insights } = await generateMoodInsights(recipeEntries);
+      res.json({ insights });
     })
   );
 
