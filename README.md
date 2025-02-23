@@ -35,11 +35,15 @@ A smart nutrition and grocery management platform that helps users make healthy 
   - Location-based community interaction
   - Interactive community posts
 
-- 📊 **Mood Tracking**
-  - Track how cooking experiences affect your mood
-  - Personal cooking journal
-  - Recipe-specific mood entries
-  - Mood analytics and insights
+- 🎯 **Mood & Cooking Experience Tracking**
+  - 📝 Track how cooking experiences affect your mood
+  - 📔 Personal cooking journal for each recipe
+  - 🤖 AI-powered mood analysis
+  - 🧠 Emotional pattern insights
+  - 📈 Track cooking progress and confidence
+  - 💫 Recipe-specific mood trends
+  - 🔍 View cooking journey insights
+  - ⭐ Identify recipes that bring most joy
 
 ## Tech Stack
 
