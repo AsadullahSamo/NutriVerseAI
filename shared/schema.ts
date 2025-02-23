@@ -77,6 +77,22 @@ export const insertGroceryListSchema = createInsertSchema(groceryLists);
 export const insertPantryItemSchema = createInsertSchema(pantryItems);
 export const insertCommunityPostSchema = createInsertSchema(communityPosts);
 
+export const moodEntrySchema = z.object({
+  recipeId: z.number(),
+  entry: z.string(),
+  timestamp: z.string(),
+  sentiment: z.string().optional(),
+  emotions: z.array(z.string()).optional(),
+});
+
+export type MoodEntry = z.infer<typeof moodEntrySchema>;
+
+// Update user schema to include mood journal
+export const userSchema = z.object({
+  // ...existing user fields...
+  moodJournal: z.array(moodEntrySchema).optional(),
+});
+
 // Type exports
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;

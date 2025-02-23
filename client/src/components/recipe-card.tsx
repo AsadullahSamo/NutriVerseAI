@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Clock, Users, GitFork, ListOrdered } from "lucide-react";
 import { NutritionDisplay } from "@/components/nutrition-display";
 import { RecipeActions } from "./recipe-actions";
+import { MoodTracker } from "./mood-tracker";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -143,9 +144,14 @@ export function RecipeCard({ recipe, compact = false, showDelete = false, hideEd
             </div>
           </div>
           {!compact && (
-            <div className="p-4 border-t">
-              <NutritionDisplay nutrition={recipe.nutritionInfo as any} />
-            </div>
+            <>
+              <div className="p-4 border-t">
+                <NutritionDisplay nutrition={recipe.nutritionInfo as any} />
+              </div>
+              <div className="p-4 border-t">
+                <MoodTracker recipeId={recipe.id} />
+              </div>
+            </>
           )}
         </div>
       </div>
