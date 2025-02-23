@@ -5,14 +5,15 @@ import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { SmilePlus, ChartLine, Sparkles } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { SmilePlus, ChartLine, Sparkles, Loader2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { MoodEntry } from "@shared/schema";
 
 interface MoodTrackerProps {
@@ -112,22 +113,30 @@ export function MoodTracker({ recipeId }: MoodTrackerProps) {
       ))}
 
       <Dialog open={showInsights} onOpenChange={setShowInsights}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center">
-              <Sparkles className="h-5 w-5 mr-2" />
+        <DialogContent className="max-w-2xl max-h-[80vh]">
+          <DialogHeader className="pb-4">
+            <DialogTitle className="flex items-center text-xl">
+              <Sparkles className="h-5 w-5 mr-2 text-primary" />
               Mood Insights
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            {insightsQuery.isLoading ? (
-              <p>Analyzing your mood patterns...</p>
-            ) : (
-              <div className="prose prose-sm">
-                {insightsQuery.data?.insights}
-              </div>
-            )}
-          </div>
+          
+          <Card>
+            <CardContent className="p-6">
+              {insightsQuery.isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <span className="ml-2 text-sm">Analyzing your mood patterns...</span>
+                </div>
+              ) : (
+                <ScrollArea className="h-[400px] pr-4">
+                  <div className="text-foreground leading-relaxed space-y-4 whitespace-pre-wrap">
+                    {insightsQuery.data?.insights}
+                  </div>
+                </ScrollArea>
+              )}
+            </CardContent>
+          </Card>
         </DialogContent>
       </Dialog>
     </div>
