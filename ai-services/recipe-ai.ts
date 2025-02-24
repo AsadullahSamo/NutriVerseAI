@@ -22,6 +22,37 @@ export interface NutritionalAnalysis {
   recommendations: string[];
 }
 
+export interface MealPlan {
+  day: number;
+  meals: {
+    breakfast: {
+      title: string;
+      description: string;
+      nutritionalInfo: string;
+      preparationTime: string;
+    };
+    lunch: {
+      title: string;
+      description: string;
+      nutritionalInfo: string;
+      preparationTime: string;
+    };
+    dinner: {
+      title: string;
+      description: string;
+      nutritionalInfo: string;
+      preparationTime: string;
+    };
+    snacks: Array<{
+      title: string;
+      description: string;
+      nutritionalInfo: string;
+    }>;
+  };
+  totalCalories: number;
+  nutritionSummary: string;
+}
+
 export async function getRecipeRecommendations(
   ingredients: string[],
   dietaryPreferences?: string[]
@@ -136,6 +167,61 @@ export async function getMealPlanSuggestions(
   });
 
   return response.choices[0]?.message?.content || '';
+}
+
+export async function generateAIMealPlan(
+  preferences: string[],
+  days: number = 7,
+  dietaryRestrictions?: string[],
+  calorieTarget?: number
+): Promise<MealPlan[]> {
+  const prompt = `Create a detailed ${days}-day meal plan with the following requirements:
+    - Consider these preferences: ${preferences.join(', ')}
+    ${dietaryRestrictions ? `- Must follow these dietary restrictions: ${dietaryRestrictions.join(', ')}` : ''}
+    ${calorieTarget ? `- Target daily calories: ${calorieTarget}` : ''}
+    - Each day should include breakfast, lunch, dinner, and snacks
+    - Include preparation time estimates
+    - Include nutritional information
+    - Ensure variety and balanced nutrition
+    
+    Respond with a JSON array of ${days} day objects. Each day should follow this exact structure:
+    {
+      "day": number,
+      "meals": {
+        "breakfast": { "title": string, "description": string, "nutritionalInfo": string, "preparationTime": string },
+        "lunch": { "title": string, "description": string, "nutritionalInfo": string, "preparationTime": string },
+        "dinner": { "title": string, "description": string, "nutritionalInfo": string, "preparationTime": string },
+        "snacks": [{ "title": string, "description": string, "nutritionalInfo": string }]
+      },
+      "totalCalories": number,
+      "nutritionSummary": string
+    }`;
+
+  const response = await groq.chat.completions.create({
+    messages: [
+      {
+        role: "system",
+        content: "You are a professional nutritionist and meal planning expert. Always respond with valid JSON that matches the requested structure exactly."
+      },
+      { role: "user", content: prompt }
+    ],
+    model: "mixtral-8x7b-32768",
+    temperature: 0.7,
+    max_tokens: 4000,
+  });
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error('No response from meal plan generation');
+  }
+
+  try {
+    const mealPlan = JSON.parse(content) as MealPlan[];
+    return mealPlan;
+  } catch (error) {
+    console.error('Failed to parse meal plan:', error);
+    throw new Error('Invalid meal plan format received');
+  }
 }
 
 export async function analyzeMoodSentiment(entry: string) {

@@ -1,13 +1,31 @@
 {
-  "version": "7",
-  "dialect": "postgresql",
+  "version": "5",
+  "dialect": "pg",
   "entries": [
     {
       "idx": 0,
-      "version": "7",
-      "when": 1739817094526,
+      "version": "5",
+      "when": 1699887741000,
       "tag": "0000_nervous_ghost_rider",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1699887742000,
+      "tag": "0001_session"
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1699887743000,
+      "tag": "0002_session_neon"
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1699887744000,
+      "tag": "0003_meal_plans"
     }
   ]
 }

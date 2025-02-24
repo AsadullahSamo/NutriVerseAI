@@ -10,7 +10,11 @@ import {
   moodEntrySchema, 
   type MoodEntry 
 } from "@shared/schema";
-import { analyzeMoodSentiment, generateMoodInsights } from "../ai-services/recipe-ai";
+import { 
+  analyzeMoodSentiment, 
+  generateMoodInsights, 
+  generateAIMealPlan 
+} from "../ai-services/recipe-ai";
 
 // Middleware to check if user is authenticated
 const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
@@ -21,7 +25,7 @@ const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
 };
 
 // Middleware to check if user is authenticated and owns the resource
-const isResourceOwner = (resourceType: 'recipe' | 'post') => async (req: Request, res: Response, next: NextFunction) => {
+const isResourceOwner = (resourceType: 'recipe' | 'post' | 'meal-plan') => async (req: Request, res: Response, next: NextFunction) => {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ message: "Unauthorized" });
   }
@@ -29,17 +33,22 @@ const isResourceOwner = (resourceType: 'recipe' | 'post') => async (req: Request
     let resource;
     if (resourceType === 'recipe') {
       resource = await storage.getRecipe(parseInt(req.params.id));
-    } else {
-      const post = await storage.getCommunityPost(parseInt(req.params.id));
-      resource = post;
+    } else if (resourceType === 'post') {
+      resource = await storage.getCommunityPost(parseInt(req.params.id));
+    } else if (resourceType === 'meal-plan') {
+      const plan = await storage.getMealPlansByUser(req.user.id);
+      resource = plan.find(p => p.id === parseInt(req.params.id));
     }
+
     if (!resource) {
       return res.status(404).json({ message: "Resource not found" });
     }
+
     const userId = req.user.id;
     if (
       (resourceType === 'recipe' && 'createdBy' in resource && resource.createdBy !== userId) ||
-      (resourceType === 'post' && 'userId' in resource && resource.userId !== userId)
+      (resourceType === 'post' && 'userId' in resource && resource.userId !== userId) ||
+      (resourceType === 'meal-plan' && resource.userId !== userId)
     ) {
       return res.status(403).json({ message: "Forbidden" });
     }
@@ -330,6 +339,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.user!.id,
       });
       res.status(201).json(item);
+    })
+  );
+
+  // ----------------- Meal Plan Routes -----------------
+  app.get(
+    "/api/meal-plans",
+    isAuthenticated,
+    asyncHandler(async (req, res) => {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const plans = await storage.getMealPlansByUser(req.user.id);
+      res.json(plans);
+    })
+  );
+
+  app.post(
+    "/api/meal-plans",
+    isAuthenticated,
+    asyncHandler(async (req, res) => {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const mealPlan = await generateAIMealPlan(
+        req.body.preferences,
+        req.body.days,
+        req.body.dietaryRestrictions,
+        req.body.calorieTarget
+      );
+
+      const plan = await storage.createMealPlan({
+        userId: req.user.id,
+        title: req.body.title,
+        startDate: new Date(req.body.startDate),
+        endDate: new Date(req.body.endDate),
+        preferences: req.body.preferences,
+        meals: mealPlan,
+        isActive: true,
+      });
+
+      res.json(plan);
+    })
+  );
+
+  app.put(
+    "/api/meal-plans/:id",
+    isAuthenticated,
+    isResourceOwner('meal-plan'),
+    asyncHandler(async (req, res) => {
+      const plan = await storage.updateMealPlan(parseInt(req.params.id), req.body);
+      res.json(plan);
+    })
+  );
+
+  app.delete(
+    "/api/meal-plans/:id",
+    isAuthenticated,
+    isResourceOwner('meal-plan'),
+    asyncHandler(async (req, res) => {
+      await storage.deleteMealPlan(parseInt(req.params.id));
+      res.json({ message: "Meal plan deleted successfully" });
     })
   );
 

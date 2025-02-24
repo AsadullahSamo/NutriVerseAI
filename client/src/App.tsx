@@ -9,6 +9,7 @@ import AuthPage from "@/pages/auth-page";
 import RecipesPage from "@/pages/recipes-page";
 import PantryPage from "@/pages/pantry-page";
 import CommunityPage from "@/pages/community-page";
+import MealPlanPage from "@/pages/meal-plan-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { Navbar } from "@/components/navbar";
 
@@ -21,6 +22,7 @@ function Router() {
         <ProtectedRoute path="/recipes" component={RecipesPage} />
         <ProtectedRoute path="/pantry" component={PantryPage} />
         <ProtectedRoute path="/community" component={CommunityPage} />
+        <ProtectedRoute path="/meal-plans" component={MealPlanPage} />
         <Route path="/auth" component={AuthPage} />
         <Route component={NotFound} />
       </Switch>
@@ -32,8 +34,6 @@ function App() {
 
   console.log('All env variables:', import.meta.env);
   console.log('API Base URL:', import.meta.env.VITE_API_BASE_URL);
-
-
 
   return (
     <QueryClientProvider client={queryClient}>

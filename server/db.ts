@@ -40,10 +40,23 @@ async function initializeSessionTable() {
         CONSTRAINT "session_pkey" PRIMARY KEY ("sid")
       );
       CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+
+      CREATE TABLE IF NOT EXISTS "meal_plans" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "user_id" integer NOT NULL,
+        "title" text NOT NULL,
+        "start_date" timestamp NOT NULL,
+        "end_date" timestamp NOT NULL,
+        "preferences" jsonb NOT NULL,
+        "meals" jsonb NOT NULL,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "is_active" boolean DEFAULT true NOT NULL,
+        FOREIGN KEY ("user_id") REFERENCES "users"("id")
+      );
     `);
-    console.log('Session table initialized successfully');
+    console.log('Session and meal_plans tables initialized successfully');
   } catch (err) {
-    console.error('Failed to initialize session table:', err);
+    console.error('Failed to initialize tables:', err);
     throw err;
   }
 }
