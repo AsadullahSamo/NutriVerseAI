@@ -1,6 +1,6 @@
 import { IStorage } from "./types";
 import { User, Recipe, GroceryList, PantryItem, CommunityPost } from "@shared/schema";
-import { users, recipes, groceryLists, pantryItems, communityPosts, recipe_likes } from "@shared/schema";
+import { users, recipes, groceryLists, pantryItems, communityPosts, recipe_likes, mealPlans } from "@shared/schema";
 import { db, sql, pool } from "./db";
 import { eq, and } from "drizzle-orm";
 import connectPg from "connect-pg-simple";
@@ -258,6 +258,28 @@ export class DatabaseStorage implements IStorage {
       // Finally delete the recipe
       await tx.delete(recipes).where(eq(recipes.id, id));
     });
+  }
+
+  async getMealPlansByUser(userId: number) {
+    return db.select().from(mealPlans).where(eq(mealPlans.userId, userId));
+  }
+
+  async createMealPlan(plan: Omit<typeof mealPlans.$inferInsert, "id">) {
+    const [newPlan] = await db.insert(mealPlans).values(plan).returning();
+    return newPlan;
+  }
+
+  async updateMealPlan(id: number, data: Partial<typeof mealPlans.$inferSelect>) {
+    const [plan] = await db
+      .update(mealPlans)
+      .set(data)
+      .where(eq(mealPlans.id, id))
+      .returning();
+    return plan;
+  }
+
+  async deleteMealPlan(id: number): Promise<void> {
+    await db.delete(mealPlans).where(eq(mealPlans.id, id));
   }
 }
 

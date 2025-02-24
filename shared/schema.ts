@@ -65,6 +65,18 @@ export const recipe_likes = pgTable("recipe_likes", {
   pk: primaryKey(table.recipeId, table.userId),
 }));
 
+export const mealPlans = pgTable("meal_plans", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  title: text("title").notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  preferences: jsonb("preferences").notNull(),
+  meals: jsonb("meals").notNull(), // Array of meals with recipes and schedules
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+});
+
 // Schema exports
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
