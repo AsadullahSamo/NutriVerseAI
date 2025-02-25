@@ -15,6 +15,14 @@ import {
   generateMoodInsights, 
   generateAIMealPlan 
 } from "../ai-services/recipe-ai";
+import type { User } from "@shared/schema";
+
+// Add type declaration extension
+declare global {
+  namespace Express {
+    interface User extends Omit<User, "password"> {}
+  }
+}
 
 // Middleware to check if user is authenticated
 const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
@@ -31,27 +39,30 @@ const isResourceOwner = (resourceType: 'recipe' | 'post' | 'meal-plan') => async
   }
   try {
     let resource;
+    const userId = req.user!.id;
+
     if (resourceType === 'recipe') {
       resource = await storage.getRecipe(parseInt(req.params.id));
+      if (resource && resource.createdBy !== userId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
     } else if (resourceType === 'post') {
       resource = await storage.getCommunityPost(parseInt(req.params.id));
+      if (resource && resource.userId !== userId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
     } else if (resourceType === 'meal-plan') {
-      const plan = await storage.getMealPlansByUser(req.user.id);
-      resource = plan.find(p => p.id === parseInt(req.params.id));
+      const plans = await storage.getMealPlansByUser(userId);
+      resource = plans.find(p => p.id === parseInt(req.params.id));
+      if (!resource) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
     }
 
     if (!resource) {
       return res.status(404).json({ message: "Resource not found" });
     }
 
-    const userId = req.user.id;
-    if (
-      (resourceType === 'recipe' && 'createdBy' in resource && resource.createdBy !== userId) ||
-      (resourceType === 'post' && 'userId' in resource && resource.userId !== userId) ||
-      (resourceType === 'meal-plan' && resource.userId !== userId)
-    ) {
-      return res.status(403).json({ message: "Forbidden" });
-    }
     next();
   } catch (error) {
     res.status(500).json({ message: "Server error" });
@@ -232,6 +243,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     "/api/pantry",
     isAuthenticated,
     asyncHandler(async (req, res) => {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
       const data = {
         ...req.body,
         expiryDate: req.body.expiryDate ? new Date(req.body.expiryDate) : null,
@@ -329,14 +343,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post(
     "/api/pantryItems",
+    isAuthenticated,
     asyncHandler(async (req, res) => {
-      if (!req.isAuthenticated()) {
+      const user = req.user;
+      if (!user) {
         return res.status(401).json({ message: "Unauthorized" });
       }
       const validated = insertPantryItemSchema.parse(req.body);
       const item = await storage.createPantryItem({
         ...validated,
-        userId: req.user!.id,
+        userId: user.id,
       });
       res.status(201).json(item);
     })
@@ -359,7 +375,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     "/api/meal-plans",
     isAuthenticated,
     asyncHandler(async (req, res) => {
-      if (!req.user) {
+      const user = req.user;
+      if (!user) {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
@@ -371,7 +388,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       const plan = await storage.createMealPlan({
-        userId: req.user.id,
+        userId: user.id,
         title: req.body.title,
         startDate: new Date(req.body.startDate),
         endDate: new Date(req.body.endDate),
@@ -478,6 +495,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { insights } = await generateMoodInsights(recipeEntries);
       res.json({ insights });
+    })
+  );
+
+  app.delete(
+    "/api/mood-journal/:recipeId/:timestamp",
+    isAuthenticated,
+    asyncHandler(async (req, res) => {
+      if (!req.user?.id) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const user = await storage.getUser(req.user.id);
+      if (!user) return res.sendStatus(404);
+
+      const timestamp = decodeURIComponent(req.params.timestamp);
+      const moodJournal = (user.moodJournal || []) as MoodEntry[];
+      const updatedJournal = moodJournal.filter(entry => 
+        entry.recipeId !== parseInt(req.params.recipeId) || entry.timestamp !== timestamp
+      );
+
+      await storage.updateUser(user.id, {
+        ...user,
+        moodJournal: updatedJournal,
+      });
+
+      res.json({ message: "Entry deleted successfully" });
     })
   );
 
