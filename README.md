@@ -4,6 +4,15 @@ A smart nutrition and grocery management platform that helps users make healthy 
 
 ## Features
 
+- 📅 **Smart Meal Planning**
+  - Create personalized meal plans
+  - AI-powered meal suggestions
+  - Track daily calorie targets
+  - Handle dietary restrictions
+  - Nutritional summaries
+  - Interactive calendar view
+  - Flexible planning periods
+
 - 🍳 **Smart Recipe Management**
   - Create and share personalized recipes
   - Track nutrition information

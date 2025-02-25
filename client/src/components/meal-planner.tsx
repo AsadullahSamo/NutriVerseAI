@@ -2,11 +2,13 @@ import { useState } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { Loader2, Plus, CalendarIcon } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Loader2, Plus, CalendarIcon, Trash2 } from "lucide-react";
 import { CreateMealPlanDialog } from "./create-meal-plan-dialog";
 import { format } from "date-fns";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface Meal {
   title: string;
@@ -43,12 +45,34 @@ interface MealCardProps {
 export function MealPlanner() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const { toast } = useToast();
 
   const { data: mealPlans, isLoading } = useQuery<MealPlan[]>({
     queryKey: ["/api/meal-plans"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/meal-plans");
       return res.json();
+    },
+  });
+
+  const deleteMealPlanMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("DELETE", `/api/meal-plans/${id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/meal-plans"] });
+      toast({
+        title: "Success",
+        description: "Meal plan deleted successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete meal plan. Please try again.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -74,13 +98,15 @@ export function MealPlanner() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="p-4">
-          <div className="w-full flex justify-center">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={(date) => date && setSelectedDate(date)}
-              className="w-full"
-            />
+          <div className="flex flex-col items-center">
+            <div className="w-full max-w-sm mx-auto">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={(date) => date && setSelectedDate(date)}
+                className="mx-auto rounded-md border shadow-sm bg-card"
+              />
+            </div>
           </div>
         </Card>
 
@@ -91,9 +117,37 @@ export function MealPlanner() {
             </div>
           ) : selectedDayMeals ? (
             <div className="space-y-6">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <CalendarIcon className="w-4 h-4" />
-                <span>{format(selectedDate, "MMMM d, yyyy")}</span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <CalendarIcon className="w-4 h-4" />
+                  <span>{format(selectedDate, "MMMM d, yyyy")}</span>
+                </div>
+                {activeMealPlan && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Meal Plan</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete this meal plan? This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => deleteMealPlanMutation.mutate(activeMealPlan.id)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
               </div>
               
               <MealCard

@@ -92,14 +92,16 @@ export function CreateMealPlanDialog({ open, onOpenChange }: CreateMealPlanDialo
 
           <div className="space-y-2">
             <Label>Start Date</Label>
-            <div className="w-full flex justify-center border rounded-lg p-3">
-              <Calendar
-                mode="single"
-                selected={startDate}
-                onSelect={setStartDate}
-                className="w-full"
-                required
-              />
+            <div className="flex justify-center p-2 border rounded-lg bg-card">
+              <div className="w-full max-w-sm">
+                <Calendar
+                  mode="single"
+                  selected={startDate}
+                  onSelect={setStartDate}
+                  className="mx-auto rounded-md shadow-sm"
+                  required
+                />
+              </div>
             </div>
           </div>
 
