@@ -21,6 +21,18 @@ A smart nutrition and grocery management platform that helps users make healthy 
   - Sustainability scoring for recipes
   - AI-powered recipe recommendations
 
+- 🎯 **Advanced Nutrition Tracking**
+  - Set personalized daily nutrition goals
+  - Track calories, protein, carbs, and fat intake
+  - Real-time progress visualization
+  - Smart meal logging with portion control
+  - Nutrition warnings for goal exceedance
+  - Visual progress bars and percentage indicators
+  - Weekly/Monthly nutrition trends analysis
+  - AI-powered nutrition insights
+  - Meal-type based consumption tracking
+  - Historical nutrition data visualization
+
 - 🛒 **Intelligent Grocery Lists**
   - Create and manage shopping lists
   - Smart substitutions suggestions
