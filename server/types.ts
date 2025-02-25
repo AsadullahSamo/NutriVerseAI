@@ -1,4 +1,4 @@
-import { InsertUser, User, Recipe, GroceryList, PantryItem, CommunityPost } from "@shared/schema";
+import { InsertUser, User, Recipe, GroceryList, PantryItem, CommunityPost, NutritionGoal, RecipeConsumption } from "@shared/schema";
 import { Store } from "express-session";
 
 export interface IStorage {
@@ -38,4 +38,12 @@ export interface IStorage {
   deleteRecipe(id: number): Promise<void>;
   deleteCommunityPost(id: number): Promise<void>;
   updateCommunityPost(id: number, data: Partial<CommunityPost>): Promise<CommunityPost>;
+
+  // Nutrition goals operations
+  getCurrentNutritionGoal(userId: number): Promise<NutritionGoal | null>;
+  createNutritionGoal(goal: Omit<NutritionGoal, "id">): Promise<NutritionGoal>;
+  deactivateNutritionGoals(userId: number): Promise<void>;
+  updateNutritionProgress(goalId: number, progress: NutritionGoal["progress"]): Promise<NutritionGoal>;
+  trackRecipeConsumption(data: Omit<RecipeConsumption, "id">): Promise<RecipeConsumption>;
+  getRecipeConsumptionWithDetails(userId: number, startDate?: Date, endDate?: Date): Promise<Array<RecipeConsumption & { recipe: Recipe }>>;
 }

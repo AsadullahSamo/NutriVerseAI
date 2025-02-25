@@ -8,7 +8,8 @@ import {
   insertPantryItemSchema, 
   insertCommunityPostSchema,
   moodEntrySchema, 
-  type MoodEntry 
+  type MoodEntry,
+  insertNutritionGoalSchema
 } from "@shared/schema";
 import { 
   analyzeMoodSentiment, 
@@ -176,6 +177,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const recipe = await storage.forkRecipe(parseInt(req.params.id), req.user.id);
       res.json(recipe);
+    })
+  );
+
+  app.post(
+    "/api/recipes/:id/consume",
+    isAuthenticated,
+    asyncHandler(async (req, res) => {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const recipeId = parseInt(req.params.id);
+      const { servings = 1, mealType = "snack" } = req.body;
+
+      // Track recipe consumption
+      const consumption = await storage.trackRecipeConsumption({
+        userId: req.user.id,
+        recipeId,
+        servings,
+        mealType,
+        consumedAt: new Date()
+      });
+
+      // Get recipe details for nutrition tracking
+      const recipe = await storage.getRecipe(recipeId);
+      if (!recipe) {
+        return res.status(404).json({ message: "Recipe not found" });
+      }
+
+      // Get current nutrition goal
+      const currentGoal = await storage.getCurrentNutritionGoal(req.user.id);
+      if (currentGoal) {
+        const today = new Date().toISOString().split('T')[0];
+        const existingProgress = currentGoal.progress || [];
+        const todayEntry = existingProgress.find((p: any) => p.date === today);
+        
+        const nutritionInfo = recipe.nutritionInfo as any;
+        const scaledNutrition = {
+          calories: nutritionInfo.calories * servings,
+          protein: nutritionInfo.protein * servings,
+          carbs: nutritionInfo.carbs * servings,
+          fat: nutritionInfo.fat * servings,
+        };
+
+        const newProgress = todayEntry
+          ? existingProgress.map((p: any) => p.date === today ? {
+              ...p,
+              calories: p.calories + scaledNutrition.calories,
+              protein: p.protein + scaledNutrition.protein,
+              carbs: p.carbs + scaledNutrition.carbs,
+              fat: p.fat + scaledNutrition.fat,
+            } : p)
+          : [...existingProgress, {
+              date: today,
+              ...scaledNutrition,
+              completed: false,
+            }];
+
+        await storage.updateNutritionProgress(currentGoal.id, newProgress);
+      }
+
+      res.json(consumption);
+    })
+  );
+
+  app.get(
+    "/api/recipes/consumption-history",
+    isAuthenticated,
+    asyncHandler(async (req, res) => {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+      const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+
+      const history = await storage.getRecipeConsumptionWithDetails(
+        req.user.id,
+        startDate,
+        endDate
+      );
+
+      res.json(history);
     })
   );
 
@@ -521,6 +605,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json({ message: "Entry deleted successfully" });
+    })
+  );
+
+  // ----------------- Nutrition Goals Routes -----------------
+  app.get(
+    "/api/nutrition-goals/current",
+    isAuthenticated,
+    asyncHandler(async (req, res) => {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const goal = await storage.getCurrentNutritionGoal(req.user.id);
+      res.json(goal);
+    })
+  );
+
+  app.post(
+    "/api/nutrition-goals",
+    isAuthenticated,
+    asyncHandler(async (req, res) => {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Date coercion is now handled by the schema
+      const validated = insertNutritionGoalSchema.parse({
+        ...req.body,
+        userId: user.id
+      });
+      
+      // Deactivate any existing active goals
+      await storage.deactivateNutritionGoals(user.id);
+      
+      // Create new goal
+      const goal = await storage.createNutritionGoal(validated);
+      res.status(201).json(goal);
+    })
+  );
+
+  app.post(
+    "/api/nutrition-goals/progress",
+    isAuthenticated,
+    asyncHandler(async (req, res) => {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const { goalId, progress } = req.body;
+      const updatedGoal = await storage.updateNutritionProgress(goalId, progress);
+      res.json(updatedGoal);
+    })
+  );
+
+  app.get(
+    "/api/nutrition-goals/progress/today",
+    isAuthenticated,
+    asyncHandler(async (req, res) => {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const currentGoal = await storage.getCurrentNutritionGoal(req.user.id);
+      if (!currentGoal) {
+        return res.status(404).json({ message: "No active nutrition goal" });
+      }
+
+      const today = new Date().toISOString().split('T')[0];
+      const todayProgress = currentGoal.progress?.find((p: any) => p.date === today) || {
+        date: today,
+        calories: 0,
+        protein: 0,
+        carbs: 0,
+        fat: 0,
+        completed: false,
+      };
+
+      res.json(todayProgress);
+    })
+  );
+
+  app.get(
+    "/api/nutrition-goals/insights",
+    isAuthenticated,
+    asyncHandler(async (req, res) => {
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Get current goal and progress
+      const currentGoal = await storage.getCurrentNutritionGoal(req.user.id);
+      if (!currentGoal) {
+        return res.status(404).json({ message: "No active nutrition goal" });
+      }
+
+      // Get user preferences - fixed to use correct method name
+      const user = await storage.getUser(req.user.id);
+      const preferences = user?.preferences?.dietaryPreferences || [];
+
+      // Get AI recommendations
+      const recommendations = await getNutritionRecommendations(
+        {
+          calories: currentGoal.dailyCalories,
+          protein: currentGoal.dailyProtein,
+          carbs: currentGoal.dailyCarbs,
+          fat: currentGoal.dailyFat,
+        },
+        currentGoal.progress || [],
+        preferences
+      );
+
+      res.json(recommendations);
     })
   );
 
