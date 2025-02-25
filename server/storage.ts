@@ -1,8 +1,8 @@
 import { IStorage } from "./types";
 import { User, Recipe, GroceryList, PantryItem, CommunityPost } from "@shared/schema";
-import { users, recipes, groceryLists, pantryItems, communityPosts, recipe_likes, mealPlans } from "@shared/schema";
+import { users, recipes, groceryLists, pantryItems, communityPosts, recipe_likes, mealPlans, nutritionGoals, type NutritionGoal, recipeConsumption, type RecipeConsumption } from "@shared/schema";
 import { db, sql, pool } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, gte, lte, desc } from "drizzle-orm";
 import connectPg from "connect-pg-simple";
 import session from "express-session";
 
@@ -280,6 +280,108 @@ export class DatabaseStorage implements IStorage {
 
   async deleteMealPlan(id: number): Promise<void> {
     await db.delete(mealPlans).where(eq(mealPlans.id, id));
+  }
+
+  async getCurrentNutritionGoal(userId: number): Promise<NutritionGoal | null> {
+    const [goal] = await db
+      .select()
+      .from(nutritionGoals)
+      .where(
+        and(
+          eq(nutritionGoals.userId, userId),
+          eq(nutritionGoals.isActive, true)
+        )
+      );
+    return goal || null;
+  }
+
+  async createNutritionGoal(goal: Omit<NutritionGoal, "id">): Promise<NutritionGoal> {
+    const [newGoal] = await db
+      .insert(nutritionGoals)
+      .values(goal)
+      .returning();
+    return newGoal;
+  }
+
+  async deactivateNutritionGoals(userId: number): Promise<void> {
+    await db
+      .update(nutritionGoals)
+      .set({ isActive: false })
+      .where(
+        and(
+          eq(nutritionGoals.userId, userId),
+          eq(nutritionGoals.isActive, true)
+        )
+      );
+  }
+
+  async updateNutritionProgress(
+    goalId: number, 
+    progress: NutritionGoal["progress"]
+  ): Promise<NutritionGoal> {
+    const [updated] = await db
+      .update(nutritionGoals)
+      .set({ progress })
+      .where(eq(nutritionGoals.id, goalId))
+      .returning();
+    return updated;
+  }
+
+  async trackRecipeConsumption(data: Omit<RecipeConsumption, "id">): Promise<RecipeConsumption> {
+    const [consumption] = await db
+      .insert(recipeConsumption)
+      .values(data)
+      .returning();
+    return consumption;
+  }
+
+  async getRecipeConsumptionHistory(
+    userId: number,
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<RecipeConsumption[]> {
+    let query = db
+      .select()
+      .from(recipeConsumption)
+      .where(eq(recipeConsumption.userId, userId));
+
+    if (startDate) {
+      query = query.where(gte(recipeConsumption.consumedAt, startDate));
+    }
+    if (endDate) {
+      query = query.where(lte(recipeConsumption.consumedAt, endDate));
+    }
+
+    return query.orderBy(desc(recipeConsumption.consumedAt));
+  }
+
+  async getRecipeConsumptionWithDetails(
+    userId: number,
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<any[]> {
+    let query = db
+      .select({
+        consumption: recipeConsumption,
+        recipe: recipes
+      })
+      .from(recipeConsumption)
+      .leftJoin(recipes, eq(recipeConsumption.recipeId, recipes.id))
+      .where(eq(recipeConsumption.userId, userId));
+
+    if (startDate) {
+      query = query.where(gte(recipeConsumption.consumedAt, startDate));
+    }
+    if (endDate) {
+      query = query.where(lte(recipeConsumption.consumedAt, endDate));
+    }
+
+    const results = await query.orderBy(desc(recipeConsumption.consumedAt));
+
+    return results.map(r => ({
+      ...r.consumption,
+      recipe: r.recipe
+    }));
   }
 }
 

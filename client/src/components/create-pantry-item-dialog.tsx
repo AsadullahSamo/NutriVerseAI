@@ -43,14 +43,26 @@ export function CreatePantryItemDialog({ trigger }: CreatePantryItemDialogProps)
     },
   });
 
-  const createPantryItemMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const formattedData = {
-        ...data,
-        expiryDate: data.expiryDate ? new Date(data.expiryDate).toISOString() : null
-      };
-      const res = await apiRequest("POST", "/api/pantry", formattedData);
-      return res.json();
+  const createMutation = useMutation({
+    mutationFn: async (values: any) => {
+      // First create the pantry item
+      const res = await apiRequest("POST", "/api/pantry", values);
+      const newItem = await res.json();
+
+      // Then update nutrition progress
+      const today = new Date().toISOString().split('T')[0];
+      await apiRequest("POST", "/api/nutrition-goals/progress", {
+        progress: {
+          date: today,
+          calories: values.nutritionInfo.calories,
+          protein: values.nutritionInfo.protein,
+          carbs: values.nutritionInfo.carbs,
+          fat: values.nutritionInfo.fat,
+          completed: false,
+        }
+      });
+
+      return newItem;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/pantry"] });
@@ -60,6 +72,7 @@ export function CreatePantryItemDialog({ trigger }: CreatePantryItemDialogProps)
         title: "Item added!",
         description: "Your pantry item has been added successfully.",
       });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutrition-goals/current"] });
     },
   });
 
@@ -79,7 +92,7 @@ export function CreatePantryItemDialog({ trigger }: CreatePantryItemDialogProps)
         </DialogHeader>
         <div className="px-1 pb-6">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit((data) => createPantryItemMutation.mutate(data))} className="space-y-8">
+            <form onSubmit={form.handleSubmit((data) => createMutation.mutate(data))} className="space-y-8">
               {/* Basic Information */}
               <div className="space-y-4">
                 <h3 className="text-sm font-medium text-muted-foreground">Basic Information</h3>
@@ -294,8 +307,8 @@ export function CreatePantryItemDialog({ trigger }: CreatePantryItemDialogProps)
                 </div>
               </div>
 
-              <Button type="submit" className="w-full" disabled={createPantryItemMutation.isPending}>
-                {createPantryItemMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button type="submit" className="w-full" disabled={createMutation.isPending}>
+                {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Add Item
               </Button>
             </form>

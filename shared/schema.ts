@@ -77,6 +77,51 @@ export const mealPlans = pgTable("meal_plans", {
   isActive: boolean("is_active").default(true).notNull(),
 });
 
+export const nutritionGoals = pgTable("nutrition_goals", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  dailyCalories: integer("daily_calories").notNull(),
+  dailyProtein: integer("daily_protein").notNull(),
+  dailyCarbs: integer("daily_carbs").notNull(),
+  dailyFat: integer("daily_fat").notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  progress: jsonb("progress").default([]).notNull(), // Array of daily progress entries
+});
+
+export const recipeConsumption = pgTable("recipe_consumption", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  recipeId: integer("recipe_id").references(() => recipes.id).notNull(),
+  consumedAt: timestamp("consumed_at").defaultNow().notNull(),
+  servings: integer("servings").default(1).notNull(),
+  mealType: text("meal_type").notNull(), // breakfast, lunch, dinner, snack
+});
+
+// Schema definitions - ordering matters!
+export const nutritionProgressSchema = z.object({
+  date: z.string(),
+  calories: z.number(),
+  protein: z.number(),
+  carbs: z.number(),
+  fat: z.number(),
+  completed: z.boolean(),
+});
+
+export const insertNutritionGoalSchema = z.object({
+  userId: z.number(),
+  dailyCalories: z.number().positive(),
+  dailyProtein: z.number().positive(),
+  dailyCarbs: z.number().positive(),
+  dailyFat: z.number().positive(),
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date().optional(),
+  isActive: z.boolean().default(true),
+  progress: z.array(nutritionProgressSchema).default([])
+});
+
 // Schema exports
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
@@ -105,6 +150,9 @@ export const userSchema = z.object({
   moodJournal: z.array(moodEntrySchema).optional(),
 });
 
+// Add nutrition goal progress type
+export type NutritionProgress = z.infer<typeof nutritionProgressSchema>;
+
 // Type exports
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -113,3 +161,5 @@ export type GroceryList = typeof groceryLists.$inferSelect;
 export type PantryItem = typeof pantryItems.$inferSelect;
 export type CommunityPost = typeof communityPosts.$inferSelect;
 export type RecipeLike = typeof recipe_likes.$inferSelect;
+export type NutritionGoal = typeof nutritionGoals.$inferSelect;
+export type RecipeConsumption = typeof recipeConsumption.$inferSelect;

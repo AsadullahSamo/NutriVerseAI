@@ -4,11 +4,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, Plus, CalendarIcon, Trash2 } from "lucide-react";
+import { Loader2, Plus, CalendarIcon, Trash2, AlertTriangle } from "lucide-react";
 import { CreateMealPlanDialog } from "./create-meal-plan-dialog";
 import { format } from "date-fns";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface Meal {
   title: string;
@@ -55,6 +57,14 @@ export function MealPlanner() {
     },
   });
 
+  const { data: currentGoal } = useQuery({
+    queryKey: ["/api/nutrition-goals/current"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/nutrition-goals/current");
+      return res.json();
+    },
+  });
+
   const deleteMealPlanMutation = useMutation({
     mutationFn: async (id: number) => {
       const res = await apiRequest("DELETE", `/api/meal-plans/${id}`);
@@ -76,6 +86,67 @@ export function MealPlanner() {
     },
   });
 
+  const createMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const res = await apiRequest("POST", "/api/meal-plans", data);
+      const newPlan = await res.json();
+
+      // Update nutrition progress for each meal
+      const nutritionUpdates = newPlan.meals.map(async (day: DayMeals) => {
+        const date = new Date(newPlan.startDate);
+        date.setDate(date.getDate() + (day.day - 1));
+        
+        const dailyNutrition = {
+          calories: 0,
+          protein: 0,
+          carbs: 0,
+          fat: 0,
+        };
+
+        // Sum up nutrition from all meals
+        Object.values(day.meals).forEach((meal: any) => {
+          if (Array.isArray(meal)) {
+            // Handle snacks array
+            meal.forEach(snack => {
+              const nutrition = parseNutritionString(snack.nutritionalInfo);
+              dailyNutrition.calories += nutrition.calories;
+              dailyNutrition.protein += nutrition.protein;
+              dailyNutrition.carbs += nutrition.carbs;
+              dailyNutrition.fat += nutrition.fat;
+            });
+          } else {
+            // Handle single meals (breakfast, lunch, dinner)
+            const nutrition = parseNutritionString(meal.nutritionalInfo);
+            dailyNutrition.calories += nutrition.calories;
+            dailyNutrition.protein += nutrition.protein;
+            dailyNutrition.carbs += nutrition.carbs;
+            dailyNutrition.fat += nutrition.fat;
+          }
+        });
+
+        await apiRequest("POST", "/api/nutrition-goals/progress", {
+          progress: {
+            date: date.toISOString().split('T')[0],
+            ...dailyNutrition,
+            completed: true,
+          }
+        });
+      });
+
+      await Promise.all(nutritionUpdates);
+      return newPlan;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/meal-plans"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/nutrition-goals/current"] });
+      setShowCreateDialog(false);
+      toast({
+        title: "Success",
+        description: "Meal plan created and nutrition goals updated.",
+      });
+    },
+  });
+
   const activeMealPlan = mealPlans?.find((plan: MealPlan) => {
     const start = new Date(plan.startDate);
     const end = new Date(plan.endDate);
@@ -85,6 +156,101 @@ export function MealPlanner() {
   const selectedDayMeals = activeMealPlan?.meals?.find(
     (day: DayMeals) => day.day === Math.floor((selectedDate.getTime() - new Date(activeMealPlan.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1
   );
+
+  // Helper function to parse nutrition string
+  const parseNutritionString = (nutritionStr: string) => {
+    const defaults = { calories: 0, protein: 0, carbs: 0, fat: 0 };
+    try {
+      const matches = {
+        calories: nutritionStr.match(/(\d+)\s*kcal/),
+        protein: nutritionStr.match(/(\d+)g\s*protein/),
+        carbs: nutritionStr.match(/(\d+)g\s*carbs/),
+        fat: nutritionStr.match(/(\d+)g\s*fat/),
+      };
+
+      return {
+        calories: matches.calories ? parseInt(matches.calories[1]) : defaults.calories,
+        protein: matches.protein ? parseInt(matches.protein[1]) : defaults.protein,
+        carbs: matches.carbs ? parseInt(matches.carbs[1]) : defaults.carbs,
+        fat: matches.fat ? parseInt(matches.fat[1]) : defaults.fat,
+      };
+    } catch (e) {
+      return defaults;
+    }
+  };
+
+  // Add nutrition warning if exceeding goals
+  const renderNutritionWarning = (meals: any) => {
+    if (!currentGoal) return null;
+
+    const dailyNutrition = {
+      calories: 0,
+      protein: 0,
+      carbs: 0,
+      fat: 0,
+    };
+
+    // Calculate total nutrition
+    Object.values(meals).forEach((meal: any) => {
+      if (Array.isArray(meal)) {
+        meal.forEach(snack => {
+          const nutrition = parseNutritionString(snack.nutritionalInfo);
+          dailyNutrition.calories += nutrition.calories;
+          dailyNutrition.protein += nutrition.protein;
+          dailyNutrition.carbs += nutrition.carbs;
+          dailyNutrition.fat += nutrition.fat;
+        });
+      } else {
+        const nutrition = parseNutritionString(meal.nutritionalInfo);
+        dailyNutrition.calories += nutrition.calories;
+        dailyNutrition.protein += nutrition.protein;
+        dailyNutrition.carbs += nutrition.carbs;
+        dailyNutrition.fat += nutrition.fat;
+      }
+    });
+
+    const exceeds = {
+      calories: dailyNutrition.calories > currentGoal.dailyCalories,
+      protein: dailyNutrition.protein > currentGoal.dailyProtein,
+      carbs: dailyNutrition.carbs > currentGoal.dailyCarbs,
+      fat: dailyNutrition.fat > currentGoal.dailyFat,
+    };
+
+    if (Object.values(exceeds).some(val => val)) {
+      return (
+        <Alert variant="warning" className="mt-4">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            <span className="font-medium">Exceeds daily goals:</span>
+            <div className="flex gap-2 mt-2">
+              {exceeds.calories && (
+                <Badge variant="outline" className="text-yellow-500">
+                  Calories +{dailyNutrition.calories - currentGoal.dailyCalories}
+                </Badge>
+              )}
+              {exceeds.protein && (
+                <Badge variant="outline" className="text-yellow-500">
+                  Protein +{dailyNutrition.protein - currentGoal.dailyProtein}g
+                </Badge>
+              )}
+              {exceeds.carbs && (
+                <Badge variant="outline" className="text-yellow-500">
+                  Carbs +{dailyNutrition.carbs - currentGoal.dailyCarbs}g
+                </Badge>
+              )}
+              {exceeds.fat && (
+                <Badge variant="outline" className="text-yellow-500">
+                  Fat +{dailyNutrition.fat - currentGoal.dailyFat}g
+                </Badge>
+              )}
+            </div>
+          </AlertDescription>
+        </Alert>
+      );
+    }
+
+    return null;
+  };
 
   return (
     <div className="container mx-auto p-4">
@@ -188,6 +354,8 @@ export function MealPlanner() {
                   {selectedDayMeals.nutritionSummary}
                 </p>
               </div>
+
+              {selectedDayMeals && renderNutritionWarning(selectedDayMeals.meals)}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-64 text-center space-y-4">

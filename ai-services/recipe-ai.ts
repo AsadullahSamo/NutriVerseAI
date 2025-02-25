@@ -53,6 +53,21 @@ export interface MealPlan {
   nutritionSummary: string;
 }
 
+export interface NutritionRecommendation {
+  suggestedGoals: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  };
+  reasoning: string;
+  mealSuggestions: Array<{
+    type: string;
+    suggestions: string[];
+  }>;
+  improvements: string[];
+}
+
 export async function getRecipeRecommendations(
   ingredients: string[],
   dietaryPreferences?: string[]
@@ -286,6 +301,73 @@ export async function generateMoodInsights(entries: Array<{ entry: string; times
   }
 
   return { insights };
+}
+
+export async function getNutritionRecommendations(
+  currentGoals: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  },
+  progress: Array<{
+    date: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  }>,
+  preferences?: string[]
+): Promise<NutritionRecommendation> {
+  const prompt = `As a professional nutritionist, analyze these nutrition goals and progress:
+    Current Goals:
+    - Calories: ${currentGoals.calories}
+    - Protein: ${currentGoals.protein}g
+    - Carbs: ${currentGoals.carbs}g
+    - Fat: ${currentGoals.fat}g
+
+    Recent Progress (last ${progress.length} days):
+    ${progress.map(p => `${p.date}: ${p.calories}cal, ${p.protein}g protein, ${p.carbs}g carbs, ${p.fat}g fat`).join('\n')}
+
+    ${preferences ? `Dietary Preferences: ${preferences.join(', ')}` : ''}
+
+    Provide nutrition recommendations in this JSON format:
+    {
+      "suggestedGoals": {
+        "calories": number,
+        "protein": number,
+        "carbs": number,
+        "fat": number
+      },
+      "reasoning": "Explanation of the suggested changes",
+      "mealSuggestions": [
+        {
+          "type": "breakfast/lunch/dinner/snack",
+          "suggestions": ["meal suggestion 1", "meal suggestion 2"]
+        }
+      ],
+      "improvements": ["specific improvement suggestion 1", "specific improvement suggestion 2"]
+    }`;
+
+  const response = await groq.chat.completions.create({
+    messages: [
+      { 
+        role: "system", 
+        content: "You are a professional nutritionist providing personalized nutrition recommendations. Always respond with valid JSON."
+      },
+      { role: "user", content: prompt }
+    ],
+    model: "mixtral-8x7b-32768",
+    temperature: 0.7,
+    max_tokens: 2000,
+  });
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) {
+    throw new Error('No response from nutrition recommendation API');
+  }
+
+  return JSON.parse(content);
 }
 
 function extractEmotions(sentiment: string): string[] {

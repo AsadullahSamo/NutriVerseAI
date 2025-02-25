@@ -12,6 +12,8 @@ import CommunityPage from "@/pages/community-page";
 import MealPlanPage from "@/pages/meal-plan-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { Navbar } from "@/components/navbar";
+import NutritionPage from "./pages/nutrition-page";
+import { NutritionDisplay } from "./components/nutrition-display";
 
 function Router() {
   return (
@@ -23,6 +25,7 @@ function Router() {
         <ProtectedRoute path="/pantry" component={PantryPage} />
         <ProtectedRoute path="/community" component={CommunityPage} />
         <ProtectedRoute path="/meal-plans" component={MealPlanPage} />
+        <ProtectedRoute path="/nutrition" component={NutritionPage} />
         <Route path="/auth" component={AuthPage} />
         <Route component={NotFound} />
       </Switch>
