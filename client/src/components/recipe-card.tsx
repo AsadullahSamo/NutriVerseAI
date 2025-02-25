@@ -267,16 +267,16 @@ export function RecipeCard({ recipe, compact = false, showDelete = false, hideEd
         </div>
         
         {/* Footer with actions */}
-        <CardContent className="p-4 border-t flex justify-between items-center">
-          {/* Single consume action button */}
+        <CardContent className="p-4 border-t flex justify-end items-center">
+          {/* Right-aligned consume button with text */}
           <Button 
-            variant="ghost" 
-            size="icon"
+            variant="ghost"
             onClick={() => setShowConsumeDialog(true)}
-            className="hover:bg-primary/10"
-            title="Log meal"
+            className="hover:bg-primary/10 text-muted-foreground"
+            title="Log this meal"
           >
-            <Utensils className="h-4 w-4" />
+            <Utensils className="h-4 w-4 mr-2" />
+            Consume
           </Button>
         </CardContent>
         
