@@ -22,7 +22,7 @@ export function RecipeActions({ recipe, size = "default", showDelete = false, hi
   const [localLikeCount, setLocalLikeCount] = useState(recipe.likes);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const { data: likeStatus } = useQuery({
+  const { data: likeStatus, isLoading: likesLoading } = useQuery({
     queryKey: ["/api/recipes", recipe.id, "liked"],
     queryFn: async () => {
       const res = await apiRequest("GET", `/api/recipes/${recipe.id}/liked`);
@@ -45,17 +45,17 @@ export function RecipeActions({ recipe, size = "default", showDelete = false, hi
     mutationFn: async () => {
       setIsDeleting(true);
       try {
-        if (recipe.likes > 0) {
-          setIsDeleting(false);
-          return Promise.reject({
-            message: "Cannot delete recipe that has likes"
-          });
+        // Keeping this simple to match the original functionality
+        const res = await apiRequest("DELETE", `/api/recipes/${recipe.id}`);
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.message || "Failed to delete recipe");
         }
-        await apiRequest("DELETE", `/api/recipes/${recipe.id}`);
+        return { success: true };
       } catch (error) {
         toast({
           title: "Error",
-          description: "Failed to delete recipe. Please try again.",
+          description: error instanceof Error ? error.message : "Failed to delete recipe. Please try again.",
           variant: "destructive"
         });
         throw error;
@@ -69,11 +69,18 @@ export function RecipeActions({ recipe, size = "default", showDelete = false, hi
       queryClient.invalidateQueries({ queryKey: ["recommendedRecipes"] });
       toast({
         title: "Recipe deleted",
-        description: "Recipe has been deleted. Any shared posts will show this recipe as deleted.",
+        description: "Recipe has been deleted successfully.",
       });
     },
     onError: (error: any) => {
-      if (error.message === "Cannot delete recipe that has likes") {
+      // Handle specific server errors
+      if (error.message?.includes("foreign key constraint")) {
+        toast({
+          title: "Cannot delete recipe",
+          description: "This recipe is being used in your meal history. Try removing related meal consumption records first.",
+          variant: "destructive"
+        });
+      } else if (error.message === "Cannot delete recipe that has likes") {
         toast({
           title: "Cannot delete recipe",
           description: "This recipe has been liked by others in the community. As it's valuable to them, it cannot be deleted.",
@@ -85,32 +92,68 @@ export function RecipeActions({ recipe, size = "default", showDelete = false, hi
 
   const likeMutation = useMutation({
     mutationFn: async () => {
+      if (!user) throw new Error("Must be logged in to like recipes");
+      
+      // Simple POST request that doesn't try to parse response JSON 
       try {
         const res = await apiRequest("POST", `/api/recipes/${recipe.id}/like`);
-        return res.json();
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          throw new Error(errorData.message || "Failed to update like status");
+        }
+        return { success: true };
       } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to like recipe. Please try again.",
-          variant: "destructive"
-        });
+        console.error("Like error:", error);
         throw error;
       }
     },
-    onSuccess: (data) => {
+    onMutate: async () => {
+      // Optimistically update UI
+      const previousHasLiked = hasLiked;
+      const previousLikeCount = localLikeCount;
+      
+      // Update local state optimistically
       setHasLiked(!hasLiked);
-      setLocalLikeCount(data.likes);
-      // Invalidate all related queries to sync likes
+      setLocalLikeCount(prev => hasLiked ? prev - 1 : prev + 1);
+      
+      // Return context object with previous values
+      return { previousHasLiked, previousLikeCount };
+    },
+    onError: (error, __, context) => {
+      // Rollback on error
+      if (context) {
+        setHasLiked(context.previousHasLiked);
+        setLocalLikeCount(context.previousLikeCount);
+      }
+      
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update like status. Please try again.",
+        variant: "destructive"
+      });
+    },
+    onSuccess: () => {
+      // Invalidate all related queries to ensure complete synchronization
       queryClient.invalidateQueries({ queryKey: ["/api/recipes"] });
       queryClient.invalidateQueries({ queryKey: ["/api/community"] });
       queryClient.invalidateQueries({ queryKey: ["recommendedRecipes"] });
+      
+      // Invalidate specific recipe liked status
       queryClient.invalidateQueries({ 
         queryKey: ["/api/recipes", recipe.id, "liked"],
         exact: true
       });
+      
+      // Also update any specific recipe details to ensure full sync
+      if (recipe.postId) {
+        queryClient.invalidateQueries({
+          queryKey: ["/api/community", recipe.postId],
+        });
+      }
+      
       toast({
         title: hasLiked ? "Recipe unliked" : "Recipe liked!",
-        description: hasLiked ? "Recipe removed from your likes" : "Thanks for showing your appreciation.",
+        description: !hasLiked ? "Recipe removed from your likes." : "Thanks for showing your appreciation.",
       });
     },
   });
@@ -131,6 +174,7 @@ export function RecipeActions({ recipe, size = "default", showDelete = false, hi
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/recipes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/community"] });
       queryClient.invalidateQueries({ queryKey: ["recommendedRecipes"] });
       toast({
         title: "Recipe forked!",
@@ -147,7 +191,7 @@ export function RecipeActions({ recipe, size = "default", showDelete = false, hi
         variant="ghost"
         size={size}
         onClick={() => likeMutation.mutate()}
-        disabled={likeMutation.isPending || !user}
+        disabled={likeMutation.isPending || likesLoading || !user}
         className="h-7 px-3 text-sm hover:bg-secondary"
       >
         <Heart className={`h-4 w-4 ${hasLiked ? "fill-current text-red-500" : ""}`} />

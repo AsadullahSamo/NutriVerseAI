@@ -10,7 +10,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Pencil, Loader2 } from "lucide-react";
+import { Pencil, Loader2, Info } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface EditRecipeDialogProps {
   recipe: Recipe;
@@ -40,14 +41,30 @@ export function EditRecipeDialog({ recipe, trigger }: EditRecipeDialogProps) {
 
   const editRecipeMutation = useMutation({
     mutationFn: async (data: any) => {
-      const res = await apiRequest("PATCH", `/api/recipes/${recipe.id}`, data);
+      // Ensure we're not losing the sustainability score in the update
+      const payload = {
+        ...data,
+        sustainabilityScore: data.sustainabilityScore || recipe.sustainabilityScore || 0,
+        // Preserve likes count to avoid resetting it
+        likes: recipe.likes
+      };
+      
+      const res = await apiRequest("PATCH", `/api/recipes/${recipe.id}`, payload);
       return res.json();
     },
     onSuccess: () => {
-      // Invalidate all related queries to ensure synchronization
+      // Invalidate all related queries to ensure synchronization between pages
       queryClient.invalidateQueries({ queryKey: ["/api/recipes"] });
       queryClient.invalidateQueries({ queryKey: ["/api/community"] });
       queryClient.invalidateQueries({ queryKey: ["recommendedRecipes"] });
+      
+      // If recipe is part of a community post, make sure to update that specific post too
+      if (recipe.postId) {
+        queryClient.invalidateQueries({ 
+          queryKey: ["/api/community", recipe.postId]
+        });
+      }
+      
       setOpen(false);
       toast({
         title: "Recipe updated!",
@@ -219,25 +236,33 @@ export function EditRecipeDialog({ recipe, trigger }: EditRecipeDialogProps) {
                 )}
               />
             </div>
-            <FormField
-              control={form.control}
-              name="sustainabilityScore"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Sustainability Score (0-100)</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number" 
-                      {...field} 
-                      min={0} 
-                      max={100}
-                      onChange={e => field.onChange(parseInt(e.target.value))} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="space-y-2">
+              <Alert>
+                <Info className="h-4 w-4" />
+                <AlertDescription className="text-sm">
+                  Feel free to update the sustainability score below. A higher score indicates a more environmentally friendly recipe.
+                </AlertDescription>
+              </Alert>
+              <FormField
+                control={form.control}
+                name="sustainabilityScore"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sustainability Score (0-100)</FormLabel>
+                    <FormControl>
+                      <Input 
+                        type="number" 
+                        {...field} 
+                        min={0} 
+                        max={100}
+                        onChange={e => field.onChange(parseInt(e.target.value))} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             <Button type="submit" className="w-full" disabled={editRecipeMutation.isPending}>
               {editRecipeMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Update Recipe

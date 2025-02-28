@@ -14,9 +14,13 @@ import {
 import { 
   analyzeMoodSentiment, 
   generateMoodInsights, 
-  generateAIMealPlan 
+  generateAIMealPlan,
+  getNutritionRecommendations
 } from "../ai-services/recipe-ai";
 import type { User } from "@shared/schema";
+import { generateMealPrepPlan } from "../ai-services/recipe-ai";
+import { insertMealPrepPlanSchema, mealPrepPlans } from "../shared/schema";
+import { desc, eq } from "drizzle-orm";
 
 // Add type declaration extension
 declare global {
@@ -100,6 +104,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
       const validated = insertRecipeSchema.parse(req.body);
+      
+      // Use the client-calculated sustainability score directly
+      const sustainabilityScore = validated.sustainabilityScore || 50;
+
       const recipe = await storage.createRecipe({
         ...validated,
         createdBy: req.user!.id,
@@ -113,7 +121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         prepTime: typeof validated.prepTime === "number" ? validated.prepTime : 0,
         likes: 0,
         forkedFrom: null,
-        sustainabilityScore: null,
+        sustainabilityScore,
         wastageReduction: validated.wastageReduction,
       });
       res.status(201).json(recipe);
@@ -133,7 +141,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     "/api/recipes/:id",
     isResourceOwner("recipe"),
     asyncHandler(async (req, res) => {
-      await storage.deleteRecipe(parseInt(req.params.id));
+      try {
+        const recipeId = parseInt(req.params.id);
+        const forceDelete = req.query.force === 'true';
+
+        if (forceDelete) {
+          await storage.deleteRecipeConsumption(recipeId);
+        }
+
+        // Check if the recipe has likes before deleting
+        const recipe = await storage.getRecipe(recipeId);
+        if (recipe && recipe.likes > 0) {
+          return res.status(403).json({ 
+            message: "Cannot delete recipe that has likes",
+            details: "This recipe has been liked by others in the community. As it's valuable to them, it cannot be deleted."
+          });
+        }
+        await storage.deleteRecipe(recipeId);
+        res.sendStatus(204);
+      } catch (error: any) {
+        console.error("Error deleting recipe:", error);
+        if (error.message?.includes("consumption records")) {
+          return res.status(409).json({ 
+            message: "Recipe has consumption records",
+            details: "This recipe has consumption records. Delete them first using the 'Delete History' button or use force delete.",
+            hasConsumptionRecords: true
+          });
+        }
+        res.status(500).json({ message: "Failed to delete recipe" });
+      }
+    })
+  );
+
+  app.delete(
+    "/api/recipes/:id/consumption",
+    isAuthenticated,
+    asyncHandler(async (req, res) => {
+      const recipeId = parseInt(req.params.id);
+      await storage.deleteRecipeConsumption(recipeId);
       res.sendStatus(204);
     })
   );
@@ -716,6 +761,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       res.json(recommendations);
+    })
+  );
+
+  // Meal Prep Routes
+  app.post(
+    "/api/meal-prep",
+    isAuthenticated,
+    asyncHandler(async (req, res) => {
+      const user = req.user!;
+      const plan = await generateMealPrepPlan(
+        req.body.preferences,
+        req.body.servingsNeeded,
+        req.body.dietaryRestrictions,
+        req.body.timeAvailable
+      );
+
+      // Mark any existing plans as inactive
+      await storage.db
+        .update(mealPrepPlans)
+        .set({ isActive: false })
+        .where(eq(mealPrepPlans.userId, user.id));
+
+      // Create new plan
+      const newPlan = await storage.db
+        .insert(mealPrepPlans)
+        .values({
+          userId: user.id,
+          weeklyPlan: plan.weeklyPlan,
+          isActive: true,
+        })
+        .returning();
+
+      res.json(newPlan[0]);
+    })
+  );
+
+  app.get(
+    "/api/meal-prep/current",
+    isAuthenticated,
+    asyncHandler(async (req, res) => {
+      const user = req.user!;
+      const plan = await storage.db
+        .select()
+        .from(mealPrepPlans)
+        .where(eq(mealPrepPlans.userId, user.id))
+        .where(eq(mealPrepPlans.isActive, true))
+        .orderBy(desc(mealPrepPlans.createdAt))
+        .limit(1);
+
+      res.json(plan[0] || null);
     })
   );
 

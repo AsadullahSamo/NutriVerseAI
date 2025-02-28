@@ -68,6 +68,52 @@ export interface NutritionRecommendation {
   improvements: string[];
 }
 
+export interface MealPrepPlan {
+  weeklyPlan: {
+    recipes: Array<{
+      title: string;
+      servings: number;
+      ingredients: Array<{
+        item: string;
+        amount: string;
+        storageMethod: string;
+        shelfLife: string;
+      }>;
+      instructions: string;
+      prepTime: string;
+      storageInstructions: Array<{
+        container: string;
+        portion: string;
+        method: string;
+        duration: string;
+      }>;
+      reheatingInstructions: string;
+      nutritionPerServing: {
+        calories: number;
+        protein: number;
+        carbs: number;
+        fat: number;
+      };
+    }>;
+    groceryList: Array<{
+      category: string;
+      items: Array<{
+        name: string;
+        amount: string;
+        note?: string;
+      }>;
+    }>;
+    prepSchedule: {
+      totalTime: string;
+      steps: Array<{
+        step: number;
+        description: string;
+        duration: string;
+      }>;
+    };
+  };
+}
+
 export async function getRecipeRecommendations(
   ingredients: string[],
   dietaryPreferences?: string[]
@@ -319,55 +365,144 @@ export async function getNutritionRecommendations(
   }>,
   preferences?: string[]
 ): Promise<NutritionRecommendation> {
-  const prompt = `As a professional nutritionist, analyze these nutrition goals and progress:
-    Current Goals:
-    - Calories: ${currentGoals.calories}
-    - Protein: ${currentGoals.protein}g
-    - Carbs: ${currentGoals.carbs}g
-    - Fat: ${currentGoals.fat}g
+  const prompt = `Based on the nutrition data below, provide ONLY a JSON object with recommendations. No other text:
 
-    Recent Progress (last ${progress.length} days):
-    ${progress.map(p => `${p.date}: ${p.calories}cal, ${p.protein}g protein, ${p.carbs}g carbs, ${p.fat}g fat`).join('\n')}
+Goals: calories=${currentGoals.calories}, protein=${currentGoals.protein}g, carbs=${currentGoals.carbs}g, fat=${currentGoals.fat}g
 
-    ${preferences ? `Dietary Preferences: ${preferences.join(', ')}` : ''}
+Progress:
+${progress.map(p => `${p.date}: cal=${p.calories}, p=${p.protein}g, c=${p.carbs}g, f=${p.fat}g`).join('\n')}
 
-    Provide nutrition recommendations in this JSON format:
-    {
-      "suggestedGoals": {
-        "calories": number,
-        "protein": number,
-        "carbs": number,
-        "fat": number
+${preferences ? `Preferences: ${preferences.join(', ')}` : ''}
+
+Response format:
+{
+  "suggestedGoals": {"calories": number, "protein": number, "carbs": number, "fat": number},
+  "reasoning": "string",
+  "mealSuggestions": [{"type": "string", "suggestions": ["string"]}],
+  "improvements": ["string"]
+}`;
+
+  try {
+    const response = await groq.chat.completions.create({
+      messages: [
+        { 
+          role: "system", 
+          content: "You are a nutrition API that ONLY returns valid JSON objects. Never include markdown or extra text."
+        },
+        { role: "user", content: prompt }
+      ],
+      model: "mixtral-8x7b-32768",
+      temperature: 0.5,
+      max_tokens: 2000,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error('Empty response from API');
+    }
+
+    // Clean the response
+    let cleanedContent = content
+      .replace(/```[a-z]*\n|\n```/g, '') // Remove code blocks with any language
+      .replace(/^[^{]*(\{[\s\S]*\})[^}]*$/, '$1') // Extract just the JSON object
+      .trim();
+
+    const parsed = JSON.parse(cleanedContent);
+
+    // Validate structure and types
+    const validationErrors = [];
+    if (!parsed.suggestedGoals?.calories) validationErrors.push("Missing calories");
+    if (!parsed.suggestedGoals?.protein) validationErrors.push("Missing protein");
+    if (!parsed.suggestedGoals?.carbs) validationErrors.push("Missing carbs");
+    if (!parsed.suggestedGoals?.fat) validationErrors.push("Missing fat");
+    if (!parsed.reasoning) validationErrors.push("Missing reasoning");
+    if (!Array.isArray(parsed.mealSuggestions)) validationErrors.push("Invalid mealSuggestions");
+    if (!Array.isArray(parsed.improvements)) validationErrors.push("Invalid improvements");
+
+    if (validationErrors.length > 0) {
+      throw new Error(`Invalid response structure: ${validationErrors.join(", ")}`);
+    }
+
+    // Ensure all numbers are valid
+    const recommendation: NutritionRecommendation = {
+      suggestedGoals: {
+        calories: Math.max(0, Number(parsed.suggestedGoals.calories) || currentGoals.calories),
+        protein: Math.max(0, Number(parsed.suggestedGoals.protein) || currentGoals.protein),
+        carbs: Math.max(0, Number(parsed.suggestedGoals.carbs) || currentGoals.carbs),
+        fat: Math.max(0, Number(parsed.suggestedGoals.fat) || currentGoals.fat)
       },
-      "reasoning": "Explanation of the suggested changes",
-      "mealSuggestions": [
+      reasoning: String(parsed.reasoning),
+      mealSuggestions: parsed.mealSuggestions.map((m: { type: string; suggestions: string[] }) => ({
+        type: String(m.type),
+        suggestions: Array.isArray(m.suggestions) ? m.suggestions.map(String) : []
+      })),
+      improvements: parsed.improvements.map(String)
+    };
+
+    return recommendation;
+
+  } catch (error) {
+    console.error('Error in getNutritionRecommendations:', error);
+    
+    // Return a safe fallback response
+    return {
+      suggestedGoals: { ...currentGoals },
+      reasoning: "Unable to generate recommendations. Using current goals as baseline.",
+      mealSuggestions: [
         {
-          "type": "breakfast/lunch/dinner/snack",
-          "suggestions": ["meal suggestion 1", "meal suggestion 2"]
+          type: "general",
+          suggestions: ["Continue with your current meal plan while we resolve the recommendation system."]
         }
       ],
-      "improvements": ["specific improvement suggestion 1", "specific improvement suggestion 2"]
-    }`;
+      improvements: ["Maintain current nutrition targets"]
+    };
+  }
+}
+
+export async function generateMealPrepPlan(
+  preferences: string[],
+  servingsNeeded: number,
+  dietaryRestrictions?: string[],
+  timeAvailable?: string
+): Promise<MealPrepPlan> {
+  const prompt = `Create a detailed meal prep plan with the following requirements:
+    - Consider these preferences: ${preferences.join(', ')}
+    ${dietaryRestrictions ? `- Must follow these dietary restrictions: ${dietaryRestrictions.join(', ')}` : ''}
+    ${timeAvailable ? `- Available prep time: ${timeAvailable}` : ''}
+    - Plan for ${servingsNeeded} servings per meal
+    - Include storage and reheating instructions
+    - Focus on batch cooking efficiency
+    - Include detailed prep schedule
+    - Organize ingredients by category for shopping
+    - Provide container and portioning recommendations
+    
+    Response must be a JSON object matching the MealPrepPlan interface with exact structure.`;
 
   const response = await groq.chat.completions.create({
     messages: [
       { 
         role: "system", 
-        content: "You are a professional nutritionist providing personalized nutrition recommendations. Always respond with valid JSON."
+        content: "You are a professional meal prep expert and chef specializing in efficient batch cooking and food storage optimization. Always respond with valid JSON that matches the requested structure exactly."
       },
       { role: "user", content: prompt }
     ],
     model: "mixtral-8x7b-32768",
     temperature: 0.7,
-    max_tokens: 2000,
+    max_tokens: 4000,
   });
 
   const content = response.choices[0]?.message?.content;
   if (!content) {
-    throw new Error('No response from nutrition recommendation API');
+    throw new Error('No response from meal prep plan generation');
   }
 
-  return JSON.parse(content);
+  try {
+    const mealPrepPlan = JSON.parse(content) as MealPrepPlan;
+    return mealPrepPlan;
+  } catch (error) {
+    console.error('Failed to parse meal prep plan:', error);
+    throw new Error('Invalid meal prep plan format received');
+  }
 }
 
 function extractEmotions(sentiment: string): string[] {

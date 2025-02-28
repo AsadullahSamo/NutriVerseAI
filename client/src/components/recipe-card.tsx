@@ -1,7 +1,7 @@
 import React from "react";
 import { Recipe } from "@shared/schema";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Clock, Users, GitFork, ListOrdered, Check, Utensils, Loader2, MoreHorizontal, Trash2 } from "lucide-react";
+import { Clock, Users, GitFork, ListOrdered, Check, Utensils, Loader2, MoreHorizontal, Trash2, Leaf } from "lucide-react";
 import { NutritionDisplay } from "@/components/nutrition-display";
 import { RecipeActions } from "./recipe-actions";
 import { MoodTracker } from "./mood-tracker";
@@ -43,6 +43,9 @@ export function RecipeCard({ recipe, compact = false, showDelete = false, hideEd
   const [mealType, setMealType] = React.useState<string>("snack");
   const [showNutritionWarning, setShowNutritionWarning] = React.useState(false);
   const [exceededNutrients, setExceededNutrients] = React.useState<any>(null);
+
+  // Ensure sustainabilityScore always has a value, defaulting to 50 if not set
+  const sustainabilityScore = recipe.sustainabilityScore ?? 50;
 
   const { data: currentGoal } = useQuery({
     queryKey: ["/api/nutrition-goals/current"],
@@ -136,6 +139,13 @@ export function RecipeCard({ recipe, compact = false, showDelete = false, hideEd
     deleteMutation.mutate();
   };
 
+  // Helper function to get sustainability color
+  const getSustainabilityColor = (score: number) => {
+    if (score >= 70) return 'bg-green-500/10 text-green-600 dark:text-green-400';
+    if (score >= 40) return 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400';
+    return 'bg-red-500/10 text-red-600 dark:text-red-400';
+  };
+
   return (
     <>
       <Card className="overflow-hidden hover:shadow-lg transition-shadow h-full flex flex-col">
@@ -191,7 +201,6 @@ export function RecipeCard({ recipe, compact = false, showDelete = false, hideEd
                       <span className="text-xs">{recipe.prepTime} {recipe.prepTime === 1 ? 'min' : 'mins'}</span>
                     </div>
                   </div>
-
                   <HoverCard>
                     <HoverCardTrigger asChild>
                       <Button variant="ghost" className="p-0 h-auto hover:bg-transparent">
@@ -212,7 +221,6 @@ export function RecipeCard({ recipe, compact = false, showDelete = false, hideEd
                       </div>
                     </HoverCardContent>
                   </HoverCard>
-
                   {!compact && recipe.instructions && recipe.instructions.length > 0 && (
                     <HoverCard>
                       <HoverCardTrigger asChild>
@@ -237,20 +245,20 @@ export function RecipeCard({ recipe, compact = false, showDelete = false, hideEd
                   )}
                 </div>
 
-                {recipe.sustainabilityScore !== null && recipe.sustainabilityScore !== undefined && (
-                  <div className="flex items-center gap-2 ml-auto">
-                    <div className="flex flex-col items-end">
-                      <span className="text-xs font-medium text-muted-foreground">Sustainability</span>
-                      <div className={`px-2 py-0.5 rounded ${
-                        recipe.sustainabilityScore >= 70 ? 'bg-green-500/10 text-green-600' :
-                        recipe.sustainabilityScore >= 40 ? 'bg-yellow-500/10 text-yellow-600' :
-                        'bg-red-500/10 text-red-600'
-                      }`}>
-                        <span className="font-medium">{recipe.sustainabilityScore}/100</span>
-                      </div>
+                {/* Always show sustainability score */}
+                <div className="flex items-center gap-2 ml-auto">
+                  <div className="flex flex-col items-end">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <Leaf className="h-3 w-3" />
+                        Sustainability
+                      </span>
+                    </span>
+                    <div className={`px-2 py-0.5 rounded ${getSustainabilityColor(recipe.sustainabilityScore || 50)}`}>
+                      <span className="font-medium">{recipe.sustainabilityScore || 50}/100</span>
                     </div>
                   </div>
-                )}
+                </div>
               </div>
             </div>
             {!compact && (
@@ -307,7 +315,6 @@ export function RecipeCard({ recipe, compact = false, showDelete = false, hideEd
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-
               <div className="space-y-2">
                 <Label>Servings</Label>
                 <Input
@@ -317,7 +324,6 @@ export function RecipeCard({ recipe, compact = false, showDelete = false, hideEd
                   min="1"
                 />
               </div>
-
               <div className="pt-4">
                 <Button 
                   className="w-full" 
@@ -333,7 +339,6 @@ export function RecipeCard({ recipe, compact = false, showDelete = false, hideEd
             </div>
           </DialogContent>
         </Dialog>
-
         <AlertDialog open={showNutritionWarning} onOpenChange={setShowNutritionWarning}>
           <AlertDialogContent>
             <AlertDialogHeader>
