@@ -1,4 +1,3 @@
-
 import React from "react";
 import { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -46,74 +45,93 @@ export function CreateRecipeDialog({ trigger }: CreateRecipeDialogProps) {
       sustainabilityScore: 50,
       wastageReduction: {}
     },
-    mode: "onChange"
+    mode: "onChange",
+    shouldUnregister: false // Prevent fields from being unregistered
   });
 
-  // Watch for changes in ingredients and nutrition info
+  // Watch nutrition info fields individually to ensure real-time updates
+  const calories = form.watch("nutritionInfo.calories");
+  const protein = form.watch("nutritionInfo.protein");
+  const carbs = form.watch("nutritionInfo.carbs");
+  const fat = form.watch("nutritionInfo.fat");
   const ingredients = form.watch("ingredients");
-  const nutritionInfo = form.watch("nutritionInfo");
   
-  // Calculate sustainability score whenever ingredients or nutrition info changes
+  // Calculate sustainability score whenever nutrition values change
   const currentSustainabilityScore = useMemo(() => {
     let score = 50;
     let modifiers = 0;
 
-    // Check for sustainable ingredients
-    if (Array.isArray(ingredients)) {
-      const sustainableKeywords = ['organic', 'local', 'seasonal', 'plant-based', 'sustainable'];
-      ingredients.forEach(ingredient => {
-        const lowerIngredient = ingredient.toLowerCase();
-        sustainableKeywords.forEach(keyword => {
-          if (lowerIngredient.includes(keyword)) {
-            modifiers += 5;
-          }
-        });
-      });
+    // Log current values
+    console.log('Calculating sustainability score with:', {
+      calories: Number(calories) || 0,
+      protein: Number(protein) || 0,
+      carbs: Number(carbs) || 0,
+      fat: Number(fat) || 0
+    });
+
+    // Calculate nutrition-based modifiers (primary factor)
+    const totalMacros = (Number(protein) || 0) + (Number(carbs) || 0) + (Number(fat) || 0);
+    
+    if (totalMacros > 0) {
+      const proteinRatio = (Number(protein) || 0) / totalMacros;
+      const carbsRatio = (Number(carbs) || 0) / totalMacros;
+      const fatRatio = (Number(fat) || 0) / totalMacros;
+
+      console.log('Macro ratios:', { proteinRatio, carbsRatio, fatRatio });
+
+      // Award points for balanced macros
+      if (proteinRatio >= 0.25 && proteinRatio <= 0.35) {
+        modifiers += 15;
+        console.log('Added 15 points for ideal protein ratio');
+      } else if (proteinRatio >= 0.20 && proteinRatio <= 0.40) {
+        modifiers += 10;
+        console.log('Added 10 points for good protein ratio');
+      }
+
+      if (carbsRatio >= 0.45 && carbsRatio <= 0.55) {
+        modifiers += 15;
+        console.log('Added 15 points for ideal carbs ratio');
+      } else if (carbsRatio >= 0.40 && carbsRatio <= 0.60) {
+        modifiers += 10;
+        console.log('Added 10 points for good carbs ratio');
+      }
+
+      if (fatRatio >= 0.15 && fatRatio <= 0.25) {
+        modifiers += 15;
+        console.log('Added 15 points for ideal fat ratio');
+      } else if (fatRatio >= 0.10 && fatRatio <= 0.30) {
+        modifiers += 10;
+        console.log('Added 10 points for good fat ratio');
+      }
     }
 
-    // Calculate nutrition-based modifiers
-    if (nutritionInfo) {
-      const calories = Number(nutritionInfo.calories) || 0;
-      const protein = Number(nutritionInfo.protein) || 0;
-      const carbs = Number(nutritionInfo.carbs) || 0;
-      const fat = Number(nutritionInfo.fat) || 0;
-
-      const totalMacros = protein + carbs + fat;
-      if (totalMacros > 0) {
-        // Calculate macronutrient ratios
-        const proteinRatio = protein / totalMacros;
-        const carbsRatio = carbs / totalMacros;
-        const fatRatio = fat / totalMacros;
-
-        // Award points for balanced macros
-        if (proteinRatio >= 0.25 && proteinRatio <= 0.35) modifiers += 5;
-        if (carbsRatio >= 0.45 && carbsRatio <= 0.55) modifiers += 5;
-        if (fatRatio >= 0.15 && fatRatio <= 0.25) modifiers += 5;
-
-        // Bonus for including all macros
-        if (protein > 0 && carbs > 0 && fat > 0) {
-          modifiers += 5;
-        }
+    // Award points for reasonable calorie content
+    const calorieValue = Number(calories) || 0;
+    if (calorieValue > 0) {
+      if (calorieValue <= 400) {
+        modifiers += 15;
+        console.log('Added 15 points for ideal calorie content');
+      } else if (calorieValue <= 600) {
+        modifiers += 10;
+        console.log('Added 10 points for good calorie content');
+      } else if (calorieValue <= 800) {
+        modifiers += 5;
+        console.log('Added 5 points for acceptable calorie content');
       }
-
-      // Award points for reasonable portions
-      if (calories > 0) {
-        if (calories <= 400) modifiers += 10;
-        else if (calories <= 600) modifiers += 5;
-      }
-
-      // Award points for good protein content
-      if (protein >= 15 && protein <= 30) modifiers += 5;
     }
 
     // Calculate final score
     const finalScore = Math.min(100, Math.max(0, score + modifiers));
+    console.log('Final sustainability score:', { baseScore: score, modifiers, finalScore });
     
-    // Update the form value
-    form.setValue("sustainabilityScore", finalScore);
+    // Update the form value immediately
+    form.setValue("sustainabilityScore", finalScore, {
+      shouldValidate: true,
+      shouldDirty: true
+    });
     
     return finalScore;
-  }, [ingredients, nutritionInfo, form]);
+  }, [calories, protein, carbs, fat, ingredients, form]);
 
   // Track the latest calculated score in a ref to ensure it's available during form submission
   const latestScoreRef = React.useRef(currentSustainabilityScore);
@@ -235,7 +253,12 @@ export function CreateRecipeDialog({ trigger }: CreateRecipeDialogProps) {
                       <Textarea 
                         {...field} 
                         value={Array.isArray(field.value) ? field.value.join('\n') : ''} 
-                        onChange={e => field.onChange(e.target.value.split('\n').filter(Boolean))}
+                        onChange={e => {
+                          const lines = e.target.value.split('\n');
+                          field.onChange(lines);
+                        }}
+                        placeholder="Enter each ingredient on a new line"
+                        className="min-h-[150px]"
                       />
                     </FormControl>
                     <FormMessage />
@@ -252,7 +275,12 @@ export function CreateRecipeDialog({ trigger }: CreateRecipeDialogProps) {
                       <Textarea 
                         {...field} 
                         value={Array.isArray(field.value) ? field.value.join('\n') : ''} 
-                        onChange={e => field.onChange(e.target.value.split('\n').filter(Boolean))}
+                        onChange={e => {
+                          const lines = e.target.value.split('\n');
+                          field.onChange(lines);
+                        }}
+                        placeholder="Enter each instruction step on a new line"
+                        className="min-h-[150px]"
                       />
                     </FormControl>
                     <FormMessage />
@@ -293,7 +321,15 @@ export function CreateRecipeDialog({ trigger }: CreateRecipeDialogProps) {
                     <FormItem>
                       <FormLabel>Calories</FormLabel>
                       <FormControl>
-                        <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} />
+                        <Input 
+                          type="number" 
+                          {...field} 
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value) || 0;
+                            field.onChange(value);
+                            form.setValue("nutritionInfo.calories", value, { shouldValidate: true });
+                          }}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -306,7 +342,15 @@ export function CreateRecipeDialog({ trigger }: CreateRecipeDialogProps) {
                     <FormItem>
                       <FormLabel>Protein (g)</FormLabel>
                       <FormControl>
-                        <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} />
+                        <Input 
+                          type="number" 
+                          {...field} 
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value) || 0;
+                            field.onChange(value);
+                            form.setValue("nutritionInfo.protein", value, { shouldValidate: true });
+                          }}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -319,7 +363,15 @@ export function CreateRecipeDialog({ trigger }: CreateRecipeDialogProps) {
                     <FormItem>
                       <FormLabel>Carbs (g)</FormLabel>
                       <FormControl>
-                        <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} />
+                        <Input 
+                          type="number" 
+                          {...field} 
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value) || 0;
+                            field.onChange(value);
+                            form.setValue("nutritionInfo.carbs", value, { shouldValidate: true });
+                          }}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -332,7 +384,15 @@ export function CreateRecipeDialog({ trigger }: CreateRecipeDialogProps) {
                     <FormItem>
                       <FormLabel>Fat (g)</FormLabel>
                       <FormControl>
-                        <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} />
+                        <Input 
+                          type="number" 
+                          {...field} 
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value) || 0;
+                            field.onChange(value);
+                            form.setValue("nutritionInfo.fat", value, { shouldValidate: true });
+                          }}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
