@@ -193,20 +193,19 @@ export function RecipeCard({ recipe, compact = false, showDelete = false, hideEd
           </CardHeader>
           <div className="mt-auto">
             <div className="px-4 py-2.5 border-t bg-muted/5">
-              <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground">
-                <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-2">
-                    <div className="flex flex-col items-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      <span className="text-xs">{recipe.prepTime} {recipe.prepTime === 1 ? 'min' : 'mins'}</span>
-                    </div>
+              <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="h-4 w-4" />
+                    <span className="whitespace-nowrap">{recipe.prepTime} min</span>
                   </div>
+                  
                   <HoverCard>
                     <HoverCardTrigger asChild>
                       <Button variant="ghost" className="p-0 h-auto hover:bg-transparent">
-                        <span className="flex items-center gap-2">
-                          <Users className="h-4 w-4 flex-shrink-0" />
-                          <span>{recipe.ingredients.length} {recipe.ingredients.length === 1 ? 'ingredient' : 'ingredients'}</span>
+                        <span className="flex items-center gap-1.5">
+                          <Users className="h-4 w-4" />
+                          <span>{recipe.ingredients.length === 1 ? '1 item' : `${recipe.ingredients.length} items`}</span>
                         </span>
                       </Button>
                     </HoverCardTrigger>
@@ -221,13 +220,14 @@ export function RecipeCard({ recipe, compact = false, showDelete = false, hideEd
                       </div>
                     </HoverCardContent>
                   </HoverCard>
+
                   {!compact && recipe.instructions && recipe.instructions.length > 0 && (
                     <HoverCard>
                       <HoverCardTrigger asChild>
                         <Button variant="ghost" className="p-0 h-auto hover:bg-transparent">
-                          <span className="flex items-center gap-2">
-                            <ListOrdered className="h-4 w-4 flex-shrink-0" />
-                            <span>{recipe.instructions.length} {recipe.instructions.length === 1 ? 'step' : 'steps'}</span>
+                          <span className="flex items-center gap-1.5">
+                            <ListOrdered className="h-4 w-4" />
+                            <span>{recipe.instructions.length === 1 ? '1 step' : `${recipe.instructions.length} steps`} </span>
                           </span>
                         </Button>
                       </HoverCardTrigger>
@@ -245,18 +245,16 @@ export function RecipeCard({ recipe, compact = false, showDelete = false, hideEd
                   )}
                 </div>
 
-                {/* Always show sustainability score */}
-                <div className="flex items-center gap-2 ml-auto">
-                  <div className="flex flex-col items-end">
-                    <span className="text-xs font-medium text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Leaf className="h-3 w-3" />
-                        Sustainability
-                      </span>
+                {/* Sustainability score */}
+                <div className="flex flex-col items-end">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Leaf className="h-3 w-3" />
+                      Sustainability
                     </span>
-                    <div className={`px-2 py-0.5 rounded ${getSustainabilityColor(recipe.sustainabilityScore || 50)}`}>
-                      <span className="font-medium">{recipe.sustainabilityScore || 50}/100</span>
-                    </div>
+                  </span>
+                  <div className={`px-2 py-0.5 rounded mt-0.5 ${getSustainabilityColor(sustainabilityScore)}`}>
+                    <span className="font-medium">{sustainabilityScore}/100</span>
                   </div>
                 </div>
               </div>
