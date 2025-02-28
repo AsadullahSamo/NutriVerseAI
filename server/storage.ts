@@ -3,21 +3,17 @@ import { User, Recipe, GroceryList, PantryItem, CommunityPost } from "@shared/sc
 import { users, recipes, groceryLists, pantryItems, communityPosts, recipe_likes, mealPlans, nutritionGoals, type NutritionGoal, recipeConsumption, type RecipeConsumption } from "@shared/schema";
 import { db, sql, pool } from "./db";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
-import connectPg from "connect-pg-simple";
 import session from "express-session";
+import MemoryStore from "memorystore";
 
-const PostgresSessionStore = connectPg(session);
+const MemorySessionStore = MemoryStore(session);
 
 export class DatabaseStorage implements IStorage {
   readonly sessionStore: session.Store;
 
   constructor() {
-    this.sessionStore = new PostgresSessionStore({
-      pool,
-      createTableIfMissing: true,
-      tableName: 'session', 
-      schemaName: 'public',
-      pruneSessionInterval: false 
+    this.sessionStore = new MemorySessionStore({
+      checkPeriod: 86400000 // Prune expired entries every 24h
     });
   }
 
@@ -56,7 +52,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRecipes(): Promise<Recipe[]> {
-    const recipesList = await db.select().from(recipes);
+    const recipesList = await db
+      .select()
+      .from(recipes);
+
     return recipesList.map(recipe => ({
       ...recipe,
       createdAt: new Date(recipe.createdAt)
@@ -64,7 +63,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRecipe(id: number): Promise<Recipe | undefined> {
-    const [recipe] = await db.select().from(recipes).where(eq(recipes.id, id));
+    const [recipe] = await db
+      .select()
+      .from(recipes)
+      .where(eq(recipes.id, id));
+
     if (recipe) {
       return {
         ...recipe,
@@ -75,87 +78,95 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createRecipe(recipe: Omit<Recipe, "id">): Promise<Recipe> {
-    const [newRecipe] = (await db.insert(recipes).values(recipe).returning()) as Recipe[];
-    return newRecipe;
+    const [newRecipe] = await db
+      .insert(recipes)
+      .values(recipe)
+      .returning({
+        id: recipes.id,
+        title: recipes.title,
+        description: recipes.description,
+        ingredients: recipes.ingredients,
+        instructions: recipes.instructions,
+        nutritionInfo: recipes.nutritionInfo,
+        prepTime: recipes.prepTime,
+        imageUrl: recipes.imageUrl,
+        createdBy: recipes.createdBy,
+        createdAt: recipes.createdAt,
+        likes: recipes.likes,
+        forkedFrom: recipes.forkedFrom,
+        sustainabilityScore: recipes.sustainabilityScore,
+        wastageReduction: recipes.wastageReduction
+      });
+
+    return {
+      ...newRecipe,
+      createdAt: new Date(newRecipe.createdAt)
+    } as Recipe;
   }
 
   async likeRecipe(recipeId: number, userId: number): Promise<Recipe> {
-    // Start a transaction to ensure data consistency
-    return await db.transaction(async (tx) => {
-      // Check if user has already liked this recipe
-      const [existingLike] = await tx
-        .select()
-        .from(recipe_likes)
-        .where(and(
-          eq(recipe_likes.recipeId, recipeId),
-          eq(recipe_likes.userId, userId)
-        ));
+    try {
+      // Check if user has already liked this recipe using raw query
+      const existingLikes = await sql`SELECT * FROM recipe_likes WHERE recipe_id = ${recipeId} AND user_id = ${userId}`;
 
-      if (existingLike) {
+      if (existingLikes.length > 0) {
         // Unlike: Remove the like and decrement count
-        await tx.delete(recipe_likes)
-          .where(and(
-            eq(recipe_likes.recipeId, recipeId),
-            eq(recipe_likes.userId, userId)
-          ));
-
-        const [recipe] = await tx
-          .update(recipes)
-          .set({ likes: sql`${recipes.likes} - 1` })
-          .where(eq(recipes.id, recipeId))
-          .returning();
-
-        return {
-          ...recipe,
-          createdAt: new Date(recipe.createdAt)
-        } as Recipe;
+        await sql`DELETE FROM recipe_likes WHERE recipe_id = ${recipeId} AND user_id = ${userId}`;
+        await sql`UPDATE recipes SET likes = GREATEST(likes - 1, 0) WHERE id = ${recipeId}`;
       } else {
         // Add like and increment count
-        await tx.insert(recipe_likes).values({
-          recipeId,
-          userId
-        });
-
-        const [recipe] = await tx
-          .update(recipes)
-          .set({ likes: sql`${recipes.likes} + 1` })
-          .where(eq(recipes.id, recipeId))
-          .returning();
-
-        return {
-          ...recipe,
-          createdAt: new Date(recipe.createdAt)
-        } as Recipe;
+        await sql`INSERT INTO recipe_likes (recipe_id, user_id) VALUES (${recipeId}, ${userId})`;
+        await sql`UPDATE recipes SET likes = likes + 1 WHERE id = ${recipeId}`;
       }
-    });
+
+      // Get updated recipe
+      const [recipe] = await sql`SELECT * FROM recipes WHERE id = ${recipeId}`;
+
+      if (!recipe) {
+        throw new Error("Recipe not found after updating");
+      }
+
+      return {
+        ...recipe,
+        createdAt: new Date(recipe.createdAt)
+      } as Recipe;
+    } catch (error) {
+      console.error("Error in likeRecipe:", error);
+      throw error;
+    }
   }
 
   async hasUserLikedRecipe(recipeId: number, userId: number): Promise<boolean> {
-    const [like] = await db
-      .select()
-      .from(recipe_likes)
-      .where(and(
-        eq(recipe_likes.recipeId, recipeId),
-        eq(recipe_likes.userId, userId)
-      ));
-    
-    return !!like;
+    const likes = await sql`SELECT id FROM recipe_likes WHERE recipe_id = ${recipeId} AND user_id = ${userId}`;
+    return likes.length > 0;
   }
 
   async forkRecipe(id: number, userId: number): Promise<Recipe> {
-    const [originalRecipe] = await db.select().from(recipes).where(eq(recipes.id, id));
+    // Get original recipe
+    const [originalRecipe] = await db
+      .select()
+      .from(recipes)
+      .where(eq(recipes.id, id));
+
     if (!originalRecipe) throw new Error("Recipe not found");
 
-    const [forkedRecipe] = (await db.insert(recipes).values({
-      ...originalRecipe,
-      id: undefined,
-      createdBy: userId,
-      forkedFrom: id,
-      likes: 0,
-      createdAt: new Date()
-    }).returning()) as Recipe[];
+    // Insert forked recipe
+    const forkedRecipe = await db
+      .insert(recipes)
+      .values({
+        ...originalRecipe,
+        id: undefined, // Remove the id so a new one is generated
+        createdBy: userId,
+        forkedFrom: id,
+        likes: 0,
+        createdAt: new Date()
+      })
+      .returning();
 
-    return forkedRecipe;
+    return {
+      ...forkedRecipe[0],
+      createdAt: new Date(forkedRecipe[0].createdAt)
+    } as Recipe;
   }
 
   async updateRecipe(id: number, data: Partial<Recipe>): Promise<Recipe> {
@@ -163,7 +174,23 @@ export class DatabaseStorage implements IStorage {
       .update(recipes)
       .set(data)
       .where(eq(recipes.id, id))
-      .returning();
+      .returning({
+        id: recipes.id,
+        title: recipes.title,
+        description: recipes.description,
+        ingredients: recipes.ingredients,
+        instructions: recipes.instructions,
+        nutritionInfo: recipes.nutritionInfo,
+        prepTime: recipes.prepTime,
+        imageUrl: recipes.imageUrl,
+        createdBy: recipes.createdBy,
+        createdAt: recipes.createdAt,
+        likes: recipes.likes,
+        forkedFrom: recipes.forkedFrom,
+        sustainabilityScore: recipes.sustainabilityScore,
+        wastageReduction: recipes.wastageReduction
+      });
+
     return {
       ...recipe,
       createdAt: new Date(recipe.createdAt)
@@ -241,23 +268,36 @@ export class DatabaseStorage implements IStorage {
     await db.delete(communityPosts).where(eq(communityPosts.id, id));
   }
 
+  async deleteRecipeConsumption(recipeId: number): Promise<void> {
+    await db.delete(recipeConsumption)
+      .where(eq(recipeConsumption.recipeId, recipeId));
+  }
+
   async deleteRecipe(id: number): Promise<void> {
-    await db.transaction(async (tx) => {
-      // First, update any recipes that were forked from this one to remove the reference
-      await tx
-        .update(recipes)
-        .set({ forkedFrom: null })
-        .where(eq(recipes.forkedFrom, id));
+    try {
+      // First check if there are consumption records for this recipe
+      const consumptionRecords = await sql`SELECT count(*) FROM recipe_consumption WHERE recipe_id = ${id}`;
 
-      // Update any community posts that reference this recipe to mark it as deleted
-      await tx
-        .update(communityPosts)
-        .set({ recipeId: null })
-        .where(eq(communityPosts.recipeId, id));
+      if (consumptionRecords[0].count > 0) {
+        throw new Error("Cannot delete recipe that has consumption records. Use deleteRecipeConsumption first or force delete.");
+      }
 
-      // Finally delete the recipe
-      await tx.delete(recipes).where(eq(recipes.id, id));
-    });
+      // Sequential cleanup operations
+      // 1. Update any recipes that were forked from this one to remove the reference
+      await sql`UPDATE recipes SET forked_from = NULL WHERE forked_from = ${id}`;
+
+      // 2. Update any community posts that reference this recipe to mark it as deleted
+      await sql`UPDATE community_posts SET recipe_id = NULL WHERE recipe_id = ${id}`;
+
+      // 3. Clean up any likes for this recipe
+      await sql`DELETE FROM recipe_likes WHERE recipe_id = ${id}`;
+
+      // 4. Finally delete the recipe
+      await sql`DELETE FROM recipes WHERE id = ${id}`;
+    } catch (error) {
+      console.error("Error in deleteRecipe:", error);
+      throw error;
+    }
   }
 
   async getMealPlansByUser(userId: number) {
@@ -346,10 +386,10 @@ export class DatabaseStorage implements IStorage {
       .where(eq(recipeConsumption.userId, userId));
 
     if (startDate) {
-      query = query.where(gte(recipeConsumption.consumedAt, startDate));
+      query = query.and(gte(recipeConsumption.consumedAt, startDate));
     }
     if (endDate) {
-      query = query.where(lte(recipeConsumption.consumedAt, endDate));
+      query = query.and(lte(recipeConsumption.consumedAt, endDate));
     }
 
     return query.orderBy(desc(recipeConsumption.consumedAt));
@@ -370,10 +410,10 @@ export class DatabaseStorage implements IStorage {
       .where(eq(recipeConsumption.userId, userId));
 
     if (startDate) {
-      query = query.where(gte(recipeConsumption.consumedAt, startDate));
+      query = query.and(gte(recipeConsumption.consumedAt, startDate));
     }
     if (endDate) {
-      query = query.where(lte(recipeConsumption.consumedAt, endDate));
+      query = query.and(lte(recipeConsumption.consumedAt, endDate));
     }
 
     const results = await query.orderBy(desc(recipeConsumption.consumedAt));

@@ -100,6 +100,14 @@ export const recipeConsumption = pgTable("recipe_consumption", {
   mealType: text("meal_type").notNull(), // breakfast, lunch, dinner, snack
 });
 
+export const mealPrepPlans = pgTable('meal_prep_plans', {
+  id: serial('id').primaryKey(),
+  userId: integer('user_id').references(() => users.id).notNull(),
+  weeklyPlan: jsonb('weekly_plan').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  isActive: boolean('is_active').default(true).notNull(),
+});
+
 // Schema definitions - ordering matters!
 export const nutritionProgressSchema = z.object({
   date: z.string(),
@@ -120,6 +128,54 @@ export const insertNutritionGoalSchema = z.object({
   endDate: z.coerce.date().optional(),
   isActive: z.boolean().default(true),
   progress: z.array(nutritionProgressSchema).default([])
+});
+
+export const insertMealPrepPlanSchema = z.object({
+  userId: z.number(),
+  weeklyPlan: z.object({
+    recipes: z.array(z.object({
+      title: z.string(),
+      servings: z.number(),
+      ingredients: z.array(z.object({
+        item: z.string(),
+        amount: z.string(),
+        storageMethod: z.string(),
+        shelfLife: z.string()
+      })),
+      instructions: z.string(),
+      prepTime: z.string(),
+      storageInstructions: z.array(z.object({
+        container: z.string(),
+        portion: z.string(),
+        method: z.string(),
+        duration: z.string()
+      })),
+      reheatingInstructions: z.string(),
+      nutritionPerServing: z.object({
+        calories: z.number(),
+        protein: z.number(),
+        carbs: z.number(),
+        fat: z.number()
+      })
+    })),
+    groceryList: z.array(z.object({
+      category: z.string(),
+      items: z.array(z.object({
+        name: z.string(),
+        amount: z.string(),
+        note: z.string().optional()
+      }))
+    })),
+    prepSchedule: z.object({
+      totalTime: z.string(),
+      steps: z.array(z.object({
+        step: z.number(),
+        description: z.string(),
+        duration: z.string()
+      }))
+    })
+  }),
+  isActive: z.boolean().default(true)
 });
 
 // Schema exports
