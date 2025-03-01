@@ -1,8 +1,7 @@
 import Groq from "groq-sdk";
-import config from "../client/src/lib/config";
 
 const groq = new Groq({
-  apiKey: config.groqApiKey,
+  apiKey: process.env.GROQ_API_KEY || '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',
   dangerouslyAllowBrowser: true
 });
 
@@ -66,52 +65,6 @@ export interface NutritionRecommendation {
     suggestions: string[];
   }>;
   improvements: string[];
-}
-
-export interface MealPrepPlan {
-  weeklyPlan: {
-    recipes: Array<{
-      title: string;
-      servings: number;
-      ingredients: Array<{
-        item: string;
-        amount: string;
-        storageMethod: string;
-        shelfLife: string;
-      }>;
-      instructions: string;
-      prepTime: string;
-      storageInstructions: Array<{
-        container: string;
-        portion: string;
-        method: string;
-        duration: string;
-      }>;
-      reheatingInstructions: string;
-      nutritionPerServing: {
-        calories: number;
-        protein: number;
-        carbs: number;
-        fat: number;
-      };
-    }>;
-    groceryList: Array<{
-      category: string;
-      items: Array<{
-        name: string;
-        amount: string;
-        note?: string;
-      }>;
-    }>;
-    prepSchedule: {
-      totalTime: string;
-      steps: Array<{
-        step: number;
-        description: string;
-        duration: string;
-      }>;
-    };
-  };
 }
 
 export async function getRecipeRecommendations(
@@ -456,52 +409,6 @@ Response format:
       ],
       improvements: ["Maintain current nutrition targets"]
     };
-  }
-}
-
-export async function generateMealPrepPlan(
-  preferences: string[],
-  servingsNeeded: number,
-  dietaryRestrictions?: string[],
-  timeAvailable?: string
-): Promise<MealPrepPlan> {
-  const prompt = `Create a detailed meal prep plan with the following requirements:
-    - Consider these preferences: ${preferences.join(', ')}
-    ${dietaryRestrictions ? `- Must follow these dietary restrictions: ${dietaryRestrictions.join(', ')}` : ''}
-    ${timeAvailable ? `- Available prep time: ${timeAvailable}` : ''}
-    - Plan for ${servingsNeeded} servings per meal
-    - Include storage and reheating instructions
-    - Focus on batch cooking efficiency
-    - Include detailed prep schedule
-    - Organize ingredients by category for shopping
-    - Provide container and portioning recommendations
-    
-    Response must be a JSON object matching the MealPrepPlan interface with exact structure.`;
-
-  const response = await groq.chat.completions.create({
-    messages: [
-      { 
-        role: "system", 
-        content: "You are a professional meal prep expert and chef specializing in efficient batch cooking and food storage optimization. Always respond with valid JSON that matches the requested structure exactly."
-      },
-      { role: "user", content: prompt }
-    ],
-    model: "mixtral-8x7b-32768",
-    temperature: 0.7,
-    max_tokens: 4000,
-  });
-
-  const content = response.choices[0]?.message?.content;
-  if (!content) {
-    throw new Error('No response from meal prep plan generation');
-  }
-
-  try {
-    const mealPrepPlan = JSON.parse(content) as MealPrepPlan;
-    return mealPrepPlan;
-  } catch (error) {
-    console.error('Failed to parse meal prep plan:', error);
-    throw new Error('Invalid meal prep plan format received');
   }
 }
 

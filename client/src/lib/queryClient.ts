@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import config from "./config";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -13,28 +14,28 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-// Use the VITE_API_BASE_URL environment variable provided by Vite,
-// or fall back to 'http://localhost:8000'
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-
 export async function apiRequest(
   method: string,
-  url: string,
-  data?: unknown,
-): Promise<Response> {
-  const res = await fetch(`${API_BASE_URL}${url}`, {
+  path: string,
+  body?: unknown,
+  customHeaders?: HeadersInit
+) {
+  const response = await fetch(`${config.apiBaseUrl}${path}`, {
     method,
     headers: {
-      ...(data ? { "Content-Type": "application/json" } : {}),
-      "Accept": "application/json",
+      "Content-Type": "application/json",
+      ...customHeaders,
     },
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
-    mode: "cors"
+    body: body ? JSON.stringify(body) : undefined,
+    credentials: "include", // Add this line to include credentials
   });
 
-  await throwIfResNotOk(res);
-  return res;
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || response.statusText);
+  }
+
+  return response;
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
@@ -43,7 +44,7 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(`${API_BASE_URL}${queryKey[0]}`, {
+    const res = await fetch(`${config.apiBaseUrl}${queryKey[0]}`, {
       credentials: "include",
       mode: "cors",
       headers: {

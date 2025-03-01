@@ -4,12 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { addDays } from "date-fns";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface CreateMealPlanDialogProps {
   open: boolean;
@@ -24,29 +23,26 @@ export function CreateMealPlanDialog({ open, onOpenChange }: CreateMealPlanDialo
   const [dietaryRestrictions, setDietaryRestrictions] = useState("");
   const [calorieTarget, setCalorieTarget] = useState("");
   const [days, setDays] = useState("7");
-  const [generatedPlan, setGeneratedPlan] = useState<any>(null);
-
-  const { data: currentGoal } = useQuery({
-    queryKey: ["/api/nutrition-goals/current"],
-    queryFn: async () => {
-      const res = await apiRequest("GET", "/api/nutrition-goals/current");
-      return res.json();
-    },
-  });
 
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!startDate) throw new Error("Start date is required");
       
+      const formattedPreferences = preferences.split(',').map(p => p.trim()).filter(Boolean);
+      const formattedDietaryRestrictions = dietaryRestrictions
+        ? dietaryRestrictions.split(',').map(r => r.trim()).filter(Boolean)
+        : undefined;
+
       const response = await apiRequest("POST", "/api/meal-plans", {
         title,
         startDate,
         endDate: addDays(startDate, parseInt(days) - 1),
-        preferences: preferences.split(',').map(p => p.trim()),
-        dietaryRestrictions: dietaryRestrictions ? dietaryRestrictions.split(',').map(r => r.trim()) : undefined,
+        preferences: formattedPreferences,
+        dietaryRestrictions: formattedDietaryRestrictions,
         calorieTarget: calorieTarget ? parseInt(calorieTarget) : undefined,
         days: parseInt(days)
       });
+
       return response.json();
     },
     onSuccess: () => {
@@ -74,63 +70,6 @@ export function CreateMealPlanDialog({ open, onOpenChange }: CreateMealPlanDialo
     setDietaryRestrictions("");
     setCalorieTarget("");
     setDays("7");
-  };
-
-  const validateNutrition = (meals: any) => {
-    if (!currentGoal) return { valid: true };
-
-    const dailyTotals = Object.values(meals).reduce((acc: any, meal: any) => {
-      if (Array.isArray(meal)) {
-        meal.forEach((snack: any) => {
-          const nutrition = parseNutritionString(snack.nutritionalInfo);
-          acc.calories += nutrition.calories;
-          acc.protein += nutrition.protein;
-          acc.carbs += nutrition.carbs;
-          acc.fat += nutrition.fat;
-        });
-      } else {
-        const nutrition = parseNutritionString(meal.nutritionalInfo);
-        acc.calories += nutrition.calories;
-        acc.protein += nutrition.protein;
-        acc.carbs += nutrition.carbs;
-        acc.fat += nutrition.fat;
-      }
-      return acc;
-    }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
-
-    const exceedances = {
-      calories: dailyTotals.calories > currentGoal.dailyCalories,
-      protein: dailyTotals.protein > currentGoal.dailyProtein,
-      carbs: dailyTotals.carbs > currentGoal.dailyCarbs,
-      fat: dailyTotals.fat > currentGoal.dailyFat,
-    };
-
-    return {
-      valid: !Object.values(exceedances).some(v => v),
-      exceedances,
-      totals: dailyTotals
-    };
-  };
-
-  const parseNutritionString = (nutritionStr: string) => {
-    const defaults = { calories: 0, protein: 0, carbs: 0, fat: 0 };
-    try {
-      const matches = {
-        calories: nutritionStr.match(/(\d+)\s*kcal/),
-        protein: nutritionStr.match(/(\d+)g\s*protein/),
-        carbs: nutritionStr.match(/(\d+)g\s*carbs/),
-        fat: nutritionStr.match(/(\d+)g\s*fat/),
-      };
-
-      return {
-        calories: matches.calories ? parseInt(matches.calories[1]) : defaults.calories,
-        protein: matches.protein ? parseInt(matches.protein[1]) : defaults.protein,
-        carbs: matches.carbs ? parseInt(matches.carbs[1]) : defaults.carbs,
-        fat: matches.fat ? parseInt(matches.fat[1]) : defaults.fat,
-      };
-    } catch (e) {
-      return defaults;
-    }
   };
 
   return (
@@ -237,50 +176,6 @@ export function CreateMealPlanDialog({ open, onOpenChange }: CreateMealPlanDialo
             </Button>
           </div>
         </form>
-
-        {generatedPlan && currentGoal && (
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium">Nutrition Analysis</h3>
-            {generatedPlan.meals.map((day: any, index: number) => {
-              const validation = validateNutrition(day.meals);
-              return (
-                <div key={index} className="space-y-2">
-                  <p className="text-sm font-medium">Day {day.day}</p>
-                  {!validation.valid && (
-                    <Alert variant="warning">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>
-                        <span className="font-medium">Exceeds daily goals:</span>
-                        <div className="flex gap-2 mt-2">
-                          {validation.exceedances.calories && (
-                            <Badge variant="outline" className="text-yellow-500">
-                              Calories +{validation.totals.calories - currentGoal.dailyCalories}
-                            </Badge>
-                          )}
-                          {validation.exceedances.protein && (
-                            <Badge variant="outline" className="text-yellow-500">
-                              Protein +{validation.totals.protein - currentGoal.dailyProtein}g
-                            </Badge>
-                          )}
-                          {validation.exceedances.carbs && (
-                            <Badge variant="outline" className="text-yellow-500">
-                              Carbs +{validation.totals.carbs - currentGoal.dailyCarbs}g
-                            </Badge>
-                          )}
-                          {validation.exceedances.fat && (
-                            <Badge variant="outline" className="text-yellow-500">
-                              Fat +{validation.totals.fat - currentGoal.dailyFat}g
-                            </Badge>
-                          )}
-                        </div>
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
       </DialogContent>
     </Dialog>
   );

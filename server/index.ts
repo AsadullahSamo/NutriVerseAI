@@ -16,12 +16,15 @@ import cors from "cors";
 
 const app = express();
 
-// CORS configuration with proper credentials handling
+// Updated CORS configuration to handle credentials and auth routes
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.CLIENT_URL 
+    : 'http://localhost:5173',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  exposedHeaders: ['Set-Cookie'],
   maxAge: 86400 // CORS preflight cache time - 24 hours
 }));
 
