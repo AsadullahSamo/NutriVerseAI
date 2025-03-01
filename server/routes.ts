@@ -18,8 +18,6 @@ import {
   getNutritionRecommendations
 } from "../ai-services/recipe-ai";
 import type { User } from "@shared/schema";
-import { generateMealPrepPlan } from "../ai-services/recipe-ai";
-import { insertMealPrepPlanSchema, mealPrepPlans } from "../shared/schema";
 import { desc, eq } from "drizzle-orm";
 
 // Add type declaration extension
@@ -38,7 +36,7 @@ const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
 };
 
 // Middleware to check if user is authenticated and owns the resource
-const isResourceOwner = (resourceType: 'recipe' | 'post' | 'meal-plan') => async (req: Request, res: Response, next: NextFunction) => {
+const isResourceOwner = (resourceType: 'recipe' | 'post') => async (req: Request, res: Response, next: NextFunction) => {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ message: "Unauthorized" });
   }
@@ -54,12 +52,6 @@ const isResourceOwner = (resourceType: 'recipe' | 'post' | 'meal-plan') => async
     } else if (resourceType === 'post') {
       resource = await storage.getCommunityPost(parseInt(req.params.id));
       if (resource && resource.userId !== userId) {
-        return res.status(403).json({ message: "Forbidden" });
-      }
-    } else if (resourceType === 'meal-plan') {
-      const plans = await storage.getMealPlansByUser(userId);
-      resource = plans.find(p => p.id === parseInt(req.params.id));
-      if (!resource) {
         return res.status(403).json({ message: "Forbidden" });
       }
     }
@@ -82,11 +74,11 @@ const asyncHandler =
   };
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup authentication middleware
-  setupAuth(app);
-
   // Create HTTP server
   const httpServer = createServer(app);
+
+  // Setup authentication middleware and routes first
+  setupAuth(app);
 
   // ----------------- Recipes Routes -----------------
   app.get(
@@ -487,69 +479,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
   );
 
-  // ----------------- Meal Plan Routes -----------------
-  app.get(
-    "/api/meal-plans",
-    isAuthenticated,
-    asyncHandler(async (req, res) => {
-      if (!req.user) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-      const plans = await storage.getMealPlansByUser(req.user.id);
-      res.json(plans);
-    })
-  );
-
-  app.post(
-    "/api/meal-plans",
-    isAuthenticated,
-    asyncHandler(async (req, res) => {
-      const user = req.user;
-      if (!user) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-
-      const mealPlan = await generateAIMealPlan(
-        req.body.preferences,
-        req.body.days,
-        req.body.dietaryRestrictions,
-        req.body.calorieTarget
-      );
-
-      const plan = await storage.createMealPlan({
-        userId: user.id,
-        title: req.body.title,
-        startDate: new Date(req.body.startDate),
-        endDate: new Date(req.body.endDate),
-        preferences: req.body.preferences,
-        meals: mealPlan,
-        isActive: true,
-      });
-
-      res.json(plan);
-    })
-  );
-
-  app.put(
-    "/api/meal-plans/:id",
-    isAuthenticated,
-    isResourceOwner('meal-plan'),
-    asyncHandler(async (req, res) => {
-      const plan = await storage.updateMealPlan(parseInt(req.params.id), req.body);
-      res.json(plan);
-    })
-  );
-
-  app.delete(
-    "/api/meal-plans/:id",
-    isAuthenticated,
-    isResourceOwner('meal-plan'),
-    asyncHandler(async (req, res) => {
-      await storage.deleteMealPlan(parseInt(req.params.id));
-      res.json({ message: "Meal plan deleted successfully" });
-    })
-  );
-
   // ----------------- Mood Journal Routes -----------------
   app.post(
     "/api/mood-journal",
@@ -764,53 +693,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
   );
 
-  // Meal Prep Routes
-  app.post(
-    "/api/meal-prep",
+  // ----------------- Meal Plan Routes -----------------
+  app.get(
+    "/api/meal-plans",
     isAuthenticated,
     asyncHandler(async (req, res) => {
-      const user = req.user!;
-      const plan = await generateMealPrepPlan(
-        req.body.preferences,
-        req.body.servingsNeeded,
-        req.body.dietaryRestrictions,
-        req.body.timeAvailable
-      );
-
-      // Mark any existing plans as inactive
-      await storage.db
-        .update(mealPrepPlans)
-        .set({ isActive: false })
-        .where(eq(mealPrepPlans.userId, user.id));
-
-      // Create new plan
-      const newPlan = await storage.db
-        .insert(mealPrepPlans)
-        .values({
-          userId: user.id,
-          weeklyPlan: plan.weeklyPlan,
-          isActive: true,
-        })
-        .returning();
-
-      res.json(newPlan[0]);
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const plans = await storage.getMealPlansByUser(req.user.id);
+      res.json(plans);
     })
   );
 
-  app.get(
-    "/api/meal-prep/current",
+  app.post(
+    "/api/meal-plans",
     isAuthenticated,
     asyncHandler(async (req, res) => {
-      const user = req.user!;
-      const plan = await storage.db
-        .select()
-        .from(mealPrepPlans)
-        .where(eq(mealPrepPlans.userId, user.id))
-        .where(eq(mealPrepPlans.isActive, true))
-        .orderBy(desc(mealPrepPlans.createdAt))
-        .limit(1);
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
 
-      res.json(plan[0] || null);
+      const { title, startDate, endDate, preferences, dietaryRestrictions, calorieTarget, days } = req.body;
+
+      // Generate AI meal plan
+      const generatedPlan = await generateAIMealPlan(
+        preferences,
+        days,
+        dietaryRestrictions,
+        calorieTarget
+      );
+
+      // Create meal plan in database
+      const plan = await storage.createMealPlan({
+        userId: req.user.id,
+        title,
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+        preferences,
+        meals: generatedPlan,
+        createdAt: new Date(),
+        isActive: true
+      });
+
+      res.status(201).json(plan);
+    })
+  );
+
+  app.patch(
+    "/api/meal-plans/:id",
+    isAuthenticated,
+    asyncHandler(async (req, res) => {
+      const plan = await storage.updateMealPlan(parseInt(req.params.id), req.body);
+      res.json(plan);
+    })
+  );
+
+  app.delete(
+    "/api/meal-plans/:id",
+    isAuthenticated,
+    asyncHandler(async (req, res) => {
+      if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+      const planId = parseInt(req.params.id);
+      await storage.deleteMealPlan(planId);
+      res.sendStatus(204);
     })
   );
 

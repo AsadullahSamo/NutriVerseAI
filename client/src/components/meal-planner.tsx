@@ -67,23 +67,16 @@ export function MealPlanner() {
 
   const deleteMealPlanMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await apiRequest("DELETE", `/api/meal-plans/${id}`);
-      return res.json();
+      await apiRequest("DELETE", `/api/meal-plans/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/meal-plans"] });
+      setActiveMealPlan(null);
       toast({
         title: "Success",
         description: "Meal plan deleted successfully.",
       });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to delete meal plan. Please try again.",
-        variant: "destructive",
-      });
-    },
+    }
   });
 
   const createMutation = useMutation({

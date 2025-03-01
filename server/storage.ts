@@ -301,11 +301,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getMealPlansByUser(userId: number) {
-    return db.select().from(mealPlans).where(eq(mealPlans.userId, userId));
+    return db
+      .select()
+      .from(mealPlans)
+      .where(eq(mealPlans.userId, userId))
+      .orderBy(desc(mealPlans.createdAt));
   }
 
   async createMealPlan(plan: Omit<typeof mealPlans.$inferInsert, "id">) {
-    const [newPlan] = await db.insert(mealPlans).values(plan).returning();
+    const [newPlan] = await db
+      .insert(mealPlans)
+      .values(plan)
+      .returning();
     return newPlan;
   }
 
