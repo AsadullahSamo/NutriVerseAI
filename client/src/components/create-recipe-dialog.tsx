@@ -40,7 +40,6 @@ export function CreateRecipeDialog({ trigger }: CreateRecipeDialogProps) {
       },
       prepTime: 0,
       createdBy: user?.id,
-      likes: 0,
       imageUrl: "",
       sustainabilityScore: 50,
       wastageReduction: {}
