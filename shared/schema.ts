@@ -21,7 +21,6 @@ export const recipes = pgTable("recipes", {
   imageUrl: text("image_url"),
   prepTime: integer("prep_time").notNull(),
   createdBy: integer("created_by").references(() => users.id),
-  likes: integer("likes").default(0).notNull(),
   forkedFrom: integer("forked_from").references(() => recipes.id),
   sustainabilityScore: integer("sustainability_score"),
   wastageReduction: jsonb("wastage_reduction"),

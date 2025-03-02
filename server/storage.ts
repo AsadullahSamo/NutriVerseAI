@@ -2,7 +2,7 @@ import { IStorage } from "./types";
 import { User, Recipe, GroceryList, PantryItem, CommunityPost } from "@shared/schema";
 import { users, recipes, groceryLists, pantryItems, communityPosts, recipe_likes, mealPlans, nutritionGoals, type NutritionGoal, recipeConsumption, type RecipeConsumption } from "@shared/schema";
 import { db, sql, pool } from "./db";
-import { eq, and, gte, lte, desc } from "drizzle-orm";
+import { eq, and, gte, lte, desc, count } from "drizzle-orm";
 import session from "express-session";
 import MemoryStore from "memorystore";
 
@@ -56,10 +56,19 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(recipes);
 
-    return recipesList.map(recipe => ({
-      ...recipe,
-      createdAt: new Date(recipe.createdAt)
-    })) as Recipe[];
+    // For each recipe, get the likes count
+    const recipesWithLikes = await Promise.all(
+      recipesList.map(async (recipe) => {
+        const likeCount = await this.getRecipeLikesCount(recipe.id);
+        return {
+          ...recipe,
+          createdAt: new Date(recipe.createdAt),
+          likes: likeCount // Add likes count to the recipe
+        };
+      })
+    );
+
+    return recipesWithLikes as Recipe[];
   }
 
   async getRecipe(id: number): Promise<Recipe | undefined> {
@@ -69,12 +78,25 @@ export class DatabaseStorage implements IStorage {
       .where(eq(recipes.id, id));
 
     if (recipe) {
+      // Get the likes count
+      const likeCount = await this.getRecipeLikesCount(id);
       return {
         ...recipe,
-        createdAt: new Date(recipe.createdAt)
+        createdAt: new Date(recipe.createdAt),
+        likes: likeCount // Add likes count to the recipe
       } as Recipe;
     }
     return undefined;
+  }
+
+  async getRecipeLikesCount(recipeId: number): Promise<number> {
+    // Get count of likes for a recipe
+    const result = await db
+      .select({ count: count() })
+      .from(recipe_likes)
+      .where(eq(recipe_likes.recipeId, recipeId));
+    
+    return result[0]?.count || 0;
   }
 
   async createRecipe(recipe: Omit<Recipe, "id">): Promise<Recipe> {
@@ -92,7 +114,6 @@ export class DatabaseStorage implements IStorage {
         imageUrl: recipes.imageUrl,
         createdBy: recipes.createdBy,
         createdAt: recipes.createdAt,
-        likes: recipes.likes,
         forkedFrom: recipes.forkedFrom,
         sustainabilityScore: recipes.sustainabilityScore,
         wastageReduction: recipes.wastageReduction
@@ -100,36 +121,52 @@ export class DatabaseStorage implements IStorage {
 
     return {
       ...newRecipe,
-      createdAt: new Date(newRecipe.createdAt)
+      createdAt: new Date(newRecipe.createdAt),
+      likes: 0 // New recipes start with 0 likes
     } as Recipe;
   }
 
   async likeRecipe(recipeId: number, userId: number): Promise<Recipe> {
     try {
-      // Check if user has already liked this recipe using raw query
-      const existingLikes = await sql`SELECT * FROM recipe_likes WHERE recipe_id = ${recipeId} AND user_id = ${userId}`;
+      // Check if user has already liked this recipe
+      const existingLikes = await db
+        .select()
+        .from(recipe_likes)
+        .where(
+          and(
+            eq(recipe_likes.recipeId, recipeId),
+            eq(recipe_likes.userId, userId)
+          )
+        );
 
       if (existingLikes.length > 0) {
-        // Unlike: Remove the like and decrement count
-        await sql`DELETE FROM recipe_likes WHERE recipe_id = ${recipeId} AND user_id = ${userId}`;
-        await sql`UPDATE recipes SET likes = GREATEST(likes - 1, 0) WHERE id = ${recipeId}`;
+        // Unlike: Remove the like
+        await db
+          .delete(recipe_likes)
+          .where(
+            and(
+              eq(recipe_likes.recipeId, recipeId),
+              eq(recipe_likes.userId, userId)
+            )
+          );
       } else {
-        // Add like and increment count
-        await sql`INSERT INTO recipe_likes (recipe_id, user_id) VALUES (${recipeId}, ${userId})`;
-        await sql`UPDATE recipes SET likes = likes + 1 WHERE id = ${recipeId}`;
+        // Add like
+        await db
+          .insert(recipe_likes)
+          .values({
+            recipeId,
+            userId
+          });
       }
 
-      // Get updated recipe
-      const [recipe] = await sql`SELECT * FROM recipes WHERE id = ${recipeId}`;
+      // Get updated recipe with like count
+      const recipe = await this.getRecipe(recipeId);
 
       if (!recipe) {
         throw new Error("Recipe not found after updating");
       }
 
-      return {
-        ...recipe,
-        createdAt: new Date(recipe.createdAt)
-      } as Recipe;
+      return recipe;
     } catch (error) {
       console.error("Error in likeRecipe:", error);
       throw error;
@@ -137,42 +174,52 @@ export class DatabaseStorage implements IStorage {
   }
 
   async hasUserLikedRecipe(recipeId: number, userId: number): Promise<boolean> {
-    const likes = await sql`SELECT id FROM recipe_likes WHERE recipe_id = ${recipeId} AND user_id = ${userId}`;
+    const likes = await db
+      .select()
+      .from(recipe_likes)
+      .where(
+        and(
+          eq(recipe_likes.recipeId, recipeId),
+          eq(recipe_likes.userId, userId)
+        )
+      );
     return likes.length > 0;
   }
 
   async forkRecipe(id: number, userId: number): Promise<Recipe> {
     // Get original recipe
-    const [originalRecipe] = await db
-      .select()
-      .from(recipes)
-      .where(eq(recipes.id, id));
+    const originalRecipe = await this.getRecipe(id);
 
     if (!originalRecipe) throw new Error("Recipe not found");
+
+    // Remove likes and other fields we don't want to copy
+    const { id: _, likes: __, ...recipeToCopy } = originalRecipe;
 
     // Insert forked recipe
     const forkedRecipe = await db
       .insert(recipes)
       .values({
-        ...originalRecipe,
-        id: undefined, // Remove the id so a new one is generated
+        ...recipeToCopy,
         createdBy: userId,
         forkedFrom: id,
-        likes: 0,
         createdAt: new Date()
       })
       .returning();
 
     return {
       ...forkedRecipe[0],
-      createdAt: new Date(forkedRecipe[0].createdAt)
+      createdAt: new Date(forkedRecipe[0].createdAt),
+      likes: 0 // New forked recipe starts with 0 likes
     } as Recipe;
   }
 
   async updateRecipe(id: number, data: Partial<Recipe>): Promise<Recipe> {
+    // Remove likes field if it exists in data to prevent issues
+    const { likes, ...updateData } = data;
+
     const [recipe] = await db
       .update(recipes)
-      .set(data)
+      .set(updateData)
       .where(eq(recipes.id, id))
       .returning({
         id: recipes.id,
@@ -185,15 +232,18 @@ export class DatabaseStorage implements IStorage {
         imageUrl: recipes.imageUrl,
         createdBy: recipes.createdBy,
         createdAt: recipes.createdAt,
-        likes: recipes.likes,
         forkedFrom: recipes.forkedFrom,
         sustainabilityScore: recipes.sustainabilityScore,
         wastageReduction: recipes.wastageReduction
       });
 
+    // Get the likes count
+    const likeCount = await this.getRecipeLikesCount(id);
+
     return {
       ...recipe,
-      createdAt: new Date(recipe.createdAt)
+      createdAt: new Date(recipe.createdAt),
+      likes: likeCount
     } as Recipe;
   }
 
@@ -276,24 +326,43 @@ export class DatabaseStorage implements IStorage {
   async deleteRecipe(id: number): Promise<void> {
     try {
       // First check if there are consumption records for this recipe
-      const consumptionRecords = await sql`SELECT count(*) FROM recipe_consumption WHERE recipe_id = ${id}`;
+      const consumptionRecords = await db
+        .select({ count: count() })
+        .from(recipeConsumption)
+        .where(eq(recipeConsumption.recipeId, id));
 
       if (consumptionRecords[0].count > 0) {
         throw new Error("Cannot delete recipe that has consumption records. Use deleteRecipeConsumption first or force delete.");
       }
 
+      // Check if there are any likes for this recipe
+      const likeCount = await this.getRecipeLikesCount(id);
+      if (likeCount > 0) {
+        throw new Error("Cannot delete recipe that has likes");
+      }
+
       // Sequential cleanup operations
       // 1. Update any recipes that were forked from this one to remove the reference
-      await sql`UPDATE recipes SET forked_from = NULL WHERE forked_from = ${id}`;
+      await db
+        .update(recipes)
+        .set({ forkedFrom: null })
+        .where(eq(recipes.forkedFrom, id));
 
       // 2. Update any community posts that reference this recipe to mark it as deleted
-      await sql`UPDATE community_posts SET recipe_id = NULL WHERE recipe_id = ${id}`;
+      await db
+        .update(communityPosts)
+        .set({ recipeId: null })
+        .where(eq(communityPosts.recipeId, id));
 
       // 3. Clean up any likes for this recipe
-      await sql`DELETE FROM recipe_likes WHERE recipe_id = ${id}`;
+      await db
+        .delete(recipe_likes)
+        .where(eq(recipe_likes.recipeId, id));
 
       // 4. Finally delete the recipe
-      await sql`DELETE FROM recipes WHERE id = ${id}`;
+      await db
+        .delete(recipes)
+        .where(eq(recipes.id, id));
     } catch (error) {
       console.error("Error in deleteRecipe:", error);
       throw error;

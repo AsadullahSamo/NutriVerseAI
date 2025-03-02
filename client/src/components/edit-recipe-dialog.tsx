@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,14 +39,82 @@ export function EditRecipeDialog({ recipe, trigger }: EditRecipeDialogProps) {
     },
   });
 
+  // Watch nutrition info fields individually to ensure real-time updates
+  const calories = form.watch("nutritionInfo.calories");
+  const protein = form.watch("nutritionInfo.protein");
+  const carbs = form.watch("nutritionInfo.carbs");
+  const fat = form.watch("nutritionInfo.fat");
+  const ingredients = form.watch("ingredients");
+  
+  // Calculate sustainability score whenever nutrition values change
+  const currentSustainabilityScore = useMemo(() => {
+    let score = 50;
+    let modifiers = 0;
+
+    // Calculate nutrition-based modifiers (primary factor)
+    const totalMacros = (Number(protein) || 0) + (Number(carbs) || 0) + (Number(fat) || 0);
+    
+    if (totalMacros > 0) {
+      const proteinRatio = (Number(protein) || 0) / totalMacros;
+      const carbsRatio = (Number(carbs) || 0) / totalMacros;
+      const fatRatio = (Number(fat) || 0) / totalMacros;
+
+      // Award points for balanced macros
+      if (proteinRatio >= 0.25 && proteinRatio <= 0.35) {
+        modifiers += 15;
+      } else if (proteinRatio >= 0.20 && proteinRatio <= 0.40) {
+        modifiers += 10;
+      }
+
+      if (carbsRatio >= 0.45 && carbsRatio <= 0.55) {
+        modifiers += 15;
+      } else if (carbsRatio >= 0.40 && carbsRatio <= 0.60) {
+        modifiers += 10;
+      }
+
+      if (fatRatio >= 0.15 && fatRatio <= 0.25) {
+        modifiers += 15;
+      } else if (fatRatio >= 0.10 && fatRatio <= 0.30) {
+        modifiers += 10;
+      }
+    }
+
+    // Award points for reasonable calorie content
+    const calorieValue = Number(calories) || 0;
+    if (calorieValue > 0) {
+      if (calorieValue <= 400) {
+        modifiers += 15;
+      } else if (calorieValue <= 600) {
+        modifiers += 10;
+      } else if (calorieValue <= 800) {
+        modifiers += 5;
+      }
+    }
+
+    // Calculate final score
+    const finalScore = Math.min(100, Math.max(0, score + modifiers));
+    
+    // Update the form value immediately
+    form.setValue("sustainabilityScore", finalScore, {
+      shouldValidate: true,
+      shouldDirty: true
+    });
+    
+    return finalScore;
+  }, [calories, protein, carbs, fat, ingredients, form]);
+
+  // Track the latest calculated score in a ref to ensure it's available during form submission
+  const latestScoreRef = React.useRef(currentSustainabilityScore);
+  React.useEffect(() => {
+    latestScoreRef.current = currentSustainabilityScore;
+  }, [currentSustainabilityScore]);
+
   const editRecipeMutation = useMutation({
     mutationFn: async (data: any) => {
-      // Ensure we're not losing the sustainability score in the update
+      // Always use the latest calculated score
       const payload = {
         ...data,
-        sustainabilityScore: data.sustainabilityScore || recipe.sustainabilityScore || 0,
-        // Preserve likes count to avoid resetting it
-        likes: recipe.likes
+        sustainabilityScore: latestScoreRef.current
       };
       
       const res = await apiRequest("PATCH", `/api/recipes/${recipe.id}`, payload);
@@ -190,7 +258,15 @@ export function EditRecipeDialog({ recipe, trigger }: EditRecipeDialogProps) {
                   <FormItem>
                     <FormLabel>Calories</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} />
+                      <Input 
+                        type="number" 
+                        {...field} 
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value) || 0;
+                          field.onChange(value);
+                          form.setValue("nutritionInfo.calories", value, { shouldValidate: true });
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -203,7 +279,15 @@ export function EditRecipeDialog({ recipe, trigger }: EditRecipeDialogProps) {
                   <FormItem>
                     <FormLabel>Protein (g)</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} />
+                      <Input 
+                        type="number" 
+                        {...field} 
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value) || 0;
+                          field.onChange(value);
+                          form.setValue("nutritionInfo.protein", value, { shouldValidate: true });
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -216,7 +300,15 @@ export function EditRecipeDialog({ recipe, trigger }: EditRecipeDialogProps) {
                   <FormItem>
                     <FormLabel>Carbs (g)</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} />
+                      <Input 
+                        type="number" 
+                        {...field} 
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value) || 0;
+                          field.onChange(value);
+                          form.setValue("nutritionInfo.carbs", value, { shouldValidate: true });
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -229,7 +321,15 @@ export function EditRecipeDialog({ recipe, trigger }: EditRecipeDialogProps) {
                   <FormItem>
                     <FormLabel>Fat (g)</FormLabel>
                     <FormControl>
-                      <Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} />
+                      <Input 
+                        type="number" 
+                        {...field} 
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value) || 0;
+                          field.onChange(value);
+                          form.setValue("nutritionInfo.fat", value, { shouldValidate: true });
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -237,31 +337,30 @@ export function EditRecipeDialog({ recipe, trigger }: EditRecipeDialogProps) {
               />
             </div>
             <div className="space-y-2">
-              <Alert>
+              <Alert variant="default">
                 <Info className="h-4 w-4" />
                 <AlertDescription className="text-sm">
-                  Feel free to update the sustainability score below. A higher score indicates a more environmentally friendly recipe.
+                  <div className="flex justify-between items-center">
+                    <span>Sustainability Score</span>
+                    <div className={`px-2 py-0.5 rounded ${
+                      currentSustainabilityScore >= 70 ? 'bg-green-500/10 text-green-600' :
+                      currentSustainabilityScore >= 40 ? 'bg-yellow-500/10 text-yellow-600' :
+                      'bg-red-500/10 text-red-600'
+                    }`}>
+                      <span className="font-medium">{currentSustainabilityScore}/100</span>
+                    </div>
+                  </div>
+                  <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                    <p>Score is calculated based on:</p>
+                    <ul className="list-disc pl-4">
+                      <li>Use of sustainable ingredients</li>
+                      <li>Balanced macronutrient ratios</li>
+                      <li>Appropriate portion sizes</li>
+                      <li>Overall nutritional balance</li>
+                    </ul>
+                  </div>
                 </AlertDescription>
               </Alert>
-              <FormField
-                control={form.control}
-                name="sustainabilityScore"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Sustainability Score (0-100)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        {...field} 
-                        min={0} 
-                        max={100}
-                        onChange={e => field.onChange(parseInt(e.target.value))} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
             <Button type="submit" className="w-full" disabled={editRecipeMutation.isPending}>
               {editRecipeMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

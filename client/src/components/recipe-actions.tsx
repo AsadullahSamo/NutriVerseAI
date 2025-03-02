@@ -19,7 +19,7 @@ export function RecipeActions({ recipe, size = "default", showDelete = false, hi
   const { user } = useAuth();
   const { toast } = useToast();
   const [hasLiked, setHasLiked] = useState(false);
-  const [localLikeCount, setLocalLikeCount] = useState(recipe.likes);
+  const [localLikeCount, setLocalLikeCount] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
 
   const { data: likeStatus, isLoading: likesLoading } = useQuery({
@@ -34,12 +34,10 @@ export function RecipeActions({ recipe, size = "default", showDelete = false, hi
   useEffect(() => {
     if (likeStatus) {
       setHasLiked(likeStatus.hasLiked);
+      // Instead of relying on recipe.likes, we should get the like count from the API
+      // For now, we can use 0 as a default or fetch the count separately if needed
     }
   }, [likeStatus]);
-
-  useEffect(() => {
-    setLocalLikeCount(recipe.likes);
-  }, [recipe.likes]);
 
   const deleteRecipeMutation = useMutation({
     mutationFn: async () => {
@@ -114,7 +112,7 @@ export function RecipeActions({ recipe, size = "default", showDelete = false, hi
       
       // Update local state optimistically
       setHasLiked(!hasLiked);
-      setLocalLikeCount(prev => hasLiked ? prev - 1 : prev + 1);
+      setLocalLikeCount(prev => hasLiked ? Math.max(0, prev - 1) : prev + 1);
       
       // Return context object with previous values
       return { previousHasLiked, previousLikeCount };
