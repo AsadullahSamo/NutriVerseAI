@@ -32,6 +32,7 @@ type NutritionInfo = {
 type SustainabilityInfo = {
   score: number;
   packaging: string;
+  carbonFootprint: string;
 };
 
 export default function PantryPage() {
@@ -273,6 +274,20 @@ export default function PantryPage() {
                           : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
                       }`}>
                         {(item.sustainabilityInfo as SustainabilityInfo).packaging || 'N/A'}
+                      </Badge>
+                    </div>
+
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Carbon Footprint</span>
+                      <Badge variant="secondary" className={`${
+                        (item.sustainabilityInfo as SustainabilityInfo).carbonFootprint?.toLowerCase() === 'low'
+                          ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                          : (item.sustainabilityInfo as SustainabilityInfo).carbonFootprint?.toLowerCase() === 'medium'
+                          ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
+                          : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                      }`}>
+                        {((item.sustainabilityInfo as SustainabilityInfo).carbonFootprint || 'N/A').charAt(0).toUpperCase() + 
+                         ((item.sustainabilityInfo as SustainabilityInfo).carbonFootprint || 'N/A').slice(1).toLowerCase()}
                       </Badge>
                     </div>
                   </div>
