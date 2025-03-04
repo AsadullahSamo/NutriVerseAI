@@ -99,6 +99,21 @@ export const recipeConsumption = pgTable("recipe_consumption", {
   mealType: text("meal_type").notNull(), // breakfast, lunch, dinner, snack
 });
 
+export const kitchenEquipment = pgTable("kitchen_equipment", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  name: text("name").notNull(),
+  category: text("category").notNull(),
+  condition: text("condition").$type<'excellent' | 'good' | 'fair' | 'needs-maintenance' | 'replace'>().notNull(),
+  lastMaintenanceDate: text("last_maintenance_date"),
+  purchaseDate: text("purchase_date"),
+  maintenanceInterval: integer("maintenance_interval"),
+  maintenanceNotes: text("maintenance_notes"),
+  purchasePrice: integer("purchase_price"),
+  createdAt: text("created_at").notNull().$defaultFn(() => new Date().toISOString()),
+  updatedAt: text("updated_at").notNull().$defaultFn(() => new Date().toISOString()),
+});
+
 // Schema definitions - ordering matters!
 export const nutritionProgressSchema = z.object({
   date: z.string(),
@@ -121,6 +136,7 @@ export const insertGroceryListSchema = createInsertSchema(groceryLists);
 export const insertPantryItemSchema = createInsertSchema(pantryItems);
 export const insertCommunityPostSchema = createInsertSchema(communityPosts);
 export const insertNutritionGoalSchema = createInsertSchema(nutritionGoals);
+export const insertKitchenEquipmentSchema = createInsertSchema(kitchenEquipment);
 
 export const moodEntrySchema = z.object({
   recipeId: z.number(),
@@ -141,6 +157,24 @@ export const userSchema = z.object({
 // Add nutrition goal progress type
 export type NutritionProgress = z.infer<typeof nutritionProgressSchema>;
 
+// Add interface exports from kitchen-inventory-ai
+export interface EquipmentRecommendation {
+  name: string;
+  category: string;
+  reason: string;
+  priority: 'high' | 'medium' | 'low';
+  estimatedPrice: string;
+  alternativeOptions?: string[];
+}
+
+export interface MaintenanceSchedule {
+  equipmentId: string;
+  nextMaintenanceDate: string;
+  tasks: string[];
+  estimatedDuration: string;
+  priority: 'high' | 'medium' | 'low';
+}
+
 // Type exports
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -151,3 +185,4 @@ export type CommunityPost = typeof communityPosts.$inferSelect;
 export type RecipeLike = typeof recipe_likes.$inferSelect;
 export type NutritionGoal = typeof nutritionGoals.$inferSelect;
 export type RecipeConsumption = typeof recipeConsumption.$inferSelect;
+export type KitchenEquipment = typeof kitchenEquipment.$inferSelect;
