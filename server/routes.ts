@@ -760,6 +760,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
   );
 
+  // Kitchen Equipment Routes
+  app.get('/api/kitchen-equipment', async (req, res) => {
+    try {
+      const equipment = await db.select().from(kitchenEquipment)
+        .where(eq(kitchenEquipment.userId, req.user.id));
+      res.json(equipment);
+    } catch (error) {
+      console.error('Error fetching kitchen equipment:', error);
+      res.status(500).json({ error: 'Failed to fetch kitchen equipment' });
+    }
+  });
+
+  app.post('/api/kitchen-equipment', async (req, res) => {
+    try {
+      const data = {
+        ...req.body,
+        userId: req.user.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      const [equipment] = await db.insert(kitchenEquipment).values(data).returning();
+      res.json(equipment);
+    } catch (error) {
+      console.error('Error adding kitchen equipment:', error);
+      res.status(500).json({ error: 'Failed to add kitchen equipment' });
+    }
+  });
+
+  app.delete('/api/kitchen-equipment/:id', async (req, res) => {
+    try {
+      await db.delete(kitchenEquipment)
+        .where(and(
+          eq(kitchenEquipment.id, parseInt(req.params.id)),
+          eq(kitchenEquipment.userId, req.user.id)
+        ));
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting kitchen equipment:', error);
+      res.status(500).json({ error: 'Failed to delete kitchen equipment' });
+    }
+  });
+
+  app.post('/api/kitchen-equipment/:id/maintenance', async (req, res) => {
+    try {
+      const [equipment] = await db.update(kitchenEquipment)
+        .set({
+          lastMaintenanceDate: req.body.maintenanceDate,
+          maintenanceNotes: req.body.notes,
+          updatedAt: new Date(),
+        })
+        .where(and(
+          eq(kitchenEquipment.id, parseInt(req.params.id)),
+          eq(kitchenEquipment.userId, req.user.id)
+        ))
+        .returning();
+      res.json(equipment);
+    } catch (error) {
+      console.error('Error updating maintenance:', error);
+      res.status(500).json({ error: 'Failed to update maintenance' });
+    }
+  });
+
   // ----------------- Error Handling Middleware -----------------
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error(err);

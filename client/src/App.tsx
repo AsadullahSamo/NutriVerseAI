@@ -13,6 +13,7 @@ import MealPlanPage from "@/pages/meal-plan-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { Navbar } from "@/components/navbar";
 import NutritionPage from "./pages/nutrition-page";
+import KitchenEquipmentPage from '@/pages/kitchen-equipment-page';
 
 function Router() {
   return (
@@ -28,6 +29,7 @@ function Router() {
             <ProtectedRoute path="/community" component={CommunityPage} />
             <ProtectedRoute path="/meal-plans" component={MealPlanPage} />
             <ProtectedRoute path="/nutrition" component={NutritionPage} />
+            <ProtectedRoute path="/kitchen-equipment" component={KitchenEquipmentPage} />
             <Route component={NotFound} />
           </Switch>
         </Route>
