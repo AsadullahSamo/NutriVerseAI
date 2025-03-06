@@ -49,12 +49,21 @@ A smart nutrition and grocery management platform that helps users make healthy 
   - Easy inventory management
   - Pantry Analysis
 
+- 🔧 **Kitchen Equipment Management**
+  - 📝 Track kitchen equipment inventory
+  - 🔔 Monitor equipment condition and maintenance status
+  - 📅 AI-powered maintenance schedules
+  - ✨ Personalized equipment recommendations 
+  - 🍽️ Find recipe matches based on available equipment
+  - 🛠️ Get maintenance tips for specific equipment
+  - 📊 Equipment usage analysis
+  - 🛍️ Shopping suggestions for new kitchen tools
+
 - 👥 **Community Features**
   - Share recipes and cooking experiences
   - Post food rescue tips
   - Share cooking tips
-  - Location-based community interaction
-  - Interactive community posts
+  
 
 - 🎯 **Mood & Cooking Experience Tracking**
   - 📝 Track how cooking experiences affect your mood
