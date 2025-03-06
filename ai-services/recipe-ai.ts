@@ -95,7 +95,7 @@ DO NOT include any text outside the JSON array. The response should start with [
         },
         { role: "user", content: prompt }
       ],
-      model: "mixtral-8x7b-32768",
+      model: "llama-3.3-70b-versatile",
       temperature: 0.5,
       max_tokens: 2000,
     });
@@ -155,7 +155,7 @@ export async function analyzeNutritionalValue(
       { role: "system", content: "You are a professional nutritionist providing accurate nutritional analysis. Always respond in valid JSON format." },
       { role: "user", content: prompt }
     ],
-    model: "mixtral-8x7b-32768",
+    model: "llama-3.3-70b-versatile",
     temperature: 0.3,
     max_tokens: 1000,
   });
@@ -175,7 +175,7 @@ export async function getMealPlanSuggestions(
       { role: "system", content: "You are a professional nutritionist and meal planning expert." },
       { role: "user", content: prompt }
     ],
-    model: "mixtral-8x7b-32768",
+    model: "llama-3.3-70b-versatile",
     temperature: 0.7,
     max_tokens: 2000,
   });
@@ -219,7 +219,7 @@ export async function generateAIMealPlan(
       },
       { role: "user", content: prompt }
     ],
-    model: "mixtral-8x7b-32768",
+    model: "llama-3.3-70b-versatile",
     temperature: 0.7,
     max_tokens: 4000,
   });
@@ -250,7 +250,7 @@ export async function analyzeMoodSentiment(entry: string) {
         content: `Analyze the mood and sentiment in this cooking experience entry: "${entry}". Return a JSON object with 'sentiment' and 'emotions' fields.`
       }
     ],
-    model: "mixtral-8x7b-32768",
+    model: "llama-3.3-70b-versatile",
     temperature: 0.3,
     max_tokens: 1000,
   });
@@ -289,7 +289,7 @@ export async function generateMoodInsights(entries: Array<{ entry: string; times
         content: `Analyze these cooking experience entries and provide insights about mood patterns:\n${entriesText}`
       }
     ],
-    model: "mixtral-8x7b-32768",
+    model: "llama-3.3-70b-versatile",
     temperature: 0.5,
     max_tokens: 1500,
   });
@@ -344,7 +344,7 @@ Response format:
         },
         { role: "user", content: prompt }
       ],
-      model: "mixtral-8x7b-32768",
+      model: "llama-3.3-70b-versatile",
       temperature: 0.5,
       max_tokens: 2000,
     });

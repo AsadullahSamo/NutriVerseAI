@@ -38,7 +38,7 @@ export interface EquipmentAnalysis {
 
 export async function analyzeKitchenInventory(
   equipment: KitchenEquipment[],
-  userCookingPreferences?: string[]
+  userCookingPreferences?: string[] 
 ): Promise<EquipmentAnalysis> {
   try {
     console.log("Calling Groq API for kitchen inventory analysis...");
@@ -82,7 +82,7 @@ RESPOND WITH EXACTLY THIS JSON STRUCTURE AND NOTHING ELSE (no explanation, no ma
         },
         { role: "user", content: prompt }
       ],
-      model: "mixtral-8x7b-32768",
+      model: "llama-3.3-70b-versatile",
       temperature: 0.3,
       max_tokens: 1500,
     });
@@ -140,7 +140,7 @@ RESPOND WITH EXACTLY THIS FORMAT AND NOTHING ELSE (no explanation, no markdown):
         },
         { role: "user", content: prompt }
       ],
-      model: "mixtral-8x7b-32768",
+      model: "llama-3.3-70b-versatile",
       temperature: 0.3,
       max_tokens: 800,
     });
