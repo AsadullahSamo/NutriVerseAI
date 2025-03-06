@@ -8,7 +8,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, AlertCircle, HelpCircle } from "lucide-react";
-import { addDays } from "date-fns";
+import { addDays, format } from "date-fns";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -60,22 +60,38 @@ export function CreateMealPlanDialog({ open, onOpenChange }: CreateMealPlanDialo
         ? dietaryRestrictions.split(',').map(r => r.trim()).filter(Boolean)
         : undefined;
 
-      const response = await apiRequest("POST", "/api/meal-plans", {
-        title,
-        startDate,
-        endDate: addDays(startDate, daysValue - 1),
-        preferences: formattedPreferences,
-        dietaryRestrictions: formattedDietaryRestrictions,
-        calorieTarget: calorieTarget ? parseInt(calorieTarget) : undefined,
-        days: daysValue
-      });
+      const endDate = addDays(startDate, parseInt(days) - 1);
+      
+      try {
+        // Format dates as ISO strings for consistent API handling
+        const startDateISO = startDate.toISOString();
+        const endDateISO = endDate.toISOString();
+        
+        console.log("Sending meal plan request with dates:", {
+          startDate: startDateISO,
+          endDate: endDateISO
+        });
+        
+        const response = await apiRequest("POST", "/api/meal-plans", {
+          title,
+          startDate: startDateISO, 
+          endDate: endDateISO,
+          preferences: formattedPreferences,
+          dietaryRestrictions: formattedDietaryRestrictions,
+          calorieTarget: calorieTarget ? parseInt(calorieTarget) : undefined,
+          days: daysValue
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to create meal plan");
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || "Failed to create meal plan");
+        }
+
+        return response.json();
+      } catch (error) {
+        console.error("Error creating meal plan:", error);
+        throw error;
       }
-
-      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/meal-plans"] });
@@ -152,6 +168,11 @@ export function CreateMealPlanDialog({ open, onOpenChange }: CreateMealPlanDialo
                 />
               </div>
             </div>
+            {startDate && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Selected: {format(startDate, "MMMM d, yyyy")}
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">

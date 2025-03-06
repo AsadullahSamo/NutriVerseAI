@@ -105,43 +105,72 @@ export async function generateAIMealPlan(
       "nutritionSummary": string
     }`;
 
-  const response = await groq.chat.completions.create({
-    messages: [
-      {
-        role: "system",
-        content: "You are a professional nutritionist and meal planning expert. Always respond with valid JSON that matches the requested structure exactly."
-      },
-      { role: "user", content: prompt }
-    ],
-    model: "llama-3.3-70b-versatile",
-    temperature: 0.7,
-    max_tokens: 4000,
-  });
-
-  const content = response.choices[0]?.message?.content;
-  if (!content) {
-    throw new Error('No response from meal plan generation');
-  }
-
   try {
-    const cleanedContent = content
-      .replace(/```json\n?|\n?```/g, '') // Remove code blocks
-      .replace(/^[^[]*(\[[\s\S]*\])[^]]*$/, '$1') // Extract just the JSON array
-      .trim();
-
-    const mealPlan = JSON.parse(cleanedContent) as MealPlan[];
-    
-    // Validate the structure
-    mealPlan.forEach((day, index) => {
-      if (!day.meals?.breakfast || !day.meals?.lunch || !day.meals?.dinner || !Array.isArray(day.meals?.snacks)) {
-        throw new Error(`Invalid meal plan structure for day ${index + 1}`);
-      }
+    console.log("Sending meal plan generation request to Groq API...");
+    const response = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: "You are a professional nutritionist and meal planning expert. Always respond with valid JSON that matches the requested structure exactly."
+        },
+        { role: "user", content: prompt }
+      ],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.7,
+      max_tokens: 4000,
     });
 
-    return mealPlan;
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error('No response from meal plan generation');
+    }
+
+    try {
+      // Improved JSON cleaning and extraction
+      const cleanedContent = content
+        .replace(/```json\n?|\n?```/g, '') // Remove code blocks
+        .replace(/^[^[]*(\[[\s\S]*\])[^]]*$/, '$1') // Extract just the JSON array
+        .replace(/,\s*]/g, ']') // Fix trailing commas in arrays
+        .replace(/,\s*}/g, '}') // Fix trailing commas in objects
+        .trim();
+      
+      console.log("Cleaned JSON content length:", cleanedContent.length);
+      
+      let mealPlan: MealPlan[];
+      try {
+        mealPlan = JSON.parse(cleanedContent) as MealPlan[];
+      } catch (jsonError) {
+        console.error("Initial JSON parse failed:", jsonError);
+        console.log("Attempting additional cleaning...");
+        
+        // More aggressive cleaning if initial parsing fails
+        const strictlyCleanedContent = cleanedContent
+          .replace(/[\u0000-\u001F]+/g, '') // Remove control characters
+          .replace(/\\n/g, ' ') // Replace newlines with spaces
+          .replace(/\s+/g, ' ') // Normalize whitespace
+          .replace(/"\s*([{[])\s*/g, '"$1') // Remove spaces after quotes before brackets
+          .replace(/\s*([}\]])\s*"/g, '$1"'); // Remove spaces before brackets after quotes
+        
+        mealPlan = JSON.parse(strictlyCleanedContent) as MealPlan[];
+      }
+      
+      // Validate the structure
+      mealPlan.forEach((day, index) => {
+        if (!day.meals?.breakfast || !day.meals?.lunch || !day.meals?.dinner || !Array.isArray(day.meals?.snacks)) {
+          console.error(`Invalid meal plan structure for day ${index + 1}:`, day);
+          throw new Error(`Invalid meal plan structure for day ${index + 1}`);
+        }
+      });
+
+      return mealPlan;
+    } catch (error) {
+      console.error('Failed to parse meal plan:', error);
+      console.log('Raw content sample:', content.substring(0, 200) + '...');
+      throw new Error('Invalid meal plan format received - please try again');
+    }
   } catch (error) {
-    console.error('Failed to parse meal plan:', error);
-    throw new Error('Invalid meal plan format received');
+    console.error('Error with Groq API:', error);
+    throw new Error('Failed to generate meal plan - please try again');
   }
 }
 
