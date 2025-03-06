@@ -34,7 +34,7 @@ export async function getEquipmentRecommendations(
         },
         { role: "user", content: prompt }
       ],
-      model: "mixtral-8x7b-32768",
+      model: "llama-3.3-70b-versatile",
       temperature: 0.3,
       max_tokens: 1500,
     });
@@ -107,7 +107,7 @@ export async function generateMaintenanceSchedule(
         },
         { role: "user", content: prompt }
       ],
-      model: "mixtral-8x7b-32768",
+      model: "llama-3.3-70b-versatile",
       temperature: 0.2, // Lowering temperature for more predictable JSON formatting
       max_tokens: 1200,
     });
@@ -382,16 +382,32 @@ function generateMaintenanceScheduleLogic(
 ): MaintenanceSchedule[] {
   console.log("Generating intelligent maintenance schedule based on equipment data");
   
-  return equipment.map(item => {
+  // Create a set to track equipment IDs we've already scheduled
+  const processedIds = new Set<number>();
+  const schedules: MaintenanceSchedule[] = [];
+  
+  // Process each equipment item once
+  equipment.forEach(item => {
+    // Skip if we already created a schedule for this equipment
+    if (processedIds.has(item.id)) {
+      return;
+    }
+    
+    // Mark this equipment as processed
+    processedIds.add(item.id);
+    
+    // Generate the schedule for this equipment
     const date = generateDateBasedOnCondition(item, startDate, endDate);
     const tasks = generateTasksForEquipment(item);
     
-    return {
+    schedules.push({
       equipmentId: item.id,
       date,
       tasks
-    };
+    });
   });
+  
+  return schedules;
 }
 
 // Skip trying to use the backend since the endpoint doesn't exist
@@ -434,7 +450,7 @@ export async function getRecipesByEquipment(
         },
         { role: "user", content: prompt }
       ],
-      model: "mixtral-8x7b-32768",
+      model: "llama-3.3-70b-versatile",
       temperature: 0.4,
       max_tokens: 1500,
     });
