@@ -105,8 +105,16 @@ export function NutritionInsights() {
           variant="outline"
           className="w-full"
           onClick={() => insightsQuery.refetch()}
+          disabled={insightsQuery.isFetching}
         >
-          Update Insights
+          {insightsQuery.isFetching ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Updating...
+            </>
+          ) : (
+            "Update Insights"
+          )}
         </Button>
       </CardContent>
     </Card>
