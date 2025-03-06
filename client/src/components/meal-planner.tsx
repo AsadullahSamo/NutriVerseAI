@@ -4,13 +4,26 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, Plus, CalendarIcon, Trash2, AlertTriangle } from "lucide-react";
+import { 
+  Loader2, 
+  Plus, 
+  CalendarIcon, 
+  Trash2, 
+  AlertTriangle,
+  Clock,
+  Coffee,
+  UtensilsCrossed,
+  ChefHat,
+  Apple,
+  Sparkles
+} from "lucide-react";
 import { CreateMealPlanDialog } from "./create-meal-plan-dialog";
 import { format } from "date-fns";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Meal {
   title: string;
@@ -42,6 +55,7 @@ interface MealCardProps {
   title?: string;
   meal: Meal;
   className?: string;
+  icon?: React.ReactNode;
 }
 
 export function MealPlanner() {
@@ -248,7 +262,10 @@ export function MealPlanner() {
   return (
     <div className="container mx-auto p-4">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Meal Planner</h1>
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-6 w-6 text-primary" />
+          <h1 className="text-2xl font-bold">Meal Planner</h1>
+        </div>
         <Button onClick={() => setShowCreateDialog(true)} className="bg-primary">
           <Plus className="w-4 h-4 mr-2" />
           Create Meal Plan
@@ -256,30 +273,36 @@ export function MealPlanner() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="p-4">
+        <Card className="p-4 border border-border shadow-sm">
           <div className="flex flex-col items-center">
             <div className="w-full max-w-sm mx-auto">
               <Calendar
                 mode="single"
                 selected={selectedDate}
                 onSelect={(date) => date && setSelectedDate(date)}
-                className="mx-auto rounded-md border shadow-sm bg-card"
+                className="mx-auto rounded-md bg-card"
               />
             </div>
           </div>
         </Card>
 
-        <Card className="p-4">
+        <Card className="p-4 border border-border shadow-sm relative overflow-hidden">
           {isLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="w-8 h-8 animate-spin" />
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-8 w-8 rounded-full" />
+              </div>
+              <Skeleton className="h-24 w-full rounded-md" />
+              <Skeleton className="h-24 w-full rounded-md" />
+              <Skeleton className="h-24 w-full rounded-md" />
             </div>
           ) : selectedDayMeals ? (
             <div className="space-y-6">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-muted-foreground">
+                <div className="flex items-center gap-2 text-primary">
                   <CalendarIcon className="w-4 h-4" />
-                  <span>{format(selectedDate, "MMMM d, yyyy")}</span>
+                  <span className="font-medium">{format(selectedDate, "MMMM d, yyyy")}</span>
                 </div>
                 {activeMealPlan && (
                   <AlertDialog>
@@ -309,40 +332,53 @@ export function MealPlanner() {
                 )}
               </div>
               
-              <MealCard
-                title="Breakfast"
-                meal={selectedDayMeals.meals.breakfast}
-                className="bg-orange-50 dark:bg-orange-950"
-              />
-              <MealCard
-                title="Lunch"
-                meal={selectedDayMeals.meals.lunch}
-                className="bg-green-50 dark:bg-green-950"
-              />
-              <MealCard
-                title="Dinner"
-                meal={selectedDayMeals.meals.dinner}
-                className="bg-blue-50 dark:bg-blue-950"
-              />
+              <div className="grid gap-4">
+                <MealCard
+                  title="Breakfast"
+                  meal={selectedDayMeals.meals.breakfast}
+                  className="bg-orange-50/50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-900"
+                  icon={<Coffee className="h-4 w-4 text-orange-500" />}
+                />
+                <MealCard
+                  title="Lunch"
+                  meal={selectedDayMeals.meals.lunch}
+                  className="bg-green-50/50 dark:bg-green-950/30 border-green-200 dark:border-green-900"
+                  icon={<UtensilsCrossed className="h-4 w-4 text-green-500" />}
+                />
+                <MealCard
+                  title="Dinner"
+                  meal={selectedDayMeals.meals.dinner}
+                  className="bg-blue-50/50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900"
+                  icon={<ChefHat className="h-4 w-4 text-blue-500" />}
+                />
+              </div>
               
               <div className="mt-4">
-                <h3 className="font-semibold mb-2">Snacks</h3>
-                <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-3">
+                  <Apple className="h-4 w-4 text-purple-500" />
+                  <h3 className="font-semibold">Snacks</h3>
+                </div>
+                <div className="grid gap-2">
                   {selectedDayMeals.meals.snacks.map((snack, index) => (
                     <MealCard
                       key={index}
                       meal={snack}
-                      className="bg-purple-50 dark:bg-purple-950"
+                      className="bg-purple-50/50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-900"
                     />
                   ))}
                 </div>
               </div>
 
-              <div className="mt-4 p-4 rounded-lg bg-secondary">
-                <p className="font-semibold">Daily Summary</p>
-                <p className="text-sm text-muted-foreground">
-                  Total Calories: {selectedDayMeals.totalCalories}
-                </p>
+              <div className="mt-4 p-4 rounded-lg bg-secondary/50 border border-border">
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <p className="font-semibold">Daily Summary</p>
+                </div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Badge variant="secondary" className="bg-primary/10">
+                    {selectedDayMeals.totalCalories} calories
+                  </Badge>
+                </div>
                 <p className="text-sm text-muted-foreground">
                   {selectedDayMeals.nutritionSummary}
                 </p>
@@ -352,6 +388,9 @@ export function MealPlanner() {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-64 text-center space-y-4">
+              <div className="rounded-full bg-primary/10 p-3">
+                <CalendarIcon className="w-8 h-8 text-primary" />
+              </div>
               <p className="text-muted-foreground">
                 No meal plan for this date.
               </p>
@@ -374,19 +413,49 @@ export function MealPlanner() {
   );
 }
 
-function MealCard({ title, meal, className = "" }: MealCardProps) {
+function MealCard({ title, meal, className = "", icon }: MealCardProps) {
+  // Extract preparation time for formatted display
+  const getPrepTime = (prepTime?: string) => {
+    if (!prepTime) return null;
+    return prepTime;
+  };
+
+  // Process nutritional info to ensure better readability
+  const formatNutritionalInfo = (nutritionalInfo: string) => {
+    // If there's no proper nutritional info, provide basic info
+    if (!nutritionalInfo || nutritionalInfo.trim() === '') {
+      return "No detailed nutritional info";
+    }
+    
+    return nutritionalInfo;
+  };
+
   return (
-    <Card className={`p-4 ${className}`}>
-      {title && <h3 className="font-semibold mb-2">{title}</h3>}
-      <h4 className="font-medium">{meal.title}</h4>
-      <p className="text-sm text-muted-foreground mt-1">
-        {meal.description}
-      </p>
-      <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-        <span>{meal.nutritionalInfo}</span>
-        {meal.preparationTime && (
-          <span>Prep time: {meal.preparationTime}</span>
+    <Card className={`p-4 border shadow-sm transition-all hover:shadow-md ${className}`}>
+      <div className="space-y-2">
+        {title && (
+          <div className="flex items-center gap-2 mb-1">
+            {icon}
+            <h3 className="font-semibold">{title}</h3>
+          </div>
         )}
+        <div>
+          <h4 className="font-medium text-base">{meal.title}</h4>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {meal.description}
+        </p>
+        <div className="flex justify-between items-center text-xs pt-2 border-t border-border/50">
+          <span className="font-medium text-gray-700 dark:text-gray-300">
+            {formatNutritionalInfo(meal.nutritionalInfo)}
+          </span>
+          {meal.preparationTime && (
+            <div className="flex items-center gap-1 text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              <span>{getPrepTime(meal.preparationTime)}</span>
+            </div>
+          )}
+        </div>
       </div>
     </Card>
   );

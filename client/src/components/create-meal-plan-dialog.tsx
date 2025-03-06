@@ -7,8 +7,10 @@ import { Label } from "@/components/ui/label";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle, HelpCircle } from "lucide-react";
 import { addDays } from "date-fns";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface CreateMealPlanDialogProps {
   open: boolean;
@@ -23,10 +25,35 @@ export function CreateMealPlanDialog({ open, onOpenChange }: CreateMealPlanDialo
   const [dietaryRestrictions, setDietaryRestrictions] = useState("");
   const [calorieTarget, setCalorieTarget] = useState("");
   const [days, setDays] = useState("7");
+  const [errorMessage, setErrorMessage] = useState("");
 
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!startDate) throw new Error("Start date is required");
+      setErrorMessage("");
+      
+      // Validate inputs
+      if (!preferences.trim()) {
+        throw new Error("Please enter at least one preference");
+      }
+
+      const daysValue = parseInt(days);
+      if (isNaN(daysValue) || daysValue < 1) {
+        throw new Error("Please enter a valid number of days");
+      }
+      
+      // Limit days to prevent AI errors (7 days is optimal)
+      if (daysValue > 14) {
+        throw new Error("For best results, please limit meal plans to 14 days or less");
+      }
+
+      // Validate calorie target if provided
+      if (calorieTarget) {
+        const calorieValue = parseInt(calorieTarget);
+        if (isNaN(calorieValue) || calorieValue < 500 || calorieValue > 5000) {
+          throw new Error("Please enter a reasonable calorie target (between 500-5000)");
+        }
+      }
       
       const formattedPreferences = preferences.split(',').map(p => p.trim()).filter(Boolean);
       const formattedDietaryRestrictions = dietaryRestrictions
@@ -36,12 +63,17 @@ export function CreateMealPlanDialog({ open, onOpenChange }: CreateMealPlanDialo
       const response = await apiRequest("POST", "/api/meal-plans", {
         title,
         startDate,
-        endDate: addDays(startDate, parseInt(days) - 1),
+        endDate: addDays(startDate, daysValue - 1),
         preferences: formattedPreferences,
         dietaryRestrictions: formattedDietaryRestrictions,
         calorieTarget: calorieTarget ? parseInt(calorieTarget) : undefined,
-        days: parseInt(days)
+        days: daysValue
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to create meal plan");
+      }
 
       return response.json();
     },
@@ -54,10 +86,12 @@ export function CreateMealPlanDialog({ open, onOpenChange }: CreateMealPlanDialo
       onOpenChange(false);
       resetForm();
     },
-    onError: () => {
+    onError: (error: Error) => {
+      console.error("Meal plan generation error:", error);
+      setErrorMessage(error.message || "Failed to create meal plan. Please try again.");
       toast({
         title: "Error",
-        description: "Failed to create meal plan. Please try again.",
+        description: error.message || "Failed to create meal plan. Please try again.",
         variant: "destructive",
       });
     },
@@ -70,6 +104,7 @@ export function CreateMealPlanDialog({ open, onOpenChange }: CreateMealPlanDialo
     setDietaryRestrictions("");
     setCalorieTarget("");
     setDays("7");
+    setErrorMessage("");
   };
 
   return (
@@ -78,6 +113,14 @@ export function CreateMealPlanDialog({ open, onOpenChange }: CreateMealPlanDialo
         <DialogHeader>
           <DialogTitle>Create New Meal Plan</DialogTitle>
         </DialogHeader>
+        
+        {errorMessage && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{errorMessage}</AlertDescription>
+          </Alert>
+        )}
+        
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -112,16 +155,36 @@ export function CreateMealPlanDialog({ open, onOpenChange }: CreateMealPlanDialo
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="days">Number of Days</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="days">Number of Days</Label>
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 p-0">
+                      <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                      <span className="sr-only">Number of days info</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" align="center" className="max-w-[200px]">
+                    <p>For optimal results, we recommend 7-day plans</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <Input
               id="days"
               type="number"
               min="1"
-              max="30"
+              max="14"
               value={days}
               onChange={(e) => setDays(e.target.value)}
               required
             />
+            {parseInt(days) > 7 && (
+              <p className="text-xs text-amber-500 mt-1">
+                Plans longer than 7 days may take more time to generate
+              </p>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -133,6 +196,7 @@ export function CreateMealPlanDialog({ open, onOpenChange }: CreateMealPlanDialo
               onChange={(e) => setPreferences(e.target.value)}
               required
             />
+            <p className="text-xs text-muted-foreground">Separate multiple preferences with commas</p>
           </div>
 
           <div className="space-y-2">
@@ -143,14 +207,32 @@ export function CreateMealPlanDialog({ open, onOpenChange }: CreateMealPlanDialo
               value={dietaryRestrictions}
               onChange={(e) => setDietaryRestrictions(e.target.value)}
             />
+            <p className="text-xs text-muted-foreground">Separate multiple restrictions with commas</p>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="calorieTarget">Daily Calorie Target</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="calorieTarget">Daily Calorie Target</Label>
+              <TooltipProvider delayDuration={300}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 p-0">
+                      <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                      <span className="sr-only">Calorie target info</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="left" align="center" className="max-w-[200px]">
+                    <p>Enter a value between 500-5000 calories</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <Input
               id="calorieTarget"
               type="number"
               placeholder="2000"
+              min="500"
+              max="5000"
               value={calorieTarget}
               onChange={(e) => setCalorieTarget(e.target.value)}
             />
@@ -170,9 +252,13 @@ export function CreateMealPlanDialog({ open, onOpenChange }: CreateMealPlanDialo
               className="bg-primary"
             >
               {createMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              ) : null}
-              Create Plan
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Generating...
+                </>
+              ) : (
+                "Create Plan"
+              )}
             </Button>
           </div>
         </form>
