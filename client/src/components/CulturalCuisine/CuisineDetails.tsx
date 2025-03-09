@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MapPin, Utensils, Book, Info, Loader2, PlusCircle, Camera, Edit } from "lucide-react";
+import { ArrowLeft, MapPin, Utensils, Book, Info, Loader2, PlusCircle, Camera, Edit, History, Scroll, Globe2, BookOpen, UtensilsCrossed, ChefHat } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RecipeDetails } from "./RecipeDetails";
 import { CulturalCuisine, CulturalRecipe, CulturalTechnique } from "@shared/schema";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { EditCulturalDetailsDialog } from "./EditCulturalDetailsDialog";
 
 interface CuisineDetailsProps {
   cuisineId: number;
@@ -61,6 +63,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
   const [selectedRecipe, setSelectedRecipe] = useState<CulturalRecipe | null>(null);
   const [isAddingRecipe, setIsAddingRecipe] = useState(false);
   const [isEditingImages, setIsEditingImages] = useState(false);
+  const [isEditingCulturalDetails, setIsEditingCulturalDetails] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
@@ -101,6 +104,43 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
       toast({
         title: "Error",
         description: "Failed to update images. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateCulturalDetails = async (data: { 
+    culturalContext: Record<string, string>; 
+    servingEtiquette: Record<string, string> 
+  }) => {
+    try {
+      const response = await fetch(`/api/cultural-cuisines/${cuisineId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          culturalContext: data.culturalContext,
+          servingEtiquette: data.servingEtiquette
+        }),
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update cultural details');
+      }
+
+      toast({
+        title: "Details Updated",
+        description: "Cultural details have been updated successfully.",
+      });
+
+      refetch();
+      setIsEditingCulturalDetails(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update cultural details. Please try again.",
         variant: "destructive",
       });
     }
@@ -185,7 +225,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
   };
 
   return (
-    <div className="relative">
+    <div className="relative space-y-6 pb-12">
       {cuisine?.bannerUrl && (
         <div className="relative w-full h-[300px] -mt-6 mb-6 rounded-lg overflow-hidden">
           <img 
@@ -211,7 +251,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
         </div>
       )}
 
-      <div className="mt-6 space-y-6">
+      <div className="space-y-8">
         <div className="prose max-w-none">
           {!cuisine?.bannerUrl && (
             <>
@@ -235,24 +275,34 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
           }}
         />
 
-        <div className="max-h-[calc(100vh-480px)] overflow-y-auto pr-4 space-y-6">
+        <EditCulturalDetailsDialog
+          open={isEditingCulturalDetails}
+          onOpenChange={setIsEditingCulturalDetails}
+          onSubmit={handleUpdateCulturalDetails}
+          currentDetails={{
+            culturalContext: cuisine?.culturalContext as Record<string, string>,
+            servingEtiquette: cuisine?.servingEtiquette as Record<string, string>
+          }}
+        />
+
+        <div className="space-y-8">
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid grid-cols-3 sticky top-0 bg-background z-10">
+            <TabsList className="grid grid-cols-3 mb-8">
               <TabsTrigger value="overview">
-                <Info className="h-4 w-4 mr-2 hidden sm:inline" /> 
+                <Globe2 className="h-4 w-4 mr-2 hidden sm:inline" /> 
                 Overview
               </TabsTrigger>
               <TabsTrigger value="recipes">
-                <Utensils className="h-4 w-4 mr-2 hidden sm:inline" /> 
+                <UtensilsCrossed className="h-4 w-4 mr-2 hidden sm:inline" /> 
                 Recipes
               </TabsTrigger>
               <TabsTrigger value="techniques">
-                <Book className="h-4 w-4 mr-2 hidden sm:inline" /> 
+                <ChefHat className="h-4 w-4 mr-2 hidden sm:inline" /> 
                 Techniques
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="overview" className="space-y-6">
+            <TabsContent value="overview" className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader>
@@ -289,41 +339,81 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                 </Card>
               </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Cultural Context</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {typeof cuisine.culturalContext === 'object' ? (
-                    Object.entries(cuisine.culturalContext).map(([key, value], i) => (
-                      <div key={i} className="mb-4 last:mb-0">
-                        <h3 className="font-medium mb-1 capitalize">{key}</h3>
-                        <p>{value}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Card className="col-span-1">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <History className="h-5 w-5 text-primary" />
+                        <CardTitle>Cultural Context</CardTitle>
                       </div>
-                    ))
-                  ) : (
-                    <p>{cuisine.culturalContext}</p>
-                  )}
-                </CardContent>
-              </Card>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsEditingCulturalDetails(true)}
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {typeof cuisine.culturalContext === 'object' ? (
+                      Object.entries(cuisine.culturalContext).map(([key, value], i) => (
+                        <div key={i} className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <BookOpen className="h-4 w-4 text-muted-foreground" />
+                            <h3 className="font-medium capitalize">{key}</h3>
+                          </div>
+                          <p className="text-muted-foreground pl-6">{value}</p>
+                          {i < Object.entries(cuisine.culturalContext).length - 1 && (
+                            <Separator className="my-4" />
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground">{cuisine.culturalContext}</p>
+                    )}
+                  </CardContent>
+                </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Traditional Serving Etiquette</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {typeof cuisine.servingEtiquette === 'object' ? (
-                    Object.entries(cuisine.servingEtiquette).map(([key, value], i) => (
-                      <div key={i} className="mb-4 last:mb-0">
-                        <h3 className="font-medium mb-1 capitalize">{key}</h3>
-                        <p>{value}</p>
+                <Card className="col-span-1">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <Scroll className="h-5 w-5 text-primary" />
+                        <CardTitle>Traditional Serving Etiquette</CardTitle>
                       </div>
-                    ))
-                  ) : (
-                    <p>{cuisine.servingEtiquette}</p>
-                  )}
-                </CardContent>
-              </Card>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsEditingCulturalDetails(true)}
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {typeof cuisine.servingEtiquette === 'object' ? (
+                      Object.entries(cuisine.servingEtiquette).map(([key, value], i) => (
+                        <div key={i} className="space-y-2">
+                          <div className="flex items-center space-x-2">
+                            <UtensilsCrossed className="h-4 w-4 text-muted-foreground" />
+                            <h3 className="font-medium capitalize">{key}</h3>
+                          </div>
+                          <p className="text-muted-foreground pl-6">{value}</p>
+                          {i < Object.entries(cuisine.servingEtiquette).length - 1 && (
+                            <Separator className="my-4" />
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground">{cuisine.servingEtiquette}</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
             </TabsContent>
 
             <TabsContent value="recipes" className="space-y-6">

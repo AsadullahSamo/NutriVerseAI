@@ -77,78 +77,83 @@ export default function CulturalCuisinePage() {
   }
 
   return (
-    <div className="container mx-auto py-6">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Cultural Cuisine Explorer</h1>
-          <p className="text-muted-foreground">
-            Discover authentic recipes from around the world
-          </p>
+    <div className="min-h-screen pb-12 overflow-x-hidden">
+      <div className="container mx-auto py-6">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-bold">Cultural Cuisine Explorer</h1>
+            <p className="text-muted-foreground">
+              Discover authentic recipes from around the world
+            </p>
+          </div>
+          
+          {view === 'details' && (
+            <Button onClick={handleBackToList} variant="outline">
+              Back to All Cuisines
+            </Button>
+          )}
         </div>
-        
-        {view === 'details' && (
-          <Button onClick={handleBackToList} variant="outline">
-            Back to All Cuisines
-          </Button>
+
+        {view === 'list' && (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Authentic Techniques
+                  </CardTitle>
+                  <Utensils className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{cuisines?.length ? cuisines.reduce((acc, cuisine) => acc + (cuisine.cookingTechniques?.length || 0), 0) : 0}+</div>
+                  <p className="text-xs text-muted-foreground">
+                    Traditional cooking methods
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Cultural Context
+                  </CardTitle>
+                  <History className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{cuisines?.length || 0}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Rich cultural histories
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">
+                    Traditional Recipes
+                  </CardTitle>
+                  <Book className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">
+                    {cuisines?.length ? cuisines.reduce((acc, cuisine) => acc + 5, 0) : 0}+
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Authentic dishes to explore
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <CuisineList cuisines={cuisines || []} onSelectCuisine={handleSelectCuisine} />
+          </>
+        )}
+
+        {view === 'details' && selectedCuisineId && (
+          <CuisineDetails 
+            cuisineId={selectedCuisineId} 
+            onBack={handleBackToList} 
+          />
         )}
       </div>
-
-      {view === 'list' && (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Authentic Techniques
-                </CardTitle>
-                <Utensils className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{cuisines?.length ? cuisines.reduce((acc, cuisine) => acc + (cuisine.cookingTechniques?.length || 0), 0) : 0}+</div>
-                <p className="text-xs text-muted-foreground">
-                  Traditional cooking methods
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Cultural Context
-                </CardTitle>
-                <History className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{cuisines?.length || 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  Rich cultural histories
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Traditional Recipes
-                </CardTitle>
-                <Book className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {cuisines?.length ? cuisines.reduce((acc, cuisine) => acc + 5, 0) : 0}+
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Authentic dishes to explore
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <CuisineList cuisines={cuisines || []} onSelectCuisine={handleSelectCuisine} />
-        </>
-      )}
-
-      {view === 'details' && selectedCuisineId && (
-        <CuisineDetails cuisineId={selectedCuisineId} />
-      )}
     </div>
   );
 }
