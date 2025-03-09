@@ -1,6 +1,7 @@
-import { pgTable, text, serial, integer, boolean, jsonb, timestamp, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, jsonb, timestamp, primaryKey, varchar, json, real, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import type { PgTableWithColumns } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -11,7 +12,8 @@ export const users = pgTable("users", {
   moodJournal: jsonb("mood_journal").array(),
 });
 
-export const recipes = pgTable("recipes", {
+// Define recipes table with explicit type annotation
+export const recipes: PgTableWithColumns<any> = pgTable("recipes", {
   id: serial("id").primaryKey(),
   title: text("title").notNull(),
   description: text("description").notNull(),
@@ -114,6 +116,85 @@ export const kitchenEquipment = pgTable("kitchen_equipment", {
   updatedAt: text("updated_at").notNull().$defaultFn(() => new Date().toISOString()),
 });
 
+export const culturalCuisines = pgTable("cultural_cuisines", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  region: text("region").notNull(),
+  description: text("description").notNull(),
+  keyIngredients: jsonb("key_ingredients").notNull(),
+  cookingTechniques: jsonb("cooking_techniques").notNull(),
+  culturalContext: jsonb("cultural_context").notNull(), // History, significance, traditions
+  servingEtiquette: jsonb("serving_etiquette").notNull(),
+  imageUrl: text("image_url"),
+  bannerUrl: text("banner_url"),
+  color: text("color"),
+  tags: jsonb("tags").array(),
+  visual: jsonb("visual").default({
+    primaryColor: '#E2E8F0',
+    textColor: '#1A202C',
+    accentColor: '#4A5568'
+  }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const culturalRecipes = pgTable("cultural_recipes", {
+  id: serial("id").primaryKey(),
+  cuisineId: integer("cuisine_id").references(() => culturalCuisines.id).notNull(),
+  name: text("name").notNull(),
+  localName: text("local_name"),
+  description: text("description").notNull(),
+  difficulty: text("difficulty").$type<'beginner' | 'intermediate' | 'advanced'>().notNull(),
+  authenticIngredients: jsonb("authentic_ingredients").notNull(),
+  localSubstitutes: jsonb("local_substitutes"), // Mapping of authentic ingredients to local alternatives
+  instructions: jsonb("instructions").notNull(),
+  culturalNotes: jsonb("cultural_notes").notNull(), // Significance, occasions, history
+  servingSuggestions: jsonb("serving_suggestions").notNull(),
+  complementaryDishes: jsonb("complementary_dishes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const culturalTechniques = pgTable("cultural_techniques", {
+  id: serial("id").primaryKey(),
+  cuisineId: integer("cuisine_id").references(() => culturalCuisines.id).notNull(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  difficulty: text("difficulty").$type<'beginner' | 'intermediate' | 'advanced'>().notNull(),
+  steps: jsonb("steps").notNull(),
+  tips: jsonb("tips").notNull(),
+  commonUses: jsonb("common_uses").notNull(),
+  videoUrl: text("video_url"), // Optional URL to free YouTube videos demonstrating the technique
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const kitchenStorageLocations = pgTable("kitchen_storage_locations", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  type: varchar("type", { length: 50 }).notNull(), // pantry, refrigerator, freezer, cabinet, etc.
+  temperature: real("temperature"),
+  humidity: real("humidity"),
+  capacity: integer("capacity").notNull(),
+  currentItems: integer("current_items").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const storageItems = pgTable("storage_items", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  locationId: integer("location_id").references(() => kitchenStorageLocations.id, { onDelete: "cascade" }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  quantity: integer("quantity").default(1),
+  unit: varchar("unit", { length: 50 }),
+  category: varchar("category", { length: 100 }),
+  expiryDate: date("expiry_date"),
+  usageFrequency: varchar("usage_frequency", { length: 50 }), // high, medium, low
+  storageRequirements: json("storage_requirements"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Schema definitions - ordering matters!
 export const nutritionProgressSchema = z.object({
   date: z.string(),
@@ -137,6 +218,41 @@ export const insertPantryItemSchema = createInsertSchema(pantryItems);
 export const insertCommunityPostSchema = createInsertSchema(communityPosts);
 export const insertNutritionGoalSchema = createInsertSchema(nutritionGoals);
 export const insertKitchenEquipmentSchema = createInsertSchema(kitchenEquipment);
+export const insertCulturalCuisineSchema = createInsertSchema(culturalCuisines);
+export const insertCulturalRecipeSchema = createInsertSchema(culturalRecipes);
+export const insertCulturalTechniqueSchema = createInsertSchema(culturalTechniques);
+
+// Fix the validation approach for kitchen storage schemas by using zod's refine methods
+export const insertKitchenStorageLocationSchema = createInsertSchema(kitchenStorageLocations)
+  .refine(data => data.name && data.name.length > 0, {
+    message: "Name is required",
+    path: ["name"]
+  })
+  .refine(data => data.type && data.type.length > 0, {
+    message: "Type is required",
+    path: ["type"]
+  })
+  .refine(data => data.capacity && data.capacity > 0, {
+    message: "Capacity must be positive",
+    path: ["capacity"]
+  });
+
+// Updated validation with proper null checks
+export const insertStorageItemSchema = createInsertSchema(storageItems)
+  .refine(data => {
+    const name = data.name;
+    return name != null && name.length > 0;
+  }, {
+    message: "Name is required",
+    path: ["name"]
+  })
+  .refine(data => {
+    const quantity = data.quantity;
+    return quantity == null || quantity >= 0;
+  }, {
+    message: "Quantity must be non-negative",
+    path: ["quantity"]
+  });
 
 export const moodEntrySchema = z.object({
   recipeId: z.number(),
@@ -186,3 +302,10 @@ export type RecipeLike = typeof recipe_likes.$inferSelect;
 export type NutritionGoal = typeof nutritionGoals.$inferSelect;
 export type RecipeConsumption = typeof recipeConsumption.$inferSelect;
 export type KitchenEquipment = typeof kitchenEquipment.$inferSelect;
+export type CulturalCuisine = typeof culturalCuisines.$inferSelect;
+export type CulturalRecipe = typeof culturalRecipes.$inferSelect;
+export type CulturalTechnique = typeof culturalTechniques.$inferSelect;
+export type KitchenStorageLocation = typeof kitchenStorageLocations.$inferSelect;
+export type InsertKitchenStorageLocation = typeof kitchenStorageLocations.$inferInsert;
+export type StorageItem = typeof storageItems.$inferSelect;
+export type InsertStorageItem = typeof storageItems.$inferInsert;

@@ -12,17 +12,47 @@ const __dirname = dirname(__filename);
 config({ path: resolve(__dirname, '..', '.env') });
 
 if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL must be set");
+  throw new Error("DATABASE_URL must be set in .env file");
 }
 
-// Configure neon to use fetch compatibility
+// Configure neon with retries and logging
 neonConfig.fetchConnectionCache = true;
+neonConfig.webSocketConstructor = undefined; // Disable WebSocket for serverless
+neonConfig.useSecure = true; // Ensure SSL is used
 
-// Create the Neon SQL client
-const sql = neon(process.env.DATABASE_URL);
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 second
 
-// Create the Drizzle ORM instance
-const db = drizzle(sql, { schema });
+async function createDatabaseConnection() {
+  let lastError;
+  
+  for (let i = 0; i < MAX_RETRIES; i++) {
+    try {
+      console.log(`Attempting database connection (attempt ${i + 1}/${MAX_RETRIES})...`);
+      const sql = neon(process.env.DATABASE_URL!);
+      
+      // Test the connection
+      await sql`SELECT 1`;
+      console.log('Database connection established successfully');
+      
+      // Create and return the connection and ORM instance
+      const db = drizzle(sql, { schema });
+      return { sql, db };
+    } catch (error) {
+      lastError = error;
+      console.error(`Connection attempt ${i + 1} failed:`, error);
+      if (i < MAX_RETRIES - 1) {
+        console.log(`Retrying in ${RETRY_DELAY}ms...`);
+        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
+      }
+    }
+  }
+
+  throw new Error(`Failed to connect to database after ${MAX_RETRIES} attempts. Last error: ${lastError}`);
+}
+
+// Initialize database connection
+const { sql, db } = await createDatabaseConnection();
 
 // Export sql as pool for backward compatibility
 const pool = sql;

@@ -13,6 +13,8 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import cors from "cors";
+import { sql } from 'drizzle-orm';
+import { culturalCuisines } from '@shared/schema';
 
 const app = express();
 
@@ -64,26 +66,51 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  const server = await registerRoutes(app);
+  try {
+    // Test database connection
+    const { db } = await import('./db');
+    const testQuery = await db.select({ count: sql`count(*)` }).from(culturalCuisines);
+    console.log('Database connection test successful:', testQuery);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-    console.error('Server Error:', err);
-    res.status(status).json({ message });
-  });
+    const server = await registerRoutes(app);
 
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+    // Global error handler with detailed logging
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      console.error('Server Error Details:', {
+        name: err.name,
+        message: err.message,
+        stack: err.stack,
+        cause: err.cause,
+        code: err.code
+      });
+
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
+      const details = app.get("env") === "development" ? err.stack : undefined;
+      
+      res.status(status).json({ 
+        message,
+        details,
+        error: err.name,
+        ...(err.code ? { code: err.code } : {})
+      });
+    });
+
+    if (app.get("env") === "development") {
+      await setupVite(app, server);
+    } else {
+      serveStatic(app);
+    }
+
+    const PORT = parseInt(process.env.BACKEND_PORT || "8000", 10);
+    server.listen(PORT, "localhost", () => {
+      console.log(`Backend server started on port ${PORT}`);
+      log(`serving on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error('Server initialization error:', error);
+    process.exit(1);
   }
-
-  const PORT = parseInt(process.env.BACKEND_PORT || "8000", 10);
-  server.listen(PORT, "localhost", () => {
-    console.log(`Backend server started on port ${PORT}`);
-    log(`serving on port ${PORT}`);
-  });
 })().catch(error => {
   console.error('Failed to start server:', error);
   process.exit(1);

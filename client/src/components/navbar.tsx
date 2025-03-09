@@ -3,7 +3,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { ThemeSwitcher } from "./theme-switcher";
-import { Home, Book, LogOut, Package, Users, Menu, Calendar, Activity, Settings } from "lucide-react";
+import { Home, Book, LogOut, Package, Users, Menu, Calendar, Activity, Settings, Globe } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useState } from "react";
 
@@ -56,6 +56,12 @@ export function Navbar() {
         <Button variant="ghost" className="gap-2" onClick={() => setIsOpen(false)}>
           <Settings className="h-4 w-4" />
           Kitchen Equipment
+        </Button>
+      </Link>
+      <Link href="/cultural-cuisine">
+        <Button variant="ghost" className="gap-2" onClick={() => setIsOpen(false)}>
+          <Globe className="h-4 w-4" />
+          Cultural Cuisine
         </Button>
       </Link>
     </>

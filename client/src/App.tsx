@@ -14,6 +14,8 @@ import { ProtectedRoute } from "./lib/protected-route";
 import { Navbar } from "@/components/navbar";
 import NutritionPage from "./pages/nutrition-page";
 import KitchenEquipmentPage from '@/pages/kitchen-equipment-page';
+import CulturalCuisinePage from '@/pages/cultural-cuisine-page';
+import KitchenStoragePage from '@/pages/kitchen-storage-page';
 
 function Router() {
   return (
@@ -30,6 +32,8 @@ function Router() {
             <ProtectedRoute path="/meal-plans" component={MealPlanPage} />
             <ProtectedRoute path="/nutrition" component={NutritionPage} />
             <ProtectedRoute path="/kitchen-equipment" component={KitchenEquipmentPage} />
+            <ProtectedRoute path="/cultural-cuisine" component={CulturalCuisinePage} />
+            <ProtectedRoute path="/kitchen-storage" component={KitchenStoragePage} />
             <Route component={NotFound} />
           </Switch>
         </Route>
