@@ -431,27 +431,29 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                       <DialogHeader>
                         <DialogTitle>Add New Recipe</DialogTitle>
                       </DialogHeader>
-                      <form onSubmit={handleAddRecipe} className="space-y-4">
-                        <div>
-                          <label className="text-sm font-medium">Name</label>
-                          <Input name="name" placeholder="Recipe name" required />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium">Description</label>
-                          <Textarea name="description" placeholder="Recipe description" required />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium">Difficulty</label>
-                          <Select name="difficulty" defaultValue="beginner">
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select difficulty" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="beginner">Beginner</SelectItem>
-                              <SelectItem value="intermediate">Intermediate</SelectItem>
-                              <SelectItem value="advanced">Advanced</SelectItem>
-                            </SelectContent>
-                          </Select>
+                      <form onSubmit={handleAddRecipe} className="space-y-6 py-4">
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Name</label>
+                            <Input name="name" placeholder="Recipe name" required />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Description</label>
+                            <Textarea name="description" placeholder="Recipe description" required />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Difficulty</label>
+                            <Select name="difficulty" defaultValue="beginner">
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select difficulty" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="beginner">Beginner</SelectItem>
+                                <SelectItem value="intermediate">Intermediate</SelectItem>
+                                <SelectItem value="advanced">Advanced</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
                         <Button type="submit" className="w-full" disabled={isSubmitting}>
                           {isSubmitting ? (

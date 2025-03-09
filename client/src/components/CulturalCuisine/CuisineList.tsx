@@ -119,56 +119,58 @@ export function CuisineList({ cuisines, onSelectCuisine }: CuisineListProps) {
 
       <Dialog open={isAddingCuisine} onOpenChange={setIsAddingCuisine}>
         <DialogContent className="sm:max-w-[600px]">
-          <ScrollArea className="max-h-[80vh] pr-4">
+          <ScrollArea className="max-h-[80vh] px-6">
             <DialogHeader>
               <DialogTitle>Add New Cuisine</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleAddCuisine} className="space-y-6 py-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Name</label>
-                <Input name="name" placeholder="e.g., Thai, Mexican, Italian" required />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Region</label>
-                <Input name="region" placeholder="e.g., Southeast Asia, Latin America" required />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Description</label>
-                <Textarea name="description" placeholder="Brief description of the cuisine..." required />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Banner Image URL</label>
-                <Input 
-                  name="bannerUrl" 
-                  placeholder="https://example.com/banner.jpg"
-                  type="url"
-                  required 
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Add a wide banner image that showcases the cuisine
-                </p>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Key Ingredients</label>
-                <Input 
-                  name="keyIngredients" 
-                  placeholder="rice, garlic, ginger, soy sauce"
-                  required 
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Comma-separated list of key ingredients
-                </p>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Cooking Techniques</label>
-                <Input 
-                  name="cookingTechniques" 
-                  placeholder="stir-frying, steaming, grilling"
-                  required 
-                />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Comma-separated list of cooking techniques
-                </p>
+            <form onSubmit={handleAddCuisine} className="space-y-8 py-4">
+              <div className="space-y-4">
+                <div className="space-y-2.5">
+                  <label className="text-sm font-medium">Name</label>
+                  <Input name="name" placeholder="e.g., Thai, Mexican, Italian" required />
+                </div>
+                <div className="space-y-2.5">
+                  <label className="text-sm font-medium">Region</label>
+                  <Input name="region" placeholder="e.g., Southeast Asia, Latin America" required />
+                </div>
+                <div className="space-y-2.5">
+                  <label className="text-sm font-medium">Description</label>
+                  <Textarea name="description" placeholder="Brief description of the cuisine..." required />
+                </div>
+                <div className="space-y-2.5">
+                  <label className="text-sm font-medium">Banner Image URL</label>
+                  <Input 
+                    name="bannerUrl" 
+                    placeholder="https://example.com/banner.jpg"
+                    type="url"
+                    required 
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Add a wide banner image that showcases the cuisine
+                  </p>
+                </div>
+                <div className="space-y-2.5">
+                  <label className="text-sm font-medium">Key Ingredients</label>
+                  <Input 
+                    name="keyIngredients" 
+                    placeholder="rice, garlic, ginger, soy sauce"
+                    required 
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Comma-separated list of key ingredients
+                  </p>
+                </div>
+                <div className="space-y-2.5">
+                  <label className="text-sm font-medium">Cooking Techniques</label>
+                  <Input 
+                    name="cookingTechniques" 
+                    placeholder="stir-frying, steaming, grilling"
+                    required 
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Comma-separated list of cooking techniques
+                  </p>
+                </div>
               </div>
               <Button type="submit" className="w-full" disabled={isSubmitting}>
                 {isSubmitting ? 'Adding...' : 'Add Cuisine'}
