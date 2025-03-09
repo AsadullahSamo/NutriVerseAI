@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,8 @@ import { CulturalCuisine, CulturalRecipe, CulturalTechnique } from "@shared/sche
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { EditCulturalDetailsDialog } from "./EditCulturalDetailsDialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { useLocation } from "wouter";
 
 interface CuisineDetailsProps {
   cuisineId: number;
@@ -60,6 +62,8 @@ function EditImagesDialog({ open, onOpenChange, onSubmit, currentImages }: EditI
 }
 
 export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
+  const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
   const [selectedRecipe, setSelectedRecipe] = useState<CulturalRecipe | null>(null);
   const [isAddingRecipe, setIsAddingRecipe] = useState(false);
   const [isEditingImages, setIsEditingImages] = useState(false);
@@ -78,7 +82,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
     }
   });
 
-  const handleUpdateImages = async (data: { imageUrl: string; bannerUrl: string }) => {
+  const handleUpdateImages = async (data: { bannerUrl: string }) => {
     try {
       const response = await fetch(`/api/cultural-cuisines/${cuisineId}`, {
         method: 'PATCH',
@@ -141,6 +145,43 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
       toast({
         title: "Error",
         description: "Failed to update cultural details. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDeleteCuisine = async () => {
+    try {
+      const response = await fetch(`/api/cultural-cuisines/${cuisineId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete cuisine');
+      }
+
+      const deletedCuisine = await response.json();
+      
+      if (!deletedCuisine) {
+        throw new Error('Cuisine not found');
+      }
+
+      // Invalidate both cuisine list and detail queries
+      await queryClient.invalidateQueries({ queryKey: ['/api/cultural-cuisines'] });
+      await queryClient.invalidateQueries({ queryKey: ['cuisine', cuisineId] });
+
+      toast({
+        title: "Cuisine Deleted",
+        description: "The cuisine has been deleted successfully.",
+      });
+
+      // Use the onBack prop to return to the cuisine list
+      onBack();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete cuisine. Please try again.",
         variant: "destructive",
       });
     }
@@ -240,14 +281,36 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
               <MapPin className="h-4 w-4" /> {cuisine.region}
             </div>
           </div>
-          <Button
-            size="sm"
-            className="absolute top-4 right-4"
-            onClick={() => setIsEditingImages(true)}
-          >
-            <Edit className="h-4 w-4 mr-2" />
-            Edit Banner
-          </Button>
+          <div className="absolute top-4 right-4 flex gap-2">
+            <Button
+              size="sm"
+              onClick={() => setIsEditingImages(true)}
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Edit Banner
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  Delete Cuisine
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action will permanently delete this cuisine and all its associated recipes and techniques. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteCuisine} className="bg-destructive text-destructive-foreground">
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
       )}
 
@@ -311,11 +374,11 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                   <CardContent>
                     <div className="flex flex-wrap gap-2">
                       {Array.isArray(cuisine.keyIngredients) ? (
-                        cuisine.keyIngredients.map((ingredient, i) => (
+                        cuisine.keyIngredients.map((ingredient: string, i: number) => (
                           <Badge key={i} variant="outline">{ingredient}</Badge>
                         ))
                       ) : typeof cuisine.keyIngredients === 'object' ? (
-                        Object.keys(cuisine.keyIngredients).map((ingredient, i) => (
+                        Object.keys(cuisine.keyIngredients).map((ingredient: string, i: number) => (
                           <Badge key={i} variant="outline">{ingredient}</Badge>
                         ))
                       ) : null}
@@ -330,7 +393,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                   <CardContent>
                     <div className="flex flex-wrap gap-2">
                       {Array.isArray(cuisine.cookingTechniques) ? (
-                        cuisine.cookingTechniques.map((technique, i) => (
+                        cuisine.cookingTechniques.map((technique: string, i: number) => (
                           <Badge key={i}>{technique}</Badge>
                         ))
                       ) : null}
@@ -359,7 +422,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                   </CardHeader>
                   <CardContent className="space-y-6">
                     {typeof cuisine.culturalContext === 'object' ? (
-                      Object.entries(cuisine.culturalContext).map(([key, value], i) => (
+                      Object.entries(cuisine.culturalContext).map(([key, value]: [string, string], i: number) => (
                         <div key={i} className="space-y-2">
                           <div className="flex items-center space-x-2">
                             <BookOpen className="h-4 w-4 text-muted-foreground" />
@@ -372,7 +435,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                         </div>
                       ))
                     ) : (
-                      <p className="text-muted-foreground">{cuisine.culturalContext}</p>
+                      <p className="text-muted-foreground">{String(cuisine.culturalContext)}</p>
                     )}
                   </CardContent>
                 </Card>
@@ -396,7 +459,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                   </CardHeader>
                   <CardContent className="space-y-6">
                     {typeof cuisine.servingEtiquette === 'object' ? (
-                      Object.entries(cuisine.servingEtiquette).map(([key, value], i) => (
+                      Object.entries(cuisine.servingEtiquette).map(([key, value]: [string, string], i: number) => (
                         <div key={i} className="space-y-2">
                           <div className="flex items-center space-x-2">
                             <UtensilsCrossed className="h-4 w-4 text-muted-foreground" />
@@ -409,7 +472,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                         </div>
                       ))
                     ) : (
-                      <p className="text-muted-foreground">{cuisine.servingEtiquette}</p>
+                      <p className="text-muted-foreground">{String(cuisine.servingEtiquette)}</p>
                     )}
                   </CardContent>
                 </Card>
@@ -471,7 +534,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                 </Dialog>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {cuisine.recipes?.map((recipe) => (
+                {cuisine.recipes?.map((recipe: CulturalRecipe) => (
                   <Card key={recipe.id} className="cursor-pointer hover:shadow-lg transition-shadow"
                     onClick={() => setSelectedRecipe(recipe)}>
                     <CardHeader>
@@ -493,7 +556,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
 
             <TabsContent value="techniques" className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {cuisine.techniques?.map((technique) => (
+                {cuisine.techniques?.map((technique: CulturalTechnique) => (
                   <Card key={technique.id}>
                     <CardHeader>
                       <CardTitle>{technique.name}</CardTitle>
