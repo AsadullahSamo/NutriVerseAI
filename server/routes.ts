@@ -2,6 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
+import { sql } from "drizzle-orm";
 import { 
   insertRecipeSchema, 
   insertGroceryListSchema, 
@@ -9,16 +10,28 @@ import {
   insertCommunityPostSchema,
   moodEntrySchema, 
   type MoodEntry,
-  insertNutritionGoalSchema
+  insertNutritionGoalSchema,
+  culturalCuisines,
+  culturalRecipes,
+  culturalTechniques,
+  pantryItems,
+  kitchenEquipment
 } from "@shared/schema";
 import { 
   analyzeMoodSentiment, 
   generateMoodInsights, 
   generateAIMealPlan,
-  getNutritionRecommendations
+  getNutritionRecommendations,
 } from "../ai-services/recipe-ai";
+import {
+  findIngredientSubstitutes,
+  analyzeAuthenticityScore,
+  findComplementaryDishes,
+  getServingEtiquetteGuide
+} from "../ai-services/cultural-cuisine-service";
 import type { User } from "@shared/schema";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, and, count } from "drizzle-orm";
+import { db } from "./db";
 
 // Add type declaration extension
 declare global {
@@ -72,6 +85,28 @@ const asyncHandler =
   (req: Request, res: Response, next: NextFunction) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
+
+// Add a helper function for database operations with retries
+const withDbRetry = async <T>(operation: () => Promise<T>, maxRetries = 3): Promise<T> => {
+  let lastError;
+  
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await operation();
+    } catch (error: any) {
+      lastError = error;
+      console.error(`Database operation failed (attempt ${i + 1}/${maxRetries}):`, error);
+      
+      // Check if it's a connection error
+      if (error.message?.includes('fetch failed') && i < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw lastError;
+};
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Create HTTP server
@@ -820,6 +855,260 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error updating maintenance:', error);
       res.status(500).json({ error: 'Failed to update maintenance' });
+    }
+  });
+
+  // ----------------- Cultural Cuisine Routes -----------------
+  app.get('/api/cultural-cuisines', async (req, res) => {
+    try {
+      console.log('Fetching cultural cuisines...');
+      
+      const cuisines = await withDbRetry(async () => {
+        const result = await db.select().from(culturalCuisines);
+        return result;
+      });
+
+      if (!cuisines || !Array.isArray(cuisines)) {
+        console.error('Invalid cuisines data structure:', cuisines);
+        throw new Error('Invalid data structure returned from database');
+      }
+
+      // Process each cuisine carefully with error handling
+      const processedCuisines = cuisines.map(cuisine => {
+        try {
+          return {
+            ...cuisine,
+            keyIngredients: Array.isArray(cuisine.keyIngredients) 
+              ? cuisine.keyIngredients 
+              : typeof cuisine.keyIngredients === 'string'
+                ? JSON.parse(cuisine.keyIngredients)
+                : [],
+            cookingTechniques: Array.isArray(cuisine.cookingTechniques)
+              ? cuisine.cookingTechniques
+              : typeof cuisine.cookingTechniques === 'string'
+                ? JSON.parse(cuisine.cookingTechniques)
+                : [],
+            culturalContext: typeof cuisine.culturalContext === 'object' && cuisine.culturalContext !== null
+              ? cuisine.culturalContext
+              : typeof cuisine.culturalContext === 'string'
+                ? JSON.parse(cuisine.culturalContext)
+                : {},
+            servingEtiquette: typeof cuisine.servingEtiquette === 'object' && cuisine.servingEtiquette !== null
+              ? cuisine.servingEtiquette
+              : typeof cuisine.servingEtiquette === 'string'
+                ? JSON.parse(cuisine.servingEtiquette)
+                : {}
+          };
+        } catch (parseError) {
+          console.error('Error processing cuisine:', cuisine, parseError);
+          return cuisine;
+        }
+      });
+
+      res.json(processedCuisines);
+    } catch (error) {
+      console.error('Error fetching cuisines:', error);
+      if (error instanceof Error) {
+        console.error('Full error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name,
+          cause: error.cause
+        });
+      }
+      res.status(500).json({ 
+        error: 'Failed to fetch cuisines',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  app.post('/api/cultural-cuisines', async (req, res) => {
+    try {
+      const { name, region, description, imageUrl, bannerUrl, keyIngredients, cookingTechniques, culturalContext, servingEtiquette } = req.body;
+
+      const [cuisine] = await db.insert(culturalCuisines).values({
+        name,
+        region,
+        description,
+        imageUrl,
+        bannerUrl,
+        keyIngredients,
+        cookingTechniques,
+        culturalContext,
+        servingEtiquette,
+        createdAt: new Date()
+      }).returning();
+
+      res.status(201).json(cuisine);
+    } catch (error) {
+      console.error('Error adding cuisine:', error);
+      res.status(500).json({ error: 'Failed to add cuisine' });
+    }
+  });
+
+  app.get('/api/cultural-cuisines/:id', async (req, res) => {
+    try {
+      const [cuisine] = await db.select()
+        .from(culturalCuisines)
+        .where(eq(culturalCuisines.id, parseInt(req.params.id)));
+      
+      if (!cuisine) {
+        return res.status(404).json({ error: 'Cuisine not found' });
+      }
+
+      // Get all recipes for this cuisine
+      const recipes = await db.select()
+        .from(culturalRecipes)
+        .where(eq(culturalRecipes.cuisineId, cuisine.id));
+
+      // Get all techniques for this cuisine
+      const techniques = await db.select()
+        .from(culturalTechniques)
+        .where(eq(culturalTechniques.cuisineId, cuisine.id));
+
+      res.json({
+        ...cuisine,
+        recipes,
+        techniques
+      });
+    } catch (error) {
+      console.error('Error fetching cuisine details:', error);
+      res.status(500).json({ error: 'Failed to fetch cuisine details' });
+    }
+  });
+
+  app.patch('/api/cultural-cuisines/:id', async (req, res) => {
+    try {
+      const { imageUrl, bannerUrl } = req.body;
+      
+      const [updatedCuisine] = await db.update(culturalCuisines)
+        .set({
+          imageUrl,
+          bannerUrl,
+          updatedAt: new Date()
+        })
+        .where(eq(culturalCuisines.id, parseInt(req.params.id)))
+        .returning();
+
+      if (!updatedCuisine) {
+        return res.status(404).json({ error: 'Cuisine not found' });
+      }
+
+      res.json(updatedCuisine);
+    } catch (error) {
+      console.error('Error updating cuisine:', error);
+      res.status(500).json({ error: 'Failed to update cuisine' });
+    }
+  });
+
+  app.post('/api/cultural-recipes', isAuthenticated, async (req, res) => {
+    try {
+      const { name, description, cuisineId, difficulty = 'beginner', authenticIngredients = [], localSubstitutes = {}, instructions = [], culturalNotes = {}, servingSuggestions = [] } = req.body;
+
+      if (!name || !description || !cuisineId) {
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      const [recipe] = await db.insert(culturalRecipes).values({
+        name,
+        description,
+        cuisineId,
+        difficulty,
+        authenticIngredients,
+        localSubstitutes,
+        instructions,
+        culturalNotes,
+        servingSuggestions,
+      }).returning();
+
+      res.status(201).json(recipe);
+    } catch (error) {
+      console.error('Error adding recipe:', error);
+      res.status(500).json({ error: 'Failed to add recipe' });
+    }
+  });
+
+  app.get('/api/cultural-recipes/:id/substitutions', isAuthenticated, async (req, res) => {
+    try {
+      const [recipe] = await db.select()
+        .from(culturalRecipes)
+        .where(eq(culturalRecipes.id, parseInt(req.params.id)));
+
+      if (!recipe) {
+        return res.status(404).json({ error: 'Recipe not found' });
+      }
+
+      // Get user's pantry items
+      const userPantry = await db.select()
+        .from(pantryItems)
+        .where(eq(pantryItems.userId, req.user!.id));
+
+      // Get user's region from preferences
+      const user = await storage.getUser(req.user!.id);
+      const userRegion = user?.preferences?.region || 'unknown';
+
+      // Find ingredient substitutions
+      const substitutions = findIngredientSubstitutes(recipe, userPantry, userRegion);
+      const authenticity = analyzeAuthenticityScore(recipe, substitutions);
+
+      res.json({
+        substitutions,
+        authenticityScore: authenticity.score,
+        authenticityFeedback: authenticity.feedback
+      });
+    } catch (error) {
+      console.error('Error finding substitutions:', error);
+      res.status(500).json({ error: 'Failed to find substitutions' });
+    }
+  });
+
+  app.get('/api/cultural-recipes/:id/pairings', async (req, res) => {
+    try {
+      const [recipe] = await db.select()
+        .from(culturalRecipes)
+        .where(eq(culturalRecipes.id, parseInt(req.params.id)));
+
+      if (!recipe) {
+        return res.status(404).json({ error: 'Recipe not found' });
+      }
+
+      const [cuisine] = await db.select()
+        .from(culturalCuisines)
+        .where(eq(culturalCuisines.id, recipe.cuisineId));
+
+      const pairings = findComplementaryDishes(recipe, {
+        region: cuisine.region,
+        keyIngredients: cuisine.keyIngredients as string[]
+      });
+
+      res.json(pairings);
+    } catch (error) {
+      console.error('Error finding pairings:', error);
+      res.status(500).json({ error: 'Failed to find pairings' });
+    }
+  });
+
+  app.get('/api/cultural-recipes/:id/etiquette', async (req, res) => {
+    try {
+      const [recipe] = await db.select()
+        .from(culturalRecipes)
+        .where(eq(culturalRecipes.id, parseInt(req.params.id)));
+
+      if (!recipe) {
+        return res.status(404).json({ error: 'Recipe not found' });
+      }
+
+      const [cuisine] = await db.select()
+        .from(culturalCuisines)
+        .where(eq(culturalCuisines.id, recipe.cuisineId));
+
+      const etiquette = getServingEtiquetteGuide(recipe, cuisine.region);
+      res.json(etiquette);
+    } catch (error) {
+      console.error('Error getting etiquette guide:', error);
+      res.status(500).json({ error: 'Failed to get etiquette guide' });
     }
   });
 

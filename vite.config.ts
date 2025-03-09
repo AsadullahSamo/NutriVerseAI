@@ -40,5 +40,18 @@ export default defineConfig({
     hmr: {
       overlay: false,
     },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, '/api'),
+        configure: (proxy) => {
+          proxy.on('error', (err) => {
+            console.error('Proxy error:', err);
+          });
+        }
+      }
+    }
   },
 });
