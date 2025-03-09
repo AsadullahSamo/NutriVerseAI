@@ -1003,6 +1003,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete('/api/cultural-cuisines/:id', isAuthenticated, async (req, res) => {
+    try {
+      // With ON DELETE CASCADE, we only need to delete the cuisine
+      const [deletedCuisine] = await db.delete(culturalCuisines)
+        .where(eq(culturalCuisines.id, parseInt(req.params.id)))
+        .returning();
+
+      if (!deletedCuisine) {
+        return res.status(404).json({ error: 'Cuisine not found' });
+      }
+
+      res.json(deletedCuisine);
+    } catch (error) {
+      console.error('Error deleting cuisine:', error);
+      res.status(500).json({ error: 'Failed to delete cuisine' });
+    }
+  });
+
   app.post('/api/cultural-recipes', isAuthenticated, async (req, res) => {
     try {
       const { name, description, cuisineId, difficulty = 'beginner', authenticIngredients = [], localSubstitutes = {}, instructions = [], culturalNotes = {}, servingSuggestions = [] } = req.body;
