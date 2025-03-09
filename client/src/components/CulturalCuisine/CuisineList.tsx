@@ -123,20 +123,20 @@ export function CuisineList({ cuisines, onSelectCuisine }: CuisineListProps) {
             <DialogHeader>
               <DialogTitle>Add New Cuisine</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleAddCuisine} className="space-y-4">
-              <div>
+            <form onSubmit={handleAddCuisine} className="space-y-6 py-4">
+              <div className="space-y-2">
                 <label className="text-sm font-medium">Name</label>
                 <Input name="name" placeholder="e.g., Thai, Mexican, Italian" required />
               </div>
-              <div>
+              <div className="space-y-2">
                 <label className="text-sm font-medium">Region</label>
                 <Input name="region" placeholder="e.g., Southeast Asia, Latin America" required />
               </div>
-              <div>
+              <div className="space-y-2">
                 <label className="text-sm font-medium">Description</label>
                 <Textarea name="description" placeholder="Brief description of the cuisine..." required />
               </div>
-              <div>
+              <div className="space-y-2">
                 <label className="text-sm font-medium">Banner Image URL</label>
                 <Input 
                   name="bannerUrl" 
@@ -148,7 +148,7 @@ export function CuisineList({ cuisines, onSelectCuisine }: CuisineListProps) {
                   Add a wide banner image that showcases the cuisine
                 </p>
               </div>
-              <div>
+              <div className="space-y-2">
                 <label className="text-sm font-medium">Key Ingredients</label>
                 <Input 
                   name="keyIngredients" 
@@ -159,7 +159,7 @@ export function CuisineList({ cuisines, onSelectCuisine }: CuisineListProps) {
                   Comma-separated list of key ingredients
                 </p>
               </div>
-              <div>
+              <div className="space-y-2">
                 <label className="text-sm font-medium">Cooking Techniques</label>
                 <Input 
                   name="cookingTechniques" 
