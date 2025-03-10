@@ -1,4 +1,167 @@
 import type { CulturalRecipe, PantryItem } from "@shared/schema";
+import Groq from "groq-sdk";
+import { CulturalCuisine, CulturalRecipe, CulturalTechnique } from "@shared/schema";
+
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY || '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',
+  dangerouslyAllowBrowser: true
+});
+
+export interface CulturalInsights {
+  historicalContext: string;
+  culturalSignificance: string[];
+  traditionalOccasions: string[];
+  modernAdaptations: string[];
+  regionalVariations: {
+    region: string;
+    description: string;
+    uniqueIngredients: string[];
+  }[];
+}
+
+export interface RecipeAuthenticityAnalysis {
+  authenticityScore: number;
+  feedback: string[];
+  traditionalElements: string[];
+  modernAdaptations: string[];
+  culturalAccuracy: string;
+  suggestions: string[];
+}
+
+export interface TechniqueTip {
+  technique: string;
+  traditionalMethod: string;
+  modernAdaptation: string;
+  commonMistakes: string[];
+  tips: string[];
+  videoReferences?: string[];
+}
+
+export async function analyzeCulturalCuisine(cuisine: CulturalCuisine): Promise<CulturalInsights> {
+  const prompt = `Analyze this cultural cuisine and provide detailed cultural insights:
+    ${JSON.stringify(cuisine)}
+    
+    Provide a comprehensive analysis in JSON format including:
+    - Historical context
+    - Cultural significance
+    - Traditional occasions
+    - Modern adaptations
+    - Regional variations`;
+
+  const response = await groq.chat.completions.create({
+    messages: [
+      {
+        role: "system",
+        content: "You are an expert in global cuisines and food anthropology. Provide detailed cultural analysis in JSON format."
+      },
+      { role: "user", content: prompt }
+    ],
+    model: "mixtral-8x7b-32768",
+    temperature: 0.4,
+    max_tokens: 2000
+  });
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) throw new Error('No response from cultural analysis API');
+
+  try {
+    return JSON.parse(content.trim().replace(/```json\n?|\n?```/g, ''));
+  } catch (error) {
+    console.error('Failed to parse cultural insights:', error);
+    throw new Error('Invalid cultural insights format received');
+  }
+}
+
+export async function getRecipeAuthenticityScore(recipe: CulturalRecipe, cuisine: CulturalCuisine): Promise<RecipeAuthenticityAnalysis> {
+  const prompt = `Analyze this recipe's authenticity within its cultural context:
+    Recipe: ${JSON.stringify(recipe)}
+    Cuisine: ${JSON.stringify(cuisine)}
+    
+    Provide a detailed authenticity analysis including:
+    - Authenticity score (0-100)
+    - Feedback points
+    - Traditional elements identified
+    - Modern adaptations noted
+    - Cultural accuracy assessment
+    - Suggestions for improving authenticity`;
+
+  const response = await groq.chat.completions.create({
+    messages: [
+      {
+        role: "system",
+        content: "You are an expert in traditional cooking techniques and cultural authenticity. Provide detailed authenticity analysis in JSON format."
+      },
+      { role: "user", content: prompt }
+    ],
+    model: "mixtral-8x7b-32768",
+    temperature: 0.3,
+    max_tokens: 1500
+  });
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) throw new Error('No response from authenticity analysis API');
+
+  try {
+    return JSON.parse(content.trim().replace(/```json\n?|\n?```/g, ''));
+  } catch (error) {
+    console.error('Failed to parse authenticity analysis:', error);
+    throw new Error('Invalid authenticity analysis format received');
+  }
+}
+
+export async function getTechniqueTips(technique: CulturalTechnique, cuisine: CulturalCuisine): Promise<TechniqueTip> {
+  const prompt = `Provide detailed tips for this cultural cooking technique in JSON format:
+    Technique: ${JSON.stringify(technique)}
+    Cuisine: ${JSON.stringify(cuisine)}
+    
+    Format your response as a JSON object with these fields:
+    {
+      "technique": string,
+      "traditionalMethod": string,
+      "modernAdaptation": string,
+      "commonMistakes": string[],
+      "tips": string[],
+      "videoReferences": string[]
+    }`;
+
+  const response = await groq.chat.completions.create({
+    messages: [
+      {
+        role: "system",
+        content: "You are a master chef specializing in traditional cooking techniques. Always respond with properly formatted JSON."
+      },
+      { role: "user", content: prompt }
+    ],
+    model: "mixtral-8x7b-32768",
+    temperature: 0.4,
+    max_tokens: 1500
+  });
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) throw new Error('No response from technique tips API');
+
+  try {
+    // First try to parse the content directly
+    try {
+      return JSON.parse(content);
+    } catch {
+      // If that fails, try to extract JSON from markdown
+      const jsonMatch = content.match(/```json\n?([\s\S]*?)\n?```/) || content.match(/```\n?([\s\S]*?)\n?```/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[1].trim());
+      }
+      // If no markdown, try to extract anything that looks like JSON
+      const possibleJson = content.match(/\{[\s\S]*\}/);
+      if (possibleJson) {
+        return JSON.parse(possibleJson[0]);
+      }
+      throw new Error('Could not find valid JSON in response');
+    }
+  } catch (error) {
+    console.error('Failed to parse technique tips:', error, content);
+    throw new Error('Invalid technique tips format received');
+  }
+}
 
 interface IngredientSubstitution {
   original: string;
