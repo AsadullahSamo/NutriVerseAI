@@ -1130,6 +1130,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add DELETE endpoint for cultural recipes
+  app.delete('/api/cultural-recipes/:id', isAuthenticated, async (req, res) => {
+    try {
+      const recipeId = parseInt(req.params.id);
+      
+      // Delete the recipe
+      const [deletedRecipe] = await db.delete(culturalRecipes)
+        .where(eq(culturalRecipes.id, recipeId))
+        .returning();
+
+      if (!deletedRecipe) {
+        return res.status(404).json({ error: 'Recipe not found' });
+      }
+
+      res.json(deletedRecipe);
+    } catch (error) {
+      console.error('Error deleting recipe:', error);
+      res.status(500).json({ error: 'Failed to delete recipe' });
+    }
+  });
+
   // ----------------- Error Handling Middleware -----------------
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error(err);
