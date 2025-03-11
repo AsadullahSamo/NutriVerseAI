@@ -1151,6 +1151,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/cultural-recipes/:id/substitutions', isAuthenticated, async (req, res) => {
+    try {
+      const [recipe] = await db.select()
+        .from(culturalRecipes)
+        .where(eq(culturalRecipes.id, parseInt(req.params.id)));
+
+      if (!recipe) {
+        return res.status(404).json({ error: 'Recipe not found' });
+      }
+
+      // Update the recipe's localSubstitutes
+      const currentSubstitutes = recipe.localSubstitutes || {};
+      const { original, substitute, notes, flavorImpact } = req.body;
+      
+      currentSubstitutes[original] = substitute;
+
+      const [updatedRecipe] = await db.update(culturalRecipes)
+        .set({
+          localSubstitutes: currentSubstitutes,
+          updatedAt: new Date()
+        })
+        .where(eq(culturalRecipes.id, recipe.id))
+        .returning();
+
+      // Return both the updated recipe and the full substitution details
+      res.json({
+        recipe: updatedRecipe,
+        substitution: { original, substitute, notes, flavorImpact }
+      });
+    } catch (error) {
+      console.error('Error adding substitution:', error);
+      res.status(500).json({ error: 'Failed to add substitution' });
+    }
+  });
+
   // ----------------- Error Handling Middleware -----------------
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error(err);
