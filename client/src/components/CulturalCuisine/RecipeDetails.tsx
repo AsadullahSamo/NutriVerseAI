@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,10 +15,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { 
   ArrowLeft, Info as InfoIcon, ChevronRight, AlertTriangle, Sparkles, 
   ChefHat, Brain, Loader2, Edit, Plus, Trash2, History, 
-  Star, UtensilsCrossed, Map, Scroll, ArrowRight, Info 
+  Star, UtensilsCrossed, Map, Scroll, ArrowRight, Info, Globe2 
 } from "lucide-react";
 import type { CulturalRecipe, CulturalCuisine } from "@shared/schema";
-import { getRecipeAuthenticityScore, getTechniqueTips } from "@ai-services/cultural-cuisine-service";
+import { getRecipeAuthenticityScore, getTechniqueTips, getSubstitutions, getPairings, getEtiquette } from "@ai-services/cultural-cuisine-service";
 import type { RecipeAuthenticityAnalysis, TechniqueTip } from "@ai-services/cultural-cuisine-service";
 
 interface RecipeDetailsProps {
@@ -56,7 +56,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
   const { toast } = useToast();
   const { user } = useAuth();
   const [substitutions, setSubstitutions] = useState<IngredientSubstitution[]>([]);
-  const [authenticityScore, setAuthenticityScore] = useState<{ score: number; feedback: string[] }>({ score: 100, feedback: [] });
+  const [authenticityScore, setAuthenticityScore] = useState<{ score: number; feedback: string[] }>({ score: 0, feedback: [] });
   const [loading, setLoading] = useState<boolean>(false);
   const [pairings, setPairings] = useState<Pairings | null>(null);
   const [etiquette, setEtiquette] = useState<Etiquette | null>(null);
@@ -87,84 +87,96 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
   }, [user, recipe.id]);
   
   const fetchSubstitutions = async () => {
+    if (!recipe || !cuisine) return;
     setLoading(true);
     try {
-      const response = await fetch(`/api/cultural-recipes/${recipe.id}/substitutions`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch substitutions');
+      const data = await getSubstitutions(recipe, cuisine);
+      if (data && Array.isArray(data.substitutions)) {
+        setSubstitutions(data.substitutions);
+        // Update authenticity score if provided
+        if (typeof data.authenticityScore === 'number') {
+          setAuthenticityScore({
+            score: data.authenticityScore,
+            feedback: data.authenticityFeedback || []
+          });
+        }
       }
-      
-      const data = await response.json();
-      setSubstitutions(data.substitutions);
-      setAuthenticityScore({
-        score: data.authenticityScore,
-        feedback: data.authenticityFeedback
-      });
-      
     } catch (error) {
+      console.error('Error fetching substitutions:', error);
       toast({
         title: "Error",
-        description: "Could not load ingredient substitutions",
+        description: "Could not load ingredient substitutions. Please try again.",
         variant: "destructive",
       });
+      setSubstitutions([]);
     } finally {
       setLoading(false);
     }
   };
 
   const fetchPairings = async () => {
+    if (!recipe || !cuisine) return;
     setLoading(true);
     try {
-      const response = await fetch(`/api/cultural-recipes/${recipe.id}/pairings`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch pairings');
+      const data = await getPairings(recipe, cuisine);
+      if (data) {
+        setPairings({
+          mainDishes: data.mainDishes || [],
+          sideDishes: data.sideDishes || [],
+          desserts: data.desserts || [],
+          beverages: data.beverages || []
+        });
       }
-      
-      const data = await response.json();
-      setPairings(data);
-      
     } catch (error) {
+      console.error('Error fetching pairings:', error);
       toast({
         title: "Error",
-        description: "Could not load complementary dishes",
+        description: "Could not load complementary dishes. Please try again.",
         variant: "destructive",
       });
+      setPairings(null);
     } finally {
       setLoading(false);
     }
   };
 
   const fetchEtiquette = async () => {
+    if (!recipe || !cuisine) return;
     setLoading(true);
     try {
-      const response = await fetch(`/api/cultural-recipes/${recipe.id}/etiquette`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch etiquette guide');
+      const data = await getEtiquette(recipe, cuisine);
+      if (data) {
+        setEtiquette({
+          presentation: data.presentation || [],
+          customs: data.customs || [],
+          taboos: data.taboos || [],
+          servingOrder: data.servingOrder || []
+        });
       }
-      
-      const data = await response.json();
-      setEtiquette(data);
-      
     } catch (error) {
+      console.error('Error fetching etiquette:', error);
       toast({
         title: "Error",
-        description: "Could not load serving etiquette",
+        description: "Could not load serving etiquette. Please try again.",
         variant: "destructive",
       });
+      setEtiquette(null);
     } finally {
       setLoading(false);
     }
   };
 
   const fetchAuthenticityAnalysis = async () => {
-    if (!recipe || authenticityAnalysis) return;
+    if (!recipe) return;
     setIsAnalyzing(true);
     try {
       const analysis = await getRecipeAuthenticityScore(recipe, cuisine);
       setAuthenticityAnalysis(analysis);
+      // Update the authenticity score state when analysis is complete
+      setAuthenticityScore({
+        score: analysis.authenticityScore,
+        feedback: analysis.suggestions || []
+      });
     } catch (error) {
       toast({
         title: "Error",
@@ -251,12 +263,19 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
         throw new Error('Failed to add substitution');
       }
 
+      const data = await response.json();
+      
+      // Update local state with the new substitution
+      setSubstitutions(prev => [...prev, data.substitution]);
+      
+      // Update recipe details through react-query
+      await refetch();
+
       toast({
         title: "Substitution Added",
         description: "The ingredient substitution has been added successfully.",
       });
 
-      fetchSubstitutions(); // Refetch the substitutions
       setIsAddingSubstitutions(false);
     } catch (error) {
       toast({
@@ -299,6 +318,23 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
   const hasIngredients = Array.isArray(recipeDetails.authenticIngredients) ? recipeDetails.authenticIngredients.length > 0 :
     recipeDetails.authenticIngredients && Object.keys(recipeDetails.authenticIngredients).length > 0;
   const hasNotes = recipeDetails.culturalNotes && Object.keys(recipeDetails.culturalNotes).length > 0;
+
+  const renderModernAdaptations = () => {
+    if (!authenticityAnalysis?.modernAdaptations?.length) {
+      return null;
+    }
+
+    return (
+      <div className="space-y-2">
+        <h4 className="text-sm font-medium">Modern Adaptations</h4>
+        <div className="flex flex-wrap gap-1">
+          {authenticityAnalysis.modernAdaptations.map((adaptation: string, i: number) => (
+            <Badge key={i} variant="secondary">{adaptation}</Badge>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <TooltipProvider>
@@ -408,66 +444,97 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                   </TabsContent>
                   
                   <TabsContent value="ingredients">
-                    <div className="space-y-4 mt-2">
-                      <div className="flex justify-between items-center">
-                        <h3 className="text-lg font-semibold">Authentic Ingredients</h3>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={() => setIsEditingIngredients(true)}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          {hasIngredients ? 'Edit Ingredients' : 'Add Ingredients'}
-                        </Button>
-                      </div>
-                      <ul className="space-y-2">
-                        {Array.isArray(recipe.authenticIngredients) ? (
-                          recipe.authenticIngredients.map((ingredient: string, i: number) => (
-                            <li key={i} className="flex items-center gap-2">
-                              <ChevronRight className="h-4 w-4 text-primary" />
-                              <span>{ingredient}</span>
-                              {substitutions.some(s => s.original === ingredient) && (
-                                <Badge variant="outline" className="ml-auto">Has substitution</Badge>
-                              )}
-                            </li>
-                          ))
-                        ) : recipe.authenticIngredients && typeof recipe.authenticIngredients === 'object' ? (
-                          Object.entries(recipe.authenticIngredients as Record<string, string>).map(([name, quantity]: [string, string], i: number) => (
-                            <li key={i} className="flex items-center gap-2">
-                              <ChevronRight className="h-4 w-4 text-primary" />
-                              <span>{name}: {quantity}</span>
-                              {substitutions.some(s => s.original === name) && (
-                                <Badge variant="outline" className="ml-auto">Has substitution</Badge>
-                              )}
-                            </li>
-                          ))
-                        ) : null}
-                      </ul>
-                      
-                      {recipe.localSubstitutes && (
-                        <div className="mt-6">
-                          <h3 className="text-lg font-semibold">Local Substitutes</h3>
-                          <ul className="space-y-2">
-                            {Array.isArray(recipe.localSubstitutes) ? (
-                              recipe.localSubstitutes.map((substitute: string, i: number) => (
-                                <li key={i} className="flex items-center gap-2">
-                                  <ChevronRight className="h-4 w-4 text-primary" />
-                                  <span>{substitute}</span>
-                                </li>
-                              ))
-                            ) : typeof recipe.localSubstitutes === 'object' ? (
-                              Object.entries(recipe.localSubstitutes as Record<string, string>).map(([original, substitute]: [string, string], i: number) => (
-                                <li key={i} className="flex items-center gap-2 justify-between">
-                                  <div>
-                                    <ChevronRight className="h-4 w-4 text-primary inline mr-1" />
-                                    <span>{original}:</span>
-                                  </div>
-                                  <span className="text-muted-foreground">{substitute}</span>
-                                </li>
-                              ))
-                            ) : null}
-                          </ul>
+                    <div className="space-y-6 mt-2">
+                      <div>
+                        <div className="flex justify-between items-center">
+                          <h3 className="text-lg font-semibold">Authentic Ingredients</h3>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => setIsEditingIngredients(true)}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            {hasIngredients ? 'Edit Ingredients' : 'Add Ingredients'}
+                          </Button>
                         </div>
+                        <ul className="space-y-3 mt-4">
+                          {Array.isArray(recipe.authenticIngredients) ? (
+                            recipe.authenticIngredients.map((ingredient: string, i: number) => (
+                              <li key={i} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/10 transition-colors">
+                                <div className="flex items-center gap-2">
+                                  <ChevronRight className="h-4 w-4 text-primary" />
+                                  <span className="font-medium">{ingredient}</span>
+                                </div>
+                                {substitutions.some(s => s.original === ingredient) && (
+                                  <Badge variant="outline" className="animate-fadeIn flex items-center gap-1.5">
+                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                    <span>Has substitution</span>
+                                  </Badge>
+                                )}
+                              </li>
+                            ))
+                          ) : recipe.authenticIngredients && typeof recipe.authenticIngredients === 'object' ? (
+                            Object.entries(recipe.authenticIngredients as Record<string, string>).map(([name, quantity]: [string, string], i: number) => (
+                              <li key={i} className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/10 transition-colors">
+                                <div className="flex items-center gap-2">
+                                  <ChevronRight className="h-4 w-4 text-primary" />
+                                  <span className="font-medium">{name}: {quantity}</span>
+                                </div>
+                                {substitutions.some(s => s.original === name) && (
+                                  <Badge variant="outline" className="animate-fadeIn flex items-center gap-1.5">
+                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                                    <span>Has substitution</span>
+                                  </Badge>
+                                )}
+                              </li>
+                            ))
+                          ) : null}
+                        </ul>
+                      </div>
+                      
+                      {recipe.localSubstitutes && Object.keys(recipe.localSubstitutes).length > 0 && (
+                        <Card className="mt-6 overflow-hidden">
+                          <CardHeader className="border-b bg-muted/50">
+                            <CardTitle className="text-lg">Local Substitutes</CardTitle>
+                            <CardDescription>Traditional ingredient alternatives available locally</CardDescription>
+                          </CardHeader>
+                          <CardContent className="p-0">
+                            <div className="divide-y">
+                              {Object.entries(recipe.localSubstitutes as Record<string, string>).map(([original, substitute]: [string, string], i: number) => {
+                                const substitutionDetails = substitutions.find(s => s.original === original);
+                                return (
+                                  <div key={i} className="p-4 hover:bg-accent/5 transition-colors">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <div className="flex items-center gap-3">
+                                        <div className="flex items-center text-sm">
+                                          <span className="font-semibold">{original}</span>
+                                          <ArrowRight className="h-4 w-4 mx-2 text-muted-foreground" />
+                                          <span>{substitute}</span>
+                                        </div>
+                                      </div>
+                                      {substitutionDetails && (
+                                        <Badge variant={
+                                          substitutionDetails.flavorImpact === 'minimal' ? 'outline' :
+                                          substitutionDetails.flavorImpact === 'moderate' ? 'secondary' : 
+                                          'destructive'
+                                        } className="animate-fadeIn">
+                                          {substitutionDetails.flavorImpact} impact
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    {substitutionDetails?.notes && (
+                                      <div className="pl-4 border-l-2 border-primary/20 mt-2">
+                                        <p className="text-sm text-muted-foreground">
+                                          {substitutionDetails.notes}
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </CardContent>
+                        </Card>
                       )}
                     </div>
                   </TabsContent>
@@ -475,7 +542,10 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                   <TabsContent value="cultural-notes">
                     <div className="space-y-6 mt-2">
                       <div className="flex justify-between items-center">
-                        <h3 className="text-lg font-semibold">Cultural Notes</h3>
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <Globe2 className="h-5 w-5 text-primary" />
+                          Cultural Notes
+                        </h3>
                         <Button 
                           variant="outline" 
                           size="sm" 
@@ -488,20 +558,26 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                       {recipe.culturalNotes && typeof recipe.culturalNotes === 'object' ? (
                         <div className="grid gap-6">
                           {Object.entries(recipe.culturalNotes as Record<string, string>).map(([title, note]: [string, string], i: number) => (
-                            <Card key={i} className="relative overflow-hidden">
-                              <CardHeader>
-                                <CardTitle className="capitalize flex items-center gap-2">
-                                  {title === 'history' && <History className="h-4 w-4" />}
-                                  {title === 'significance' && <Star className="h-4 w-4" />}
-                                  {title === 'serving' && <UtensilsCrossed className="h-4 w-4" />}
-                                  {title === 'variations' && <Map className="h-4 w-4" />}
+                            <Card key={i} className="relative overflow-hidden group hover:shadow-md transition-all duration-200">
+                              <CardHeader className="bg-muted/50 border-b">
+                                <CardTitle className="capitalize flex items-center gap-2 text-base">
+                                  {title === 'history' && <History className="h-4 w-4 text-primary" />}
+                                  {title === 'significance' && <Star className="h-4 w-4 text-amber-500" />}
+                                  {title === 'serving' && <UtensilsCrossed className="h-4 w-4 text-emerald-500" />}
+                                  {title === 'variations' && <Map className="h-4 w-4 text-indigo-500" />}
                                   {title.replace(/_/g, ' ')}
+                                  {title === 'significance' && (
+                                    <Badge variant="secondary" className="ml-auto">Cultural Heritage</Badge>
+                                  )}
+                                  {title === 'serving' && (
+                                    <Badge variant="secondary" className="ml-auto">Traditional Method</Badge>
+                                  )}
                                 </CardTitle>
                               </CardHeader>
-                              <CardContent>
+                              <CardContent className="pt-4">
                                 <p className="leading-relaxed">{note}</p>
                               </CardContent>
-                              <div className="absolute top-0 right-0 w-32 h-32 opacity-5 pointer-events-none">
+                              <div className="absolute top-0 right-0 w-32 h-32 opacity-5 pointer-events-none transform translate-x-8 -translate-y-8 transition-transform group-hover:translate-x-4 group-hover:-translate-y-4">
                                 {title === 'history' && <History className="w-full h-full" />}
                                 {title === 'significance' && <Star className="w-full h-full" />}
                                 {title === 'serving' && <UtensilsCrossed className="w-full h-full" />}
@@ -556,7 +632,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                     </Button>
                   </CardHeader>
                   <CardContent>
-                    {authenticityAnalysis ? (
+                    {authenticityAnalysis && (
                       <div className="space-y-4">
                         <div>
                           <div className="flex justify-between items-center mb-2">
@@ -566,45 +642,38 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                           <Progress value={authenticityAnalysis.authenticityScore} />
                         </div>
 
-                        <div className="space-y-2">
-                          <h4 className="text-sm font-medium">Traditional Elements</h4>
-                          <div className="flex flex-wrap gap-1">
-                            {authenticityAnalysis.traditionalElements.map((element, i) => (
-                              <Badge key={i} variant="outline">{element}</Badge>
-                            ))}
+                        {authenticityAnalysis.traditionalElements?.length > 0 && (
+                          <div className="space-y-2">
+                            <h4 className="text-sm font-medium">Traditional Elements</h4>
+                            <div className="flex flex-wrap gap-1">
+                              {authenticityAnalysis.traditionalElements.map((element, i) => (
+                                <Badge key={i} variant="outline">{element}</Badge>
+                              ))}
+                            </div>
                           </div>
-                        </div>
+                        )}
+                        {renderModernAdaptations()}
 
-                        <div className="space-y-2">
-                          <h4 className="text-sm font-medium">Modern Adaptations</h4>
-                          <div className="flex flex-wrap gap-1">
-                            {authenticityAnalysis.modernAdaptations.map((adaptation: string, i: number) => (
-                              <Badge key={i} variant="secondary">{adaptation}</Badge>
-                            ))}
+                        {authenticityAnalysis.culturalAccuracy && (
+                          <div>
+                            <h4 className="text-sm font-medium mb-1">Cultural Accuracy</h4>
+                            <p className="text-sm text-muted-foreground">{authenticityAnalysis.culturalAccuracy}</p>
                           </div>
-                        </div>
+                        )}
 
-                        <div>
-                          <h4 className="text-sm font-medium mb-1">Cultural Accuracy</h4>
-                          <p className="text-sm text-muted-foreground">{authenticityAnalysis.culturalAccuracy}</p>
-                        </div>
-
-                        <div>
-                          <h4 className="text-sm font-medium mb-1">Suggestions for Improvement</h4>
-                          <ul className="text-sm space-y-1">
-                            {authenticityAnalysis.suggestions.map((suggestion, i) => (
-                              <li key={i} className="flex items-start gap-2">
-                                <InfoIcon className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                                <span className="text-muted-foreground">{suggestion}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-6 text-muted-foreground">
-                        <Sparkles className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>Click "Analyze" to assess this recipe's authenticity</p>
+                        {authenticityAnalysis.suggestions?.length > 0 && (
+                          <div>
+                            <h4 className="text-sm font-medium mb-1">Suggestions for Improvement</h4>
+                            <ul className="text-sm space-y-1">
+                              {authenticityAnalysis.suggestions.map((suggestion, i) => (
+                                <li key={i} className="flex items-start gap-2">
+                                  <InfoIcon className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                                  <span className="text-muted-foreground">{suggestion}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
                     )}
                   </CardContent>
@@ -620,20 +689,21 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={fetchTechniqueTips}
-                      disabled={isAnalyzing || techniqueTips.length > 0}
+                      onClick={() => {
+                        setTechniqueTips([]); // Reset tips first
+                        fetchTechniqueTips();
+                      }}
+                      disabled={isAnalyzing}
                     >
                       {isAnalyzing ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           Loading...
                         </>
-                      ) : techniqueTips.length > 0 ? (
-                        "Tips Loaded"
                       ) : (
                         <>
                           <Brain className="mr-2 h-4 w-4" />
-                          Get Tips
+                          {techniqueTips.length > 0 ? 'Refresh Tips' : 'Get Tips'}
                         </>
                       )}
                     </Button>
@@ -676,19 +746,6 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                                 ))}
                               </ul>
                             </div>
-
-                            {tip.videoReferences?.map((video: string, i: number) => (
-                                  <li key={i}>
-                                    <a 
-                                      href={video} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer"
-                                      className="text-primary hover:underline"
-                                    >
-                                      Tutorial Video {i + 1}
-                                    </a>
-                                  </li>
-                                ))}
                           </div>
                         ))}
                       </div>
@@ -748,50 +805,113 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                   </CardContent>
                 </Card>
                 
-                {/* Ingredient Substitutions */}
+                {/* Ingredient Substitutions Card */}
                 <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                    <CardTitle>Ingredient Substitutions</CardTitle>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsAddingSubstitutions(true)}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Substitution
-                    </Button>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 border-b bg-muted/50">
+                    <div className="flex-1">
+                      <CardTitle className="flex items-center gap-2">
+                        <ArrowRight className="h-4 w-4 text-primary" />
+                        Ingredient Substitutions
+                      </CardTitle>
+                      <CardDescription>Alternative ingredients and their impact</CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={fetchSubstitutions}
+                        disabled={loading}
+                      >
+                        {loading ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Loading...
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="mr-2 h-4 w-4" />
+                            Show Substitutions
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsAddingSubstitutions(true)}
+                        className="whitespace-nowrap"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Substitution
+                      </Button>
+                    </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="pt-6">
                     {substitutions.length > 0 ? (
                       <div className="space-y-4">
                         {substitutions.map((sub, index) => (
-                          <div key={index} className="border-b pb-3 last:border-0 last:pb-0">
-                            <div className="flex justify-between text-sm mb-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">{sub.original}</span>
-                                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                                <span>{sub.substitute}</span>
+                          <div key={index} 
+                            className="group p-4 rounded-lg border bg-card hover:shadow-md transition-all duration-200"
+                          >
+                            <div className="flex justify-between items-start mb-2">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <div className="flex items-center">
+                                    <span className="font-medium text-primary">{sub.original}</span>
+                                    <div className="mx-3 flex items-center gap-2">
+                                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                                      <Badge variant="outline" className="font-normal">
+                                        {sub.substitute}
+                                      </Badge>
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
                               <Badge variant={
                                 sub.flavorImpact === 'minimal' ? 'outline' :
                                 sub.flavorImpact === 'moderate' ? 'secondary' : 
                                 'destructive'
-                              }>
-                                {sub.flavorImpact} impact
+                              } className="ml-2 transition-all duration-200 group-hover:scale-105">
+                                <div className="flex items-center gap-1.5">
+                                  <div className={`w-2 h-2 rounded-full ${
+                                    sub.flavorImpact === 'minimal' ? 'bg-primary' :
+                                    sub.flavorImpact === 'moderate' ? 'bg-secondary' :
+                                    'bg-destructive'
+                                  }`} />
+                                  {sub.flavorImpact} impact
+                                </div>
                               </Badge>
                             </div>
-                            <p className="text-sm text-muted-foreground">{sub.notes}</p>
+                            <div className="pl-4 border-l-2 border-primary/20 mt-3">
+                              <div className="flex items-start gap-2">
+                                <Info className="h-4 w-4 text-muted-foreground mt-0.5" />
+                                <p className="text-sm text-muted-foreground">{sub.notes}</p>
+                              </div>
+                            </div>
                           </div>
                         ))}
                       </div>
+                    ) : !loading ? (
+                      <div className="flex flex-col items-center justify-center py-6 text-center">
+                        <div className="rounded-full bg-muted p-3 mb-3">
+                          <Plus className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          No substitutions added yet
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Click "Add Substitution" to suggest ingredient alternatives
+                        </p>
+                      </div>
                     ) : (
-                      <div className="text-center py-4 text-sm text-muted-foreground">
-                        {loading ? 'Loading substitutions...' : 'No substitutions available'}
+                      <div className="flex justify-center py-6">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
                       </div>
                     )}
                     {!user && (
-                      <div className="text-center mt-4 text-sm">
-                        <p>Sign in to view personalized substitutions based on your pantry</p>
+                      <div className="mt-4 pt-4 border-t">
+                        <p className="text-sm text-muted-foreground text-center">
+                          Sign in to view personalized substitutions based on your pantry
+                        </p>
                       </div>
                     )}
                   </CardContent>
