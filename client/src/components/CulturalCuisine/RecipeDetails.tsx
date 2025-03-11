@@ -339,7 +339,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
   return (
     <TooltipProvider>
       <div className="container mx-auto px-4 md:px-6 lg:px-8 max-w-7xl">
-        <div className="space-y-6">
+        <div className="space-y-4">
           <div className="flex items-center gap-4 justify-between">
             <Button onClick={onBack} variant="ghost" size="sm">
               <ArrowLeft className="h-4 w-4 mr-2" />
@@ -370,12 +370,14 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
             </AlertDialog>
           </div>
 
-          <div className="grid gap-6">
+          {/* Main content */}
+          <div className="grid gap-2">
+            {/* Recipe Card */}
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-2">
                 <CardTitle className="text-2xl">{recipe.name}</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-2">
                 <p className="text-muted-foreground">{recipe.description}</p>
                 <Badge variant={
                   recipe.difficulty === 'beginner' ? 'default' :
@@ -386,21 +388,17 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
               </CardContent>
             </Card>
 
-            {/* Main content section */}
-            <div className="space-y-6">
-              <div 
-                className="h-64 w-full bg-cover bg-center rounded-lg"
-                style={{ 
-                  backgroundImage: `url(https://source.unsplash.com/1200x800/?${encodeURIComponent(recipe.name.toLowerCase())})`,
-                  backgroundSize: 'cover'
-                }}
-              />
-              
-              <div>
-                <h2 className="text-xl font-bold mb-2">Description</h2>
-                <p>{recipe.description}</p>
-              </div>
-
+            {/* Recipe Image */}
+            <div 
+              className="h-64 w-full bg-cover bg-center rounded-lg shadow-md"
+              style={{ 
+                backgroundImage: `url(https://source.unsplash.com/1200x800/?${encodeURIComponent(recipe.name.toLowerCase())})`,
+                backgroundSize: 'cover'
+              }}
+            />
+            
+            {/* Tabs Content */}
+            <div className="mt-2">
               <Tabs defaultValue="instructions" className="w-full">
                 <TabsList className="grid grid-cols-3">
                   <TabsTrigger value="instructions">Instructions</TabsTrigger>
@@ -444,7 +442,8 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                 </TabsContent>
                 
                 <TabsContent value="ingredients">
-                  <div className="space-y-6 mt-2">
+                  <div className="space-y-4 mt-2">
+                    {/* Authentic Ingredients Section */}
                     <div>
                       <div className="flex justify-between items-center">
                         <h3 className="text-lg font-semibold">Authentic Ingredients</h3>
@@ -536,11 +535,476 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                         </CardContent>
                       </Card>
                     )}
+
+                    {/* Substitutions Section */}
+                    <Card className="overflow-hidden">
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 bg-muted/50 border-b">
+                        <div>
+                          <CardTitle className="text-base font-semibold flex items-center gap-2">
+                            <ArrowRight className="h-4 w-4 text-primary" />
+                            Ingredient Substitutions
+                          </CardTitle>
+                          <CardDescription>Alternative ingredients and their impact</CardDescription>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={fetchSubstitutions}
+                            disabled={loading}
+                          >
+                            {loading ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Loading...
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="mr-2 h-4 w-4" />
+                                Show Substitutions
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsAddingSubstitutions(true)}
+                            className="whitespace-nowrap"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Substitution
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-6">
+                        {substitutions.length > 0 ? (
+                          <div className="grid gap-4 md:grid-cols-2">
+                            {substitutions.map((sub, index) => (
+                              <div key={index} 
+                                className="group p-4 rounded-lg border bg-card hover:shadow-md transition-all duration-200"
+                              >
+                                <div className="flex flex-wrap gap-4 items-start justify-between">
+                                  <div className="space-y-3">
+                                    <div className="flex items-center gap-3">
+                                      <Badge className="bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
+                                        {sub.original}
+                                      </Badge>
+                                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                                      <Badge variant="outline" className="font-normal">
+                                        {sub.substitute}
+                                      </Badge>
+                                    </div>
+                                    <div className="pl-4 border-l-2 border-primary/20">
+                                      <div className="flex items-start gap-2">
+                                        <Info className="h-4 w-4 text-muted-foreground mt-0.5" />
+                                        <p className="text-sm text-muted-foreground">{sub.notes}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <Badge variant={
+                                    sub.flavorImpact === 'minimal' ? 'outline' :
+                                    sub.flavorImpact === 'moderate' ? 'secondary' : 
+                                    'destructive'
+                                  } className="transition-all duration-200 group-hover:scale-105">
+                                    <div className="flex items-center gap-1.5">
+                                      <div className={`w-2 h-2 rounded-full ${
+                                        sub.flavorImpact === 'minimal' ? 'bg-primary' :
+                                        sub.flavorImpact === 'moderate' ? 'bg-secondary' :
+                                        'bg-destructive'
+                                      }`} />
+                                      {sub.flavorImpact} impact
+                                    </div>
+                                  </Badge>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : !loading ? (
+                          <div className="text-center py-8">
+                            <div className="rounded-full bg-primary/10 p-3 w-12 h-12 mx-auto mb-4 flex items-center justify-center">
+                              <ArrowRight className="h-6 w-6 text-primary" />
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              No substitutions added yet
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Click "Show Substitutions" to discover ingredient alternatives
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="flex justify-center py-8">
+                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                          </div>
+                        )}
+                        {!user && (
+                          <div className="mt-6 pt-6 border-t text-center">
+                            <p className="text-sm text-muted-foreground">
+                              Sign in to view personalized substitutions based on your pantry
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Authenticity Analysis Card */}
+                    <Card className="overflow-hidden">
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 bg-muted/50 border-b">
+                        <div>
+                          <CardTitle className="text-base font-semibold flex items-center gap-2">
+                            <History className="h-4 w-4 text-primary" />
+                            Cultural Authenticity
+                          </CardTitle>
+                          <CardDescription>Traditional authenticity analysis</CardDescription>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={fetchAuthenticityAnalysis}
+                          disabled={isAnalyzing}
+                        >
+                          {isAnalyzing ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Analyzing...
+                            </>
+                          ) : (
+                            <>
+                              <Brain className="mr-2 h-4 w-4" />
+                              Analyze Authenticity
+                            </>
+                          )}
+                        </Button>
+                      </CardHeader>
+                      <CardContent className="p-6">
+                        {authenticityAnalysis ? (
+                          <div className="space-y-6">
+                            {/* Authenticity Score */}
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <h4 className="text-sm font-medium">Authenticity Score</h4>
+                                <span className="text-2xl font-bold text-primary">
+                                  {authenticityAnalysis?.authenticityScore || 0}%
+                                </span>
+                              </div>
+                              <Progress 
+                                value={authenticityAnalysis?.authenticityScore || 0}
+                                max={100}
+                                className="h-2"
+                              />
+                            </div>
+
+                            {/* Traditional Elements */}
+                            {authenticityAnalysis.traditionalElements?.length > 0 && (
+                              <div className="space-y-2">
+                                <h4 className="text-sm font-medium flex items-center gap-2">
+                                  <Star className="h-4 w-4 text-amber-500" />
+                                  Traditional Elements
+                                </h4>
+                                <div className="flex flex-wrap gap-2">
+                                  {authenticityAnalysis.traditionalElements.map((element, i) => (
+                                    <Badge key={i} variant="outline" className="bg-card">
+                                      {element}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Modern Adaptations */}
+                            {authenticityAnalysis.modernAdaptations?.length > 0 && (
+                              <div className="space-y-2">
+                                <h4 className="text-sm font-medium flex items-center gap-2">
+                                  <Sparkles className="h-4 w-4 text-blue-500" />
+                                  Modern Adaptations
+                                </h4>
+                                <div className="flex flex-wrap gap-2">
+                                  {authenticityAnalysis.modernAdaptations.map((adaptation, i) => (
+                                    <Badge key={i} variant="secondary">
+                                      {adaptation}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Cultural Accuracy */}
+                            {authenticityAnalysis.culturalAccuracy && (
+                              <div className="space-y-2">
+                                <h4 className="text-sm font-medium flex items-center gap-2">
+                                  <Globe2 className="h-4 w-4 text-emerald-500" />
+                                  Cultural Accuracy
+                                </h4>
+                                <p className="text-sm text-muted-foreground leading-relaxed">
+                                  {authenticityAnalysis.culturalAccuracy}
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Improvement Suggestions */}
+                            {authenticityAnalysis.suggestions?.length > 0 && (
+                              <div className="space-y-2">
+                                <h4 className="text-sm font-medium flex items-center gap-2">
+                                  <Info className="h-4 w-4 text-blue-500" />
+                                  Suggestions for Improvement
+                                </h4>
+                                <ul className="space-y-2">
+                                  {authenticityAnalysis.suggestions.map((suggestion, i) => (
+                                    <li key={i} className="text-sm flex items-start gap-2">
+                                      <ChevronRight className="h-4 w-4 text-muted-foreground mt-0.5" />
+                                      <span>{suggestion}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <div className="rounded-full bg-primary/10 p-3 w-12 h-12 mx-auto mb-4 flex items-center justify-center">
+                              <History className="h-6 w-6 text-primary" />
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              Click "Analyze Authenticity" to assess this recipe's cultural authenticity
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Complementary Dishes Card */}
+                    <Card className="overflow-hidden">
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 bg-muted/50 border-b">
+                        <div>
+                          <CardTitle className="text-base font-semibold flex items-center gap-2">
+                            <UtensilsCrossed className="h-4 w-4 text-primary" />
+                            Complementary Dishes
+                          </CardTitle>
+                          <CardDescription>Traditional pairings and accompaniments</CardDescription>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={fetchPairings}
+                          disabled={loading}
+                          className="ml-2"
+                        >
+                          {loading ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Loading...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="mr-2 h-4 w-4" />
+                              Show Pairings
+                            </>
+                          )}
+                        </Button>
+                      </CardHeader>
+                      <CardContent className="p-6">
+                        {pairings ? (
+                          <div className="grid gap-6 md:grid-cols-2">
+                            {pairings.mainDishes.length > 0 && (
+                              <div className="space-y-3 p-4 rounded-lg border bg-card">
+                                <h4 className="font-medium text-sm flex items-center gap-2">
+                                  <ChefHat className="h-4 w-4 text-primary" />
+                                  Main Dishes
+                                </h4>
+                                <ul className="space-y-2">
+                                  {pairings.mainDishes.map((dish, i) => (
+                                    <li key={i} className="text-sm flex items-start gap-2">
+                                      <ChevronRight className="h-4 w-4 text-muted-foreground mt-0.5" />
+                                      <span>{dish}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            
+                            {pairings.sideDishes.length > 0 && (
+                              <div className="space-y-3 p-4 rounded-lg border bg-card">
+                                <h4 className="font-medium text-sm flex items-center gap-2">
+                                  <UtensilsCrossed className="h-4 w-4 text-emerald-500" />
+                                  Side Dishes
+                                </h4>
+                                <ul className="space-y-2">
+                                  {pairings.sideDishes.map((dish, i) => (
+                                    <li key={i} className="text-sm flex items-start gap-2">
+                                      <ChevronRight className="h-4 w-4 text-muted-foreground mt-0.5" />
+                                      <span>{dish}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            
+                            {pairings.desserts.length > 0 && (
+                              <div className="space-y-3 p-4 rounded-lg border bg-card">
+                                <h4 className="font-medium text-sm flex items-center gap-2">
+                                  <Sparkles className="h-4 w-4 text-amber-500" />
+                                  Desserts
+                                </h4>
+                                <ul className="space-y-2">
+                                  {pairings.desserts.map((dish, i) => (
+                                    <li key={i} className="text-sm flex items-start gap-2">
+                                      <ChevronRight className="h-4 w-4 text-muted-foreground mt-0.5" />
+                                      <span>{dish}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            
+                            {pairings.beverages.length > 0 && (
+                              <div className="space-y-3 p-4 rounded-lg border bg-card">
+                                <h4 className="font-medium text-sm flex items-center gap-2">
+                                  <Wine className="h-4 w-4 text-indigo-500" />
+                                  Beverages
+                                </h4>
+                                <ul className="space-y-2">
+                                  {pairings.beverages.map((beverage, i) => (
+                                    <li key={i} className="text-sm flex items-start gap-2">
+                                      <ChevronRight className="h-4 w-4 text-muted-foreground mt-0.5" />
+                                      <span>{beverage}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <div className="rounded-full bg-primary/10 p-3 w-12 h-12 mx-auto mb-4 flex items-center justify-center">
+                              <UtensilsCrossed className="h-6 w-6 text-primary" />
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              Click "Show Pairings" to discover traditional dish combinations
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Serving Etiquette Card */}
+                    <Card className="overflow-hidden">
+                      <CardHeader className="flex flex-row items-center justify-between space-y-0 bg-muted/50 border-b">
+                        <div>
+                          <CardTitle className="text-base font-semibold flex items-center gap-2">
+                            <Globe2 className="h-4 w-4 text-primary" />
+                            Serving Etiquette
+                          </CardTitle>
+                          <CardDescription>Cultural dining customs and traditions</CardDescription>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={fetchEtiquette}
+                          disabled={loading}
+                          className="ml-2"
+                        >
+                          {loading ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Loading...
+                            </>
+                          ) : (
+                            <>
+                              <Scroll className="mr-2 h-4 w-4" />
+                              Show Etiquette
+                            </>
+                          )}
+                        </Button>
+                      </CardHeader>
+                      <CardContent className="p-6">
+                        {etiquette ? (
+                          <div className="grid gap-6 md:grid-cols-2">
+                            {etiquette.taboos.length > 0 && (
+                              <div className="space-y-3 p-4 rounded-lg border bg-card/50 border-destructive/20">
+                                <h4 className="font-medium text-sm flex items-center gap-2 text-destructive">
+                                  <AlertTriangle className="h-4 w-4" />
+                                  Taboos to Avoid
+                                </h4>
+                                <ul className="space-y-2">
+                                  {etiquette.taboos.map((taboo, i) => (
+                                    <li key={i} className="text-sm flex items-start gap-2">
+                                      <Ban className="h-4 w-4 text-destructive/70 mt-0.5" />
+                                      <span>{taboo}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            
+                            {etiquette.customs.length > 0 && (
+                              <div className="space-y-3 p-4 rounded-lg border bg-card">
+                                <h4 className="font-medium text-sm flex items-center gap-2">
+                                  <Scroll className="h-4 w-4 text-primary" />
+                                  Dining Customs
+                                </h4>
+                                <ul className="space-y-2">
+                                  {etiquette.customs.map((custom, i) => (
+                                    <li key={i} className="text-sm flex items-start gap-2">
+                                      <ChevronRight className="h-4 w-4 text-muted-foreground mt-0.5" />
+                                      <span>{custom}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            
+                            {etiquette.presentation.length > 0 && (
+                              <div className="space-y-3 p-4 rounded-lg border bg-card">
+                                <h4 className="font-medium text-sm flex items-center gap-2">
+                                  <Palette className="h-4 w-4 text-emerald-500" />
+                                  Presentation Guidelines
+                                </h4>
+                                <ul className="space-y-2">
+                                  {etiquette.presentation.map((tip, i) => (
+                                    <li key={i} className="text-sm flex items-start gap-2">
+                                      <ChevronRight className="h-4 w-4 text-muted-foreground mt-0.5" />
+                                      <span>{tip}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+
+                            {etiquette.servingOrder.length > 0 && (
+                              <div className="space-y-3 p-4 rounded-lg border bg-card">
+                                <h4 className="font-medium text-sm flex items-center gap-2">
+                                  <ListOrdered className="h-4 w-4 text-amber-500" />
+                                  Serving Order
+                                </h4>
+                                <ul className="space-y-2">
+                                  {etiquette.servingOrder.map((step, i) => (
+                                    <li key={i} className="text-sm flex items-start gap-2">
+                                      <Badge variant="outline" className="h-5 w-5 p-0 flex items-center justify-center">
+                                        {i + 1}
+                                      </Badge>
+                                      <span>{step}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="text-center py-8">
+                            <div className="rounded-full bg-primary/10 p-3 w-12 h-12 mx-auto mb-4 flex items-center justify-center">
+                              <Globe2 className="h-6 w-6 text-primary" />
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              Click "Show Etiquette" to learn about cultural dining customs
+                            </p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
                   </div>
                 </TabsContent>
                 
                 <TabsContent value="cultural-notes">
-                  <div className="space-y-6 mt-2">
+                  <div className="space-y-4 mt-2">
                     <div className="flex justify-between items-center">
                       <h3 className="text-lg font-semibold flex items-center gap-2">
                         <Globe2 className="h-5 w-5 text-primary" />
@@ -600,346 +1064,6 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                   </div>
                 </TabsContent>
               </Tabs>
-
-              {/* Substitutions Section - Moved here */}
-              <Card className="overflow-hidden">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 bg-muted/50 border-b">
-                  <div>
-                    <CardTitle className="text-base font-semibold flex items-center gap-2">
-                      <ArrowRight className="h-4 w-4 text-primary" />
-                      Ingredient Substitutions
-                    </CardTitle>
-                    <CardDescription>Alternative ingredients and their impact</CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={fetchSubstitutions}
-                      disabled={loading}
-                    >
-                      {loading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Loading...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="mr-2 h-4 w-4" />
-                          Show Substitutions
-                        </>
-                      )}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsAddingSubstitutions(true)}
-                      className="whitespace-nowrap"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Substitution
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="p-6">
-                  {substitutions.length > 0 ? (
-                    <div className="grid gap-4 md:grid-cols-2">
-                      {substitutions.map((sub, index) => (
-                        <div key={index} 
-                          className="group p-4 rounded-lg border bg-card hover:shadow-md transition-all duration-200"
-                        >
-                          <div className="flex flex-wrap gap-4 items-start justify-between">
-                            <div className="space-y-3">
-                              <div className="flex items-center gap-3">
-                                <Badge className="bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
-                                  {sub.original}
-                                </Badge>
-                                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                                <Badge variant="outline" className="font-normal">
-                                  {sub.substitute}
-                                </Badge>
-                              </div>
-                              <div className="pl-4 border-l-2 border-primary/20">
-                                <div className="flex items-start gap-2">
-                                  <Info className="h-4 w-4 text-muted-foreground mt-0.5" />
-                                  <p className="text-sm text-muted-foreground">{sub.notes}</p>
-                                </div>
-                              </div>
-                            </div>
-                            <Badge variant={
-                              sub.flavorImpact === 'minimal' ? 'outline' :
-                              sub.flavorImpact === 'moderate' ? 'secondary' : 
-                              'destructive'
-                            } className="transition-all duration-200 group-hover:scale-105">
-                              <div className="flex items-center gap-1.5">
-                                <div className={`w-2 h-2 rounded-full ${
-                                  sub.flavorImpact === 'minimal' ? 'bg-primary' :
-                                  sub.flavorImpact === 'moderate' ? 'bg-secondary' :
-                                  'bg-destructive'
-                                }`} />
-                                {sub.flavorImpact} impact
-                              </div>
-                            </Badge>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : !loading ? (
-                    <div className="text-center py-8">
-                      <div className="rounded-full bg-primary/10 p-3 w-12 h-12 mx-auto mb-4 flex items-center justify-center">
-                        <ArrowRight className="h-6 w-6 text-primary" />
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        No substitutions added yet
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Click "Show Substitutions" to discover ingredient alternatives
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="flex justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    </div>
-                  )}
-                  {!user && (
-                    <div className="mt-6 pt-6 border-t text-center">
-                      <p className="text-sm text-muted-foreground">
-                        Sign in to view personalized substitutions based on your pantry
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Complementary Dishes Card */}
-              <Card className="overflow-hidden">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 bg-muted/50 border-b">
-                  <div>
-                    <CardTitle className="text-base font-semibold flex items-center gap-2">
-                      <UtensilsCrossed className="h-4 w-4 text-primary" />
-                      Complementary Dishes
-                    </CardTitle>
-                    <CardDescription>Traditional pairings and accompaniments</CardDescription>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={fetchPairings}
-                    disabled={loading}
-                    className="ml-2"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Loading...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="mr-2 h-4 w-4" />
-                        Show Pairings
-                      </>
-                    )}
-                  </Button>
-                </CardHeader>
-                <CardContent className="p-6">
-                  {pairings ? (
-                    <div className="grid gap-6 md:grid-cols-2">
-                      {pairings.mainDishes.length > 0 && (
-                        <div className="space-y-3 p-4 rounded-lg border bg-card">
-                          <h4 className="font-medium text-sm flex items-center gap-2">
-                            <ChefHat className="h-4 w-4 text-primary" />
-                            Main Dishes
-                          </h4>
-                          <ul className="space-y-2">
-                            {pairings.mainDishes.map((dish, i) => (
-                              <li key={i} className="text-sm flex items-start gap-2">
-                                <ChevronRight className="h-4 w-4 text-muted-foreground mt-0.5" />
-                                <span>{dish}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      
-                      {pairings.sideDishes.length > 0 && (
-                        <div className="space-y-3 p-4 rounded-lg border bg-card">
-                          <h4 className="font-medium text-sm flex items-center gap-2">
-                            <UtensilsCrossed className="h-4 w-4 text-emerald-500" />
-                            Side Dishes
-                          </h4>
-                          <ul className="space-y-2">
-                            {pairings.sideDishes.map((dish, i) => (
-                              <li key={i} className="text-sm flex items-start gap-2">
-                                <ChevronRight className="h-4 w-4 text-muted-foreground mt-0.5" />
-                                <span>{dish}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      
-                      {pairings.desserts.length > 0 && (
-                        <div className="space-y-3 p-4 rounded-lg border bg-card">
-                          <h4 className="font-medium text-sm flex items-center gap-2">
-                            <Sparkles className="h-4 w-4 text-amber-500" />
-                            Desserts
-                          </h4>
-                          <ul className="space-y-2">
-                            {pairings.desserts.map((dish, i) => (
-                              <li key={i} className="text-sm flex items-start gap-2">
-                                <ChevronRight className="h-4 w-4 text-muted-foreground mt-0.5" />
-                                <span>{dish}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      
-                      {pairings.beverages.length > 0 && (
-                        <div className="space-y-3 p-4 rounded-lg border bg-card">
-                          <h4 className="font-medium text-sm flex items-center gap-2">
-                            <Wine className="h-4 w-4 text-indigo-500" />
-                            Beverages
-                          </h4>
-                          <ul className="space-y-2">
-                            {pairings.beverages.map((beverage, i) => (
-                              <li key={i} className="text-sm flex items-start gap-2">
-                                <ChevronRight className="h-4 w-4 text-muted-foreground mt-0.5" />
-                                <span>{beverage}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <div className="rounded-full bg-primary/10 p-3 w-12 h-12 mx-auto mb-4 flex items-center justify-center">
-                        <UtensilsCrossed className="h-6 w-6 text-primary" />
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Click "Show Pairings" to discover traditional dish combinations
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Serving Etiquette Card */}
-              <Card className="overflow-hidden">
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 bg-muted/50 border-b">
-                  <div>
-                    <CardTitle className="text-base font-semibold flex items-center gap-2">
-                      <Globe2 className="h-4 w-4 text-primary" />
-                      Serving Etiquette
-                    </CardTitle>
-                    <CardDescription>Cultural dining customs and traditions</CardDescription>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={fetchEtiquette}
-                    disabled={loading}
-                    className="ml-2"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Loading...
-                      </>
-                    ) : (
-                      <>
-                        <Scroll className="mr-2 h-4 w-4" />
-                        Show Etiquette
-                      </>
-                    )}
-                  </Button>
-                </CardHeader>
-                <CardContent className="p-6">
-                  {etiquette ? (
-                    <div className="grid gap-6 md:grid-cols-2">
-                      {etiquette.taboos.length > 0 && (
-                        <div className="space-y-3 p-4 rounded-lg border bg-card/50 border-destructive/20">
-                          <h4 className="font-medium text-sm flex items-center gap-2 text-destructive">
-                            <AlertTriangle className="h-4 w-4" />
-                            Taboos to Avoid
-                          </h4>
-                          <ul className="space-y-2">
-                            {etiquette.taboos.map((taboo, i) => (
-                              <li key={i} className="text-sm flex items-start gap-2">
-                                <Ban className="h-4 w-4 text-destructive/70 mt-0.5" />
-                                <span>{taboo}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      
-                      {etiquette.customs.length > 0 && (
-                        <div className="space-y-3 p-4 rounded-lg border bg-card">
-                          <h4 className="font-medium text-sm flex items-center gap-2">
-                            <Scroll className="h-4 w-4 text-primary" />
-                            Dining Customs
-                          </h4>
-                          <ul className="space-y-2">
-                            {etiquette.customs.map((custom, i) => (
-                              <li key={i} className="text-sm flex items-start gap-2">
-                                <ChevronRight className="h-4 w-4 text-muted-foreground mt-0.5" />
-                                <span>{custom}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                      
-                      {etiquette.presentation.length > 0 && (
-                        <div className="space-y-3 p-4 rounded-lg border bg-card">
-                          <h4 className="font-medium text-sm flex items-center gap-2">
-                            <Palette className="h-4 w-4 text-emerald-500" />
-                            Presentation Guidelines
-                          </h4>
-                          <ul className="space-y-2">
-                            {etiquette.presentation.map((tip, i) => (
-                              <li key={i} className="text-sm flex items-start gap-2">
-                                <ChevronRight className="h-4 w-4 text-muted-foreground mt-0.5" />
-                                <span>{tip}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
-                      {etiquette.servingOrder.length > 0 && (
-                        <div className="space-y-3 p-4 rounded-lg border bg-card">
-                          <h4 className="font-medium text-sm flex items-center gap-2">
-                            <ListOrdered className="h-4 w-4 text-amber-500" />
-                            Serving Order
-                          </h4>
-                          <ul className="space-y-2">
-                            {etiquette.servingOrder.map((step, i) => (
-                              <li key={i} className="text-sm flex items-start gap-2">
-                                <Badge variant="outline" className="h-5 w-5 p-0 flex items-center justify-center">
-                                  {i + 1}
-                                </Badge>
-                                <span>{step}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <div className="rounded-full bg-primary/10 p-3 w-12 h-12 mx-auto mb-4 flex items-center justify-center">
-                        <Globe2 className="h-6 w-6 text-primary" />
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Click "Show Etiquette" to learn about cultural dining customs
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
             </div>
           </div>
         </div>

@@ -76,19 +76,29 @@ export async function getRecipeAuthenticityScore(recipe: CulturalRecipe, cuisine
     Recipe: ${JSON.stringify(recipe)}
     Cuisine: ${JSON.stringify(cuisine)}
     
-    Provide a detailed authenticity analysis including:
-    - Authenticity score (0-100)
-    - Feedback points
-    - Traditional elements identified
-    - Modern adaptations noted
-    - Cultural accuracy assessment
+    Return a JSON object with the following structure:
+    {
+      "authenticityScore": number (0-100),
+      "feedback": string[],
+      "traditionalElements": string[],
+      "modernAdaptations": string[],
+      "culturalAccuracy": string,
+      "suggestions": string[]
+    }
+    
+    Ensure the authenticityScore is a number between 0 and 100.
+    Analyze:
+    - Authenticity score based on traditional ingredients and methods
+    - Traditional elements present in the recipe
+    - Any modern adaptations or variations
+    - Overall cultural accuracy
     - Suggestions for improving authenticity`;
 
   const response = await groq.chat.completions.create({
     messages: [
       {
         role: "system",
-        content: "You are an expert in traditional cooking techniques and cultural authenticity. Provide detailed authenticity analysis in JSON format."
+        content: "You are an expert in traditional cooking techniques and cultural authenticity. Always return valid JSON with numeric authenticityScore between 0-100."
       },
       { role: "user", content: prompt }
     ],
@@ -101,7 +111,16 @@ export async function getRecipeAuthenticityScore(recipe: CulturalRecipe, cuisine
   if (!content) throw new Error('No response from authenticity analysis API');
 
   try {
-    return JSON.parse(content.trim().replace(/```json\n?|\n?```/g, ''));
+    const result = JSON.parse(content.trim().replace(/```json\n?|\n?```/g, ''));
+    
+    // Ensure authenticityScore is a valid number
+    if (typeof result.authenticityScore !== 'number' || isNaN(result.authenticityScore)) {
+      result.authenticityScore = 0;
+    }
+    // Ensure score is between 0 and 100
+    result.authenticityScore = Math.min(100, Math.max(0, result.authenticityScore));
+    
+    return result;
   } catch (error) {
     console.error('Failed to parse authenticity analysis:', error);
     throw new Error('Invalid authenticity analysis format received');
