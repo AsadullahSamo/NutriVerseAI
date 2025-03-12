@@ -15,7 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { 
   ArrowLeft, Info as InfoIcon, ChevronRight, AlertTriangle, Sparkles, 
   ChefHat, Brain, Loader2, Edit, Plus, Trash2, History, 
-  Star, UtensilsCrossed, Map, Scroll, ArrowRight, Info, Globe2, Wine, Palette, ListOrdered, Ban 
+  Star, UtensilsCrossed, Map, Scroll, ArrowRight, Info, Globe2, Wine, Palette, ListOrdered, Ban, MapPin 
 } from "lucide-react";
 import type { CulturalRecipe, CulturalCuisine } from "@shared/schema";
 import { getRecipeAuthenticityScore, getTechniqueTips, getSubstitutions, getPairings, getEtiquette } from "@ai-services/cultural-cuisine-service";
@@ -220,12 +220,23 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
 
   const handleUpdateRecipe = async (updatedData: Partial<CulturalRecipe>) => {
     try {
+      // Convert arrays to objects with numbered keys if present
+      const formattedData = {
+        ...updatedData,
+        instructions: Array.isArray(updatedData.instructions) 
+          ? Object.fromEntries(updatedData.instructions.map((inst, i) => [i.toString(), inst]))
+          : updatedData.instructions,
+        authenticIngredients: Array.isArray(updatedData.authenticIngredients)
+          ? Object.fromEntries(updatedData.authenticIngredients.map((ing, i) => [i.toString(), ing]))
+          : updatedData.authenticIngredients,
+      };
+
       const response = await fetch(`/api/cultural-recipes/${recipe.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(updatedData),
+        body: JSON.stringify(formattedData),
         credentials: 'include'
       });
 
@@ -388,6 +399,12 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
               </CardContent>
             </Card>
 
+            {/* Location/Region Badge */}
+            <div className="absolute top-4 right-4 flex items-center gap-2 bg-black/30 px-3 py-1.5 rounded-full backdrop-blur-sm">
+              <MapPin className="h-4 w-4 text-white/90" />
+              <span className="text-sm font-medium text-white/90">{cuisine.region}</span>
+            </div>
+            
             {/* Recipe Image */}
             <div 
               className="h-64 w-full bg-cover bg-center rounded-lg shadow-md"
@@ -907,10 +924,19 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                               Loading...
                             </>
+                          ) : etiquette && 
+                              etiquette.presentation?.length > 0 || 
+                              etiquette.customs?.length > 0 || 
+                              etiquette.taboos?.length > 0 || 
+                              etiquette.servingOrder?.length > 0 ? (
+                            <>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Edit Etiquette
+                            </>
                           ) : (
                             <>
-                              <Scroll className="mr-2 h-4 w-4" />
-                              Show Etiquette
+                              <Plus className="mr-2 h-4 w-4" />
+                              Add Etiquette
                             </>
                           )}
                         </Button>
@@ -919,15 +945,15 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                         {etiquette ? (
                           <div className="grid gap-6 md:grid-cols-2">
                             {etiquette.taboos.length > 0 && (
-                              <div className="space-y-3 p-4 rounded-lg border bg-card/50 border-destructive/20">
-                                <h4 className="font-medium text-sm flex items-center gap-2 text-destructive">
-                                  <AlertTriangle className="h-4 w-4" />
-                                  Taboos to Avoid
+                              <div className="space-y-3 p-4 rounded-lg border">
+                                <h4 className="font-medium text-sm flex items-center gap-2">
+                                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                                  Cultural Taboos
                                 </h4>
                                 <ul className="space-y-2">
                                   {etiquette.taboos.map((taboo, i) => (
-                                    <li key={i} className="text-sm flex items-start gap-2">
-                                      <Ban className="h-4 w-4 text-destructive/70 mt-0.5" />
+                                    <li key={i} className="text-sm flex items-start gap-2 p-3 rounded-md hover:bg-muted/60 transition-colors">
+                                      <Ban className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
                                       <span>{taboo}</span>
                                     </li>
                                   ))}
@@ -936,15 +962,15 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                             )}
                             
                             {etiquette.customs.length > 0 && (
-                              <div className="space-y-3 p-4 rounded-lg border bg-card">
+                              <div className="space-y-3 p-4 rounded-lg border">
                                 <h4 className="font-medium text-sm flex items-center gap-2">
-                                  <Scroll className="h-4 w-4 text-primary" />
-                                  Dining Customs
+                                  <Scroll className="h-4 w-4 text-amber-600" />
+                                  Traditional Customs
                                 </h4>
                                 <ul className="space-y-2">
                                   {etiquette.customs.map((custom, i) => (
-                                    <li key={i} className="text-sm flex items-start gap-2">
-                                      <ChevronRight className="h-4 w-4 text-muted-foreground mt-0.5" />
+                                    <li key={i} className="text-sm flex items-start gap-2 p-3 rounded-md hover:bg-muted/60 transition-colors">
+                                      <Info className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
                                       <span>{custom}</span>
                                     </li>
                                   ))}
@@ -953,15 +979,15 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                             )}
                             
                             {etiquette.presentation.length > 0 && (
-                              <div className="space-y-3 p-4 rounded-lg border bg-card">
+                              <div className="space-y-3 p-4 rounded-lg border">
                                 <h4 className="font-medium text-sm flex items-center gap-2">
-                                  <Palette className="h-4 w-4 text-emerald-500" />
-                                  Presentation Guidelines
+                                  <Palette className="h-4 w-4 text-emerald-600" />
+                                  Table Setting & Presentation
                                 </h4>
                                 <ul className="space-y-2">
                                   {etiquette.presentation.map((tip, i) => (
-                                    <li key={i} className="text-sm flex items-start gap-2">
-                                      <ChevronRight className="h-4 w-4 text-muted-foreground mt-0.5" />
+                                    <li key={i} className="text-sm flex items-start gap-2 p-3 rounded-md hover:bg-muted/60 transition-colors">
+                                      <ChefHat className="h-4 w-4 text-emerald-600 flex-shrink-0 mt-0.5" />
                                       <span>{tip}</span>
                                     </li>
                                   ))}
@@ -970,17 +996,17 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                             )}
 
                             {etiquette.servingOrder.length > 0 && (
-                              <div className="space-y-3 p-4 rounded-lg border bg-card">
+                              <div className="space-y-3 p-4 rounded-lg border">
                                 <h4 className="font-medium text-sm flex items-center gap-2">
-                                  <ListOrdered className="h-4 w-4 text-amber-500" />
+                                  <ListOrdered className="h-4 w-4 text-blue-600" />
                                   Serving Order
                                 </h4>
                                 <ul className="space-y-2">
                                   {etiquette.servingOrder.map((step, i) => (
-                                    <li key={i} className="text-sm flex items-start gap-2">
-                                      <Badge variant="outline" className="h-5 w-5 p-0 flex items-center justify-center">
-                                        {i + 1}
-                                      </Badge>
+                                    <li key={i} className="text-sm flex items-start gap-2 p-3 rounded-md hover:bg-muted/60 transition-colors">
+                                      <div className="flex-shrink-0 h-6 w-6 rounded-full bg-blue-100 dark:bg-blue-800 flex items-center justify-center">
+                                        <span className="text-xs font-medium text-blue-700 dark:text-blue-300">{i + 1}</span>
+                                      </div>
                                       <span>{step}</span>
                                     </li>
                                   ))}
@@ -994,7 +1020,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                               <Globe2 className="h-6 w-6 text-primary" />
                             </div>
                             <p className="text-sm text-muted-foreground">
-                              Click "Show Etiquette" to learn about cultural dining customs
+                              Click "Add Etiquette" to add cultural dining customs
                             </p>
                           </div>
                         )}
@@ -1003,12 +1029,13 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                   </div>
                 </TabsContent>
                 
+                {/* Cultural Notes Tab Content */}
                 <TabsContent value="cultural-notes">
                   <div className="space-y-4 mt-2">
                     <div className="flex justify-between items-center">
                       <h3 className="text-lg font-semibold flex items-center gap-2">
                         <Globe2 className="h-5 w-5 text-primary" />
-                        Cultural Notes
+                        Cultural Context
                       </h3>
                       <Button 
                         variant="outline" 
@@ -1016,48 +1043,111 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                         onClick={() => setIsEditingNotes(true)}
                       >
                         <Edit className="h-4 w-4 mr-2" />
-                        {hasNotes ? 'Edit Notes' : 'Add Notes'}
+                        {recipe.culturalNotes && Object.keys(recipe.culturalNotes).length > 0 
+                          ? 'Edit Cultural Context' 
+                          : 'Add Cultural Context'}
                       </Button>
                     </div>
-                    {recipe.culturalNotes && typeof recipe.culturalNotes === 'object' ? (
+                    {recipe.culturalNotes && Object.entries(recipe.culturalNotes as Record<string, string>).length > 0 ? (
                       <div className="grid gap-6">
-                        {Object.entries(recipe.culturalNotes as Record<string, string>).map(([title, note]: [string, string], i: number) => (
-                          <Card key={i} className="relative overflow-hidden group hover:shadow-md transition-all duration-200">
-                            <CardHeader className="bg-muted/50 border-b">
-                              <CardTitle className="capitalize flex items-center gap-2 text-base">
-                                {title === 'history' && <History className="h-4 w-4 text-primary" />}
-                                {title === 'significance' && <Star className="h-4 w-4 text-amber-500" />}
-                                {title === 'serving' && <UtensilsCrossed className="h-4 w-4 text-emerald-500" />}
-                                {title === 'variations' && <Map className="h-4 w-4 text-indigo-500" />}
-                                {title.replace(/_/g, ' ')}
-                                {title === 'significance' && (
-                                  <Badge variant="secondary" className="ml-auto">Cultural Heritage</Badge>
-                                )}
-                                {title === 'serving' && (
-                                  <Badge variant="secondary" className="ml-auto">Traditional Method</Badge>
-                                )}
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent className="pt-4">
-                              <p className="leading-relaxed">{note}</p>
-                            </CardContent>
-                            <div className="absolute top-0 right-0 w-32 h-32 opacity-5 pointer-events-none transform translate-x-8 -translate-y-8 transition-transform group-hover:translate-x-4 group-hover:-translate-y-4">
-                              {title === 'history' && <History className="w-full h-full" />}
-                              {title === 'significance' && <Star className="w-full h-full" />}
-                              {title === 'serving' && <UtensilsCrossed className="w-full h-full" />}
-                              {title === 'variations' && <Map className="w-full h-full" />}
-                            </div>
-                          </Card>
-                        ))}
+                        {Object.entries(recipe.culturalNotes as Record<string, string>).map(([title, note], i) => {
+                          // Determine appropriate icon and styles based on context type
+                          const getIconAndStyles = (type: string) => {
+                            switch(type) {
+                              case 'history':
+                                return {
+                                  icon: <History className="h-5 w-5 text-blue-600" />,
+                                  textClass: "text-blue-700 dark:text-blue-300",
+                                  badge: "Historical Background",
+                                  badgeClass: "bg-blue-100/80 dark:bg-blue-900/80 text-blue-700 dark:text-blue-300"
+                                };
+                              case 'significance': 
+                                return {
+                                  icon: <Star className="h-5 w-5 text-amber-600" />,
+                                  textClass: "text-amber-700 dark:text-amber-300",
+                                  badge: "Cultural Heritage",
+                                  badgeClass: "bg-amber-100/80 dark:bg-amber-900/80 text-amber-700 dark:text-amber-300"
+                                };
+                              case 'serving':
+                                return {
+                                  icon: <UtensilsCrossed className="h-5 w-5 text-emerald-600" />,
+                                  textClass: "text-emerald-700 dark:text-emerald-300",
+                                  badge: "Traditional Method",
+                                  badgeClass: "bg-emerald-100/80 dark:bg-emerald-900/80 text-emerald-700 dark:text-emerald-300"
+                                };
+                              case 'variations':
+                              default:
+                                return {
+                                  icon: <Map className="h-5 w-5 text-purple-600" />,
+                                  textClass: "text-purple-700 dark:text-purple-300",
+                                  badge: "Regional Styles",
+                                  badgeClass: "bg-purple-100/80 dark:bg-purple-900/80 text-purple-700 dark:text-purple-300"
+                                };
+                            }
+                          };
+
+                          const { icon, textClass, badge, badgeClass } = getIconAndStyles(title);
+                          
+                          // Format note into bullet points if it contains periods or commas
+                          const formatNote = (noteText: string) => {
+                            if (noteText.includes('.') && noteText.split('.').length > 2) {
+                              return noteText.split('.').filter(item => item.trim().length > 0);
+                            }
+                            if (noteText.includes(',') && noteText.split(',').length > 3) {
+                              return noteText.split(',').filter(item => item.trim().length > 0);
+                            }
+                            return [];
+                          };
+                          
+                          const bulletPoints = formatNote(note);
+                          const hasBullets = bulletPoints.length > 0;
+                          
+                          return (
+                            <Card key={i} className="relative overflow-hidden group hover:shadow-md transition-all duration-200">
+                              <CardHeader className="border-b">
+                                <CardTitle className="capitalize flex items-center gap-2 text-base">
+                                  {icon}
+                                  <span className={textClass}>
+                                    {title.replace(/_/g, ' ')}
+                                  </span>
+                                  <Badge variant="secondary" className={`ml-auto ${badgeClass}`}>{badge}</Badge>
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="relative p-6">
+                                <div className="relative z-10">
+                                  <div className={`pl-4 border-l-2 border-${title === 'history' ? 'blue' : title === 'significance' ? 'amber' : title === 'serving' ? 'emerald' : 'purple'}-400 dark:border-${title === 'history' ? 'blue' : title === 'significance' ? 'amber' : title === 'serving' ? 'emerald' : 'purple'}-600`}>
+                                    {hasBullets ? (
+                                      <ul className="space-y-2 list-none">
+                                        {bulletPoints.map((point, idx) => (
+                                          <li key={idx} className="flex items-start gap-2">
+                                            <div className={`h-5 w-5 rounded-full flex-shrink-0 flex items-center justify-center bg-${title === 'history' ? 'blue' : title === 'significance' ? 'amber' : title === 'serving' ? 'emerald' : 'purple'}-100 dark:bg-${title === 'history' ? 'blue' : title === 'significance' ? 'amber' : title === 'serving' ? 'emerald' : 'purple'}-900`}>
+                                              <span className={`text-xs font-medium ${textClass}`}>{idx + 1}</span>
+                                            </div>
+                                            <span className={`text-muted-foreground ${textClass}`}>{point}</span>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    ) : (
+                                      <p className="leading-relaxed text-muted-foreground">{note}</p>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="absolute top-0 right-0 w-40 h-40 opacity-[0.03] pointer-events-none transform translate-x-8 -translate-y-8 transition-transform duration-300 group-hover:translate-x-4 group-hover:-translate-y-4">
+                                  {icon}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
                       </div>
-                    ) : recipe.culturalNotes ? (
-                      <p>{String(recipe.culturalNotes)}</p>
                     ) : (
                       <Card className="bg-muted/50">
-                        <CardContent className="flex flex-col items-center justify-center py-6 text-center">
-                          <Scroll className="h-8 w-8 text-muted-foreground mb-2 opacity-50" />
+                        <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+                          <div className="rounded-full bg-primary/10 p-4 mb-4">
+                            <Scroll className="h-8 w-8 text-primary opacity-50" />
+                          </div>
                           <p className="text-sm text-muted-foreground">No cultural notes have been added yet.</p>
-                          <p className="text-xs text-muted-foreground mt-1">Click 'Add Notes' to share cultural context about this recipe.</p>
+                          <p className="text-xs text-muted-foreground mt-2">Click 'Add Cultural Context' to share cultural context about this recipe.</p>
                         </CardContent>
                       </Card>
                     )}
@@ -1108,7 +1198,9 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
         <Dialog open={isEditingIngredients} onOpenChange={setIsEditingIngredients}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{hasIngredients ? 'Edit Authentic Ingredients' : 'Add Authentic Ingredients'}</DialogTitle>
+              <DialogTitle>
+                {hasIngredients ? 'Edit Authentic Ingredients' : 'Add Authentic Ingredients'}
+              </DialogTitle>
             </DialogHeader>
             <form onSubmit={(e) => {
               e.preventDefault();
