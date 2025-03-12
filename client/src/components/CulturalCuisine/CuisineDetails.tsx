@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft, Plus, Trash2, Edit, Brain, ChefHat,
   PlusCircle, Play, Globe2, UtensilsCrossed, MapPin,
-  BookOpen, Scroll, History, Star, Map, Loader2
+  BookOpen, Scroll, History, Star, Map, Loader2, AlertTriangle, ListOrdered, Palette, Ban, Info, Sparkles, ScrollText
 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { analyzeCulturalCuisine, type CulturalInsights } from "@ai-services/cultural-cuisine-service";
@@ -651,7 +651,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <Card className="col-span-1">
+                  <Card>
                     <CardHeader>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-3">
@@ -664,26 +664,83 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                           onClick={() => setIsEditingCulturalDetails(true)}
                         >
                           <Edit className="h-4 w-4 mr-2" />
-                          Edit
+                          {cuisine.culturalContext && Object.keys(cuisine.culturalContext).length > 0 ? 'Edit Context' : 'Add Context'}
                         </Button>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                      {typeof cuisine.culturalContext === 'object' ? (
-                        Object.entries(cuisine.culturalContext).map(([key, value]: [string, string], i: number) => (
-                          <div key={i} className="space-y-2">
-                            <div className="flex items-center space-x-2">
-                              <BookOpen className="h-4 w-4 text-muted-foreground" />
-                              <h3 className="font-medium capitalize">{key}</h3>
+                      {cuisine.culturalContext && typeof cuisine.culturalContext === 'object' && Object.keys(cuisine.culturalContext).length > 0 ? (
+                        Object.entries(cuisine.culturalContext).map(([key, value]: [string, string], i: number) => {
+                          // Set different icons based on the context type
+                          const getContextIcon = (key: string) => {
+                            const k = key.toLowerCase();
+                            if (k.includes('history')) {
+                              return <History className="h-4 w-4 text-blue-600" />;
+                            } else if (k.includes('significance')) {
+                              return <Star className="h-4 w-4 text-amber-600" />;
+                            } else if (k.includes('tradition')) {
+                              return <ScrollText className="h-4 w-4 text-emerald-600" />;
+                            } else if (k.includes('festival')) {
+                              return <Sparkles className="h-4 w-4 text-purple-600" />;
+                            } else {
+                              return <BookOpen className="h-4 w-4 text-indigo-600" />;
+                            }
+                          };
+                          
+                          // Format value as bullet points if it contains commas or periods
+                          const formatValue = (value: string) => {
+                            if (value.includes('.') && value.split('.').length > 2) {
+                              return value.split('.').filter(item => item.trim().length > 0);
+                            }
+                            if (value.includes(',') && value.split(',').length > 3) {
+                              return value.split(',').filter(item => item.trim().length > 0);
+                            }
+                            return [];
+                          };
+                          
+                          const bulletPoints = formatValue(value);
+                          const hasBullets = bulletPoints.length > 0;
+                          const borderColor = key.toLowerCase().includes('history') ? 'border-blue-500' :
+                                            key.toLowerCase().includes('significance') ? 'border-amber-500' :
+                                            key.toLowerCase().includes('tradition') ? 'border-emerald-500' :
+                                            key.toLowerCase().includes('festival') ? 'border-purple-500' : 'border-indigo-500';
+                          
+                          return (
+                            <div key={i} className="space-y-2">
+                              <div className="flex items-center space-x-2">
+                                {getContextIcon(key)}
+                                <h3 className="font-medium capitalize">{key}</h3>
+                              </div>
+                              
+                              <div className={`pl-6 ${hasBullets ? `border-l-2 ${borderColor}` : ''}`}>
+                                {hasBullets ? (
+                                  <ul className="space-y-2 list-none">
+                                    {bulletPoints.map((point, idx) => (
+                                      <li key={idx} className="flex items-start gap-2">
+                                        <div className="h-5 w-5 rounded-full flex-shrink-0 flex items-center justify-center bg-primary/10">
+                                          <span className="text-xs font-medium">{idx + 1}</span>
+                                        </div>
+                                        <span className="text-muted-foreground">{point}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p className="text-muted-foreground">{value}</p>
+                                )}
+                              </div>
+                              
+                              {i < Object.entries(cuisine.culturalContext).length - 1 && (
+                                <Separator className="my-4" />
+                              )}
                             </div>
-                            <p className="text-muted-foreground pl-6">{value}</p>
-                            {i < Object.entries(cuisine.culturalContext).length - 1 && (
-                              <Separator className="my-4" />
-                            )}
-                          </div>
-                        ))
+                          );
+                        })
                       ) : (
-                        <p className="text-muted-foreground">{String(cuisine.culturalContext)}</p>
+                        <div className="text-center py-6">
+                          <Scroll className="h-8 w-8 mx-auto text-muted-foreground mb-2 opacity-50" />
+                          <p className="text-sm text-muted-foreground">No cultural context has been added yet.</p>
+                          <p className="text-xs text-muted-foreground mt-1">Click 'Add Context' to share cultural information.</p>
+                        </div>
                       )}
                     </CardContent>
                   </Card>
@@ -701,26 +758,91 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                           onClick={() => setIsEditingCulturalDetails(true)}
                         >
                           <Edit className="h-4 w-4 mr-2" />
-                          Edit
+                          {cuisine.servingEtiquette && Object.keys(cuisine.servingEtiquette).length > 0 ? 'Edit Etiquette' : 'Add Etiquette'}
                         </Button>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                      {typeof cuisine.servingEtiquette === 'object' ? (
-                        Object.entries(cuisine.servingEtiquette).map(([key, value]: [string, string], i: number) => (
-                          <div key={i} className="space-y-2">
-                            <div className="flex items-center space-x-2">
-                              <UtensilsCrossed className="h-4 w-4 text-muted-foreground" />
-                              <h3 className="font-medium capitalize">{key}</h3>
-                            </div>
-                            <p className="text-muted-foreground pl-6">{value}</p>
-                            {i < Object.entries(cuisine.servingEtiquette).length - 1 && (
-                              <Separator className="my-4" />
-                            )}
-                          </div>
-                        ))
+                      {cuisine.servingEtiquette && typeof cuisine.servingEtiquette === 'object' && Object.keys(cuisine.servingEtiquette).length > 0 ? (
+                        <div className="space-y-4">
+                          {Object.entries(cuisine.servingEtiquette).map(([key, value]: [string, string], i: number) => {
+                            // Set different icons based on the key type
+                            const getIconAndText = (key: string) => {
+                              // Convert key to lowercase for consistent matching
+                              const k = key.toLowerCase();
+                              if (k.includes('taboo') || k.includes('don\'t') || k.includes('avoid')) {
+                                return {
+                                  icon: <AlertTriangle className="h-4 w-4 text-red-600" />,
+                                  itemIcon: <Ban className="h-4 w-4 text-red-600 flex-shrink-0" />,
+                                  textClass: "text-red-700 dark:text-red-400"
+                                };
+                              } else if (k.includes('order') || k.includes('sequence') || k.includes('serving')) {
+                                return {
+                                  icon: <ListOrdered className="h-4 w-4 text-blue-600" />,
+                                  itemIcon: (index: number) => (
+                                    <div className="h-5 w-5 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
+                                      <span className="text-xs font-medium text-blue-700 dark:text-blue-300">{index + 1}</span>
+                                    </div>
+                                  ),
+                                  textClass: "text-blue-700 dark:text-blue-400"
+                                };
+                              } else if (k.includes('presentation') || k.includes('table') || k.includes('setting')) {
+                                return {
+                                  icon: <Palette className="h-4 w-4 text-emerald-600" />,
+                                  itemIcon: <ChefHat className="h-4 w-4 text-emerald-600 flex-shrink-0" />,
+                                  textClass: "text-emerald-700 dark:text-emerald-400"
+                                };
+                              } else {
+                                return {
+                                  icon: <Scroll className="h-4 w-4 text-amber-600" />,
+                                  itemIcon: <Info className="h-4 w-4 text-amber-600 flex-shrink-0" />,
+                                  textClass: "text-amber-700 dark:text-amber-400"
+                                };
+                              }
+                            };
+                            
+                            const { icon, itemIcon, textClass } = getIconAndText(key);
+                            
+                            // Format value as bullet points if it contains a comma or period
+                            const formatValue = (value: string) => {
+                              if (value.includes(',') || value.includes('.')) {
+                                return value.split(/[,.]\s*/).filter(item => item.trim().length > 0);
+                              }
+                              return [value];
+                            };
+                            
+                            const bulletPoints = formatValue(value);
+                            
+                            // Function to format heading with proper spacing
+                            const formatHeading = (text: string) => {
+                              // This regex will add a space before any capital letter that's not at the beginning
+                              return text.replace(/([a-z])([A-Z])/g, '$1 $2');
+                            };
+                            
+                            return (
+                              <div key={i} className="space-y-2 border rounded-lg p-4">
+                                <div className="flex items-center space-x-2">
+                                  {icon}
+                                  <h3 className="font-medium capitalize">{formatHeading(key)}</h3>
+                                </div>
+                                <ul className="space-y-2 pl-4">
+                                  {bulletPoints.map((point, index) => (
+                                    <li key={index} className="text-sm flex items-start gap-2 p-1.5">
+                                      {typeof itemIcon === 'function' ? itemIcon(index) : itemIcon}
+                                      <span>{point}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            );
+                          })}
+                        </div>
                       ) : (
-                        <p className="text-muted-foreground">{String(cuisine.servingEtiquette)}</p>
+                        <div className="text-center py-6">
+                          <UtensilsCrossed className="h-8 w-8 mx-auto text-muted-foreground mb-2 opacity-50" />
+                          <p className="text-sm text-muted-foreground">No serving etiquette has been added yet.</p>
+                          <p className="text-xs text-muted-foreground mt-1">Click 'Add Etiquette' to add serving customs.</p>
+                        </div>
                       )}
                     </CardContent>
                   </Card>

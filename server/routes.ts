@@ -950,45 +950,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/cultural-cuisines/:id', async (req, res) => {
     try {
+      const cuisineId = parseInt(req.params.id);
+      if (isNaN(cuisineId)) {
+        return res.status(400).json({ error: 'Invalid cuisine ID' });
+      }
+
       const [cuisine] = await db.select()
         .from(culturalCuisines)
-        .where(eq(culturalCuisines.id, parseInt(req.params.id)));
+        .where(eq(culturalCuisines.id, cuisineId));
       
       if (!cuisine) {
         return res.status(404).json({ error: 'Cuisine not found' });
       }
 
-      // Get all recipes for this cuisine
+      // Get all recipes for this cuisine with proper error handling
       const recipes = await db.select()
         .from(culturalRecipes)
-        .where(eq(culturalRecipes.cuisineId, cuisine.id));
+        .where(eq(culturalRecipes.cuisineId, cuisineId))
+        .execute()
+        .catch(err => {
+          console.error('Error fetching recipes:', err);
+          return [];
+        });
 
-      // Get all techniques for this cuisine
+      // Get all techniques for this cuisine with proper error handling
       const techniques = await db.select()
         .from(culturalTechniques)
-        .where(eq(culturalTechniques.cuisineId, cuisine.id));
+        .where(eq(culturalTechniques.cuisineId, cuisineId))
+        .execute()
+        .catch(err => {
+          console.error('Error fetching techniques:', err);
+          return [];
+        });
 
-      res.json({
+      // Process the cuisine data to ensure proper structure
+      const processedCuisine = {
         ...cuisine,
-        recipes,
-        techniques
-      });
+        recipes: recipes || [],
+        techniques: techniques || [],
+        keyIngredients: Array.isArray(cuisine.keyIngredients) 
+          ? cuisine.keyIngredients 
+          : typeof cuisine.keyIngredients === 'string'
+            ? JSON.parse(cuisine.keyIngredients)
+            : [],
+        cookingTechniques: Array.isArray(cuisine.cookingTechniques)
+          ? cuisine.cookingTechniques
+          : typeof cuisine.cookingTechniques === 'string'
+            ? JSON.parse(cuisine.cookingTechniques)
+            : [],
+        culturalContext: typeof cuisine.culturalContext === 'object' && cuisine.culturalContext !== null
+          ? cuisine.culturalContext
+          : typeof cuisine.culturalContext === 'string'
+            ? JSON.parse(cuisine.culturalContext)
+            : {},
+        servingEtiquette: typeof cuisine.servingEtiquette === 'object' && cuisine.servingEtiquette !== null
+          ? cuisine.servingEtiquette
+          : typeof cuisine.servingEtiquette === 'string'
+            ? JSON.parse(cuisine.servingEtiquette)
+            : {}
+      };
+
+      res.json(processedCuisine);
     } catch (error) {
       console.error('Error fetching cuisine details:', error);
-      res.status(500).json({ error: 'Failed to fetch cuisine details' });
+      res.status(500).json({ 
+        error: 'Failed to fetch cuisine details',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 
   app.patch('/api/cultural-cuisines/:id', async (req, res) => {
     try {
-      const { imageUrl, bannerUrl } = req.body;
+      const { imageUrl, bannerUrl, culturalContext, servingEtiquette } = req.body;
+      let updateData: any = {};
       
+      // Only include fields that are provided
+      if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+      if (bannerUrl !== undefined) updateData.bannerUrl = bannerUrl;
+      
+      // Cultural context and etiquette need special handling to avoid "WHERE" syntax errors
+      if (culturalContext !== undefined) {
+        // Ensure it's an object, even if empty
+        updateData.culturalContext = typeof culturalContext === 'object' ? 
+          culturalContext : {};
+      }
+      
+      if (servingEtiquette !== undefined) {
+        // Ensure it's an object, even if empty
+        updateData.servingEtiquette = typeof servingEtiquette === 'object' ? 
+          servingEtiquette : {};
+      }
+      
+      // Only proceed with update if we have data to update
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ error: 'No valid update data provided' });
+      }
+      
+      // Add updated timestamp
+      updateData.updatedAt = new Date();
+
       const [updatedCuisine] = await db.update(culturalCuisines)
-        .set({
-          imageUrl,
-          bannerUrl,
-          updatedAt: new Date()
-        })
+        .set(updateData)
         .where(eq(culturalCuisines.id, parseInt(req.params.id)))
         .returning();
 
@@ -999,7 +1062,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(updatedCuisine);
     } catch (error) {
       console.error('Error updating cuisine:', error);
-      res.status(500).json({ error: 'Failed to update cuisine' });
+      res.status(500).json({ 
+        error: 'Failed to update cuisine', 
+        details: error instanceof Error ? error.message : 'Unknown error' 
+      });
     }
   });
 

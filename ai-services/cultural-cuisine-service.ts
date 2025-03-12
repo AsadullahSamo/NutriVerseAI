@@ -76,29 +76,19 @@ export async function getRecipeAuthenticityScore(recipe: CulturalRecipe, cuisine
     Recipe: ${JSON.stringify(recipe)}
     Cuisine: ${JSON.stringify(cuisine)}
     
-    Return a JSON object with the following structure:
-    {
-      "authenticityScore": number (0-100),
-      "feedback": string[],
-      "traditionalElements": string[],
-      "modernAdaptations": string[],
-      "culturalAccuracy": string,
-      "suggestions": string[]
-    }
-    
-    Ensure the authenticityScore is a number between 0 and 100.
-    Analyze:
-    - Authenticity score based on traditional ingredients and methods
-    - Traditional elements present in the recipe
-    - Any modern adaptations or variations
-    - Overall cultural accuracy
+    Provide a detailed authenticity analysis including:
+    - Authenticity score (0-100)
+    - Feedback points
+    - Traditional elements identified
+    - Modern adaptations noted
+    - Cultural accuracy assessment
     - Suggestions for improving authenticity`;
 
   const response = await groq.chat.completions.create({
     messages: [
       {
         role: "system",
-        content: "You are an expert in traditional cooking techniques and cultural authenticity. Always return valid JSON with numeric authenticityScore between 0-100."
+        content: "You are an expert in traditional cooking techniques and cultural authenticity. Provide detailed authenticity analysis in JSON format."
       },
       { role: "user", content: prompt }
     ],
@@ -111,16 +101,7 @@ export async function getRecipeAuthenticityScore(recipe: CulturalRecipe, cuisine
   if (!content) throw new Error('No response from authenticity analysis API');
 
   try {
-    const result = JSON.parse(content.trim().replace(/```json\n?|\n?```/g, ''));
-    
-    // Ensure authenticityScore is a valid number
-    if (typeof result.authenticityScore !== 'number' || isNaN(result.authenticityScore)) {
-      result.authenticityScore = 0;
-    }
-    // Ensure score is between 0 and 100
-    result.authenticityScore = Math.min(100, Math.max(0, result.authenticityScore));
-    
-    return result;
+    return JSON.parse(content.trim().replace(/```json\n?|\n?```/g, ''));
   } catch (error) {
     console.error('Failed to parse authenticity analysis:', error);
     throw new Error('Invalid authenticity analysis format received');
@@ -300,196 +281,31 @@ export function getServingEtiquetteGuide(
 }
 
 export async function getPairings(recipe: CulturalRecipe, cuisine: CulturalCuisine) {
-  try {
-    const prompt = `Analyze this recipe and suggest complementary dishes based on ${cuisine.name} cuisine traditions:
-    Recipe: ${JSON.stringify(recipe)}
-    Cuisine Context: ${JSON.stringify(cuisine)}
-    
-    Provide recommendations in the following JSON format:
-    {
-      "mainDishes": ["dish1", "dish2", ...],
-      "sideDishes": ["side1", "side2", ...],
-      "desserts": ["dessert1", "dessert2", ...],
-      "beverages": ["beverage1", "beverage2", ...]
-    }
-    
-    Consider:
-    - Traditional pairings in ${cuisine.name} cuisine
-    - Flavor complementarity
-    - Cultural appropriateness
-    - Seasonal combinations`;
-
-    const response = await groq.chat.completions.create({
-      messages: [
-        {
-          role: "system",
-          content: "You are an expert in global cuisines and food pairing traditions. Provide detailed, culturally accurate recommendations in JSON format."
-        },
-        { role: "user", content: prompt }
-      ],
-      model: "mixtral-8x7b-32768",
-      temperature: 0.4,
-      max_tokens: 1000
-    });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error('No response from pairings API');
-
-    try {
-      // First try to parse the content directly
-      return JSON.parse(content);
-    } catch {
-      // If that fails, try to extract JSON from markdown
-      const jsonMatch = content.match(/```json\n?([\\s\S]*?)\n?```/) || content.match(/```\n?([\s\S]*?)\n?```/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[1].trim());
-      }
-      // If no markdown, try to extract anything that looks like JSON
-      const possibleJson = content.match(/\{[\s\S]*\}/);
-      if (possibleJson) {
-        return JSON.parse(possibleJson[0]);
-      }
-      throw new Error('Could not find valid JSON in response');
-    }
-  } catch (error) {
-    console.error('Error getting pairings:', error);
-    return Promise.reject(error);
-  }
+  // Use the traditional pairings based on cuisine region
+  return findComplementaryDishes(recipe, {
+    region: cuisine.region,
+    keyIngredients: Array.isArray(cuisine.keyIngredients) ? 
+      cuisine.keyIngredients : 
+      Object.keys(cuisine.keyIngredients || {})
+  });
 }
 
 export async function getEtiquette(recipe: CulturalRecipe, cuisine: CulturalCuisine) {
-  try {
-    const prompt = `Provide detailed serving etiquette guidelines for this ${cuisine.name} dish:
-    Recipe: ${JSON.stringify(recipe)}
-    Cuisine Context: ${JSON.stringify(cuisine)}
-    
-    Format your response as JSON with these sections:
-    {
-      "presentation": ["guideline1", "guideline2", ...],
-      "customs": ["custom1", "custom2", ...],
-      "taboos": ["taboo1", "taboo2", ...],
-      "servingOrder": ["step1", "step2", ...]
-    }
-    
-    Include:
-    - Traditional presentation methods
-    - Cultural customs and rituals
-    - Important taboos to avoid
-    - Proper serving order
-    - Special occasions considerations`;
-
-    const response = await groq.chat.completions.create({
-      messages: [
-        {
-          role: "system",
-          content: "You are an expert in global food cultures and dining etiquette. Provide detailed, culturally accurate serving guidelines in JSON format."
-        },
-        { role: "user", content: prompt }
-      ],
-      model: "mixtral-8x7b-32768",
-      temperature: 0.3,
-      max_tokens: 1000
-    });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error('No response from etiquette API');
-
-    try {
-      // First try to parse the content directly
-      return JSON.parse(content);
-    } catch {
-      // If that fails, try to extract JSON from markdown
-      const jsonMatch = content.match(/```json\n?([\\s\S]*?)\n?```/) || content.match(/```\n?([\\s\S]*?)\n?```/);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[1].trim());
-      }
-      // If no markdown, try to extract anything that looks like JSON
-      const possibleJson = content.match(/\{[\s\S]*\}/);
-      if (possibleJson) {
-        return JSON.parse(possibleJson[0]);
-      }
-      throw new Error('Could not find valid JSON in response');
-    }
-  } catch (error) {
-    console.error('Error getting etiquette:', error);
-    return Promise.reject(error);
-  }
+  // Use the etiquette guide based on cuisine region
+  return getServingEtiquetteGuide(recipe, cuisine.region);
 }
 
 export async function getSubstitutions(recipe: CulturalRecipe, cuisine: CulturalCuisine) {
-  try {
-    const prompt = `Analyze this recipe and suggest culturally appropriate ingredient substitutions:
-    Recipe: ${JSON.stringify(recipe)}
-    Cuisine: ${JSON.stringify(cuisine)}
-    
-    Provide substitution recommendations in this JSON format:
-    {
-      "substitutions": [
-        {
-          "original": "ingredient name",
-          "substitute": "replacement ingredient",
-          "notes": "usage instructions and tips",
-          "flavorImpact": "minimal/moderate/significant"
-        },
-        ...
-      ]
-    }
-    
-    Consider:
-    - Common dietary restrictions
-    - Regional availability
-    - Maintaining authentic flavors
-    - Traditional cooking methods
-    - Cultural significance`;
+  // Assuming we have access to user pantry and region from context
+  // For now, providing empty pantry items as this would typically come from user data
+  const substitutions = findIngredientSubstitutes(recipe, [], cuisine.region);
+  const authenticityResults = analyzeAuthenticityScore(recipe, substitutions);
 
-    const response = await groq.chat.completions.create({
-      messages: [
-        {
-          role: "system",
-          content: "You are an expert chef specializing in global cuisines. Provide culturally appropriate ingredient substitutions in JSON format."
-        },
-        { role: "user", content: prompt }
-      ],
-      model: "mixtral-8x7b-32768",
-      temperature: 0.3,
-      max_tokens: 1500
-    });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) throw new Error('No response from substitutions API');
-
-    let data;
-    try {
-      // First try to parse the content directly
-      data = JSON.parse(content);
-    } catch {
-      // If that fails, try to extract JSON from markdown
-      const jsonMatch = content.match(/```json\n?([\\s\S]*?)\n?```/) || content.match(/```\n?([\\s\S]*?)\n?```/);
-      if (jsonMatch) {
-        data = JSON.parse(jsonMatch[1].trim());
-      } else {
-        // If no markdown, try to extract anything that looks like JSON
-        const possibleJson = content.match(/\{[\s\S]*\}/);
-        if (possibleJson) {
-          data = JSON.parse(possibleJson[0]);
-        } else {
-          throw new Error('Could not find valid JSON in response');
-        }
-      }
-    }
-
-    // Calculate authenticity impact based on substitutions
-    const authenticityResults = analyzeAuthenticityScore(recipe, data.substitutions);
-
-    return {
-      substitutions: data.substitutions,
-      authenticityScore: authenticityResults.score,
-      authenticityFeedback: authenticityResults.feedback
-    };
-  } catch (error) {
-    console.error('Error getting substitutions:', error);
-    return Promise.reject(error);
-  }
+  return {
+    substitutions,
+    authenticityScore: authenticityResults.score,
+    authenticityFeedback: authenticityResults.feedback
+  };
 }
 
 // Helper functions with embedded cultural knowledge data
