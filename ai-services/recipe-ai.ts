@@ -1,9 +1,4 @@
-import Groq from "groq-sdk";
-
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY || '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',
-  dangerouslyAllowBrowser: true
-});
+import { model, safeJsonParse } from "./gemini-client";
 
 export interface RecipeRecommendation {
   title: string;
@@ -14,10 +9,9 @@ export interface RecipeRecommendation {
 
 export interface NutritionalAnalysis {
   calories: number;
-  protein: string;
-  carbs: string;
-  fats: string;
-  vitamins: string[];
+  protein: number;
+  carbs: number;
+  fat: number;
   recommendations: string[];
 }
 
@@ -53,6 +47,7 @@ export interface MealPlan {
 }
 
 export interface NutritionRecommendation {
+  analysis: string;
   suggestedGoals: {
     calories: number;
     protein: number;
@@ -80,65 +75,15 @@ IMPORTANT: Your response must be a valid JSON array containing EXACTLY 3 recipes
   "ingredients": ["ingredient 1", "ingredient 2", ...],
   "instructions": ["step 1", "step 2", ...],
   "nutritionalValue": "Calories: X, Protein: Xg, Carbs: Xg, Fat: Xg"
-}
-
-DO NOT include any text outside the JSON array. The response should start with [ and end with ].`;
+}`;
 
   try {
-    console.log('Sending request to Groq API with ingredients:', ingredients);
-    
-    const response = await groq.chat.completions.create({
-      messages: [
-        { 
-          role: "system", 
-          content: "You are a professional chef API that ONLY returns valid JSON arrays containing exactly 3 recipes. Never include any text outside the JSON." 
-        },
-        { role: "user", content: prompt }
-      ],
-      model: "llama-3.3-70b-versatile",
-      temperature: 0.5,
-      max_tokens: 2000,
-    });
-
-    console.log('Raw API Response:', response);
-    const content = response.choices[0]?.message?.content;
-    
-    if (!content) {
-      console.error('Empty response from API');
-      throw new Error('No response from recipe generation API');
-    }
-
-    // Clean the response to ensure it's valid JSON
-    const cleanedContent = content.trim().replace(/```json\n?|\n?```/g, '');
-    console.log('Cleaned content:', cleanedContent);
-
-    try {
-      const parsed = JSON.parse(cleanedContent);
-      if (!Array.isArray(parsed) || parsed.length !== 3) {
-        console.error('Invalid response structure:', parsed);
-        throw new Error('Invalid recipe format received');
-      }
-      
-      // Validate each recipe has required fields
-      const isValidRecipe = (recipe: any) => 
-        recipe.title && 
-        Array.isArray(recipe.ingredients) && 
-        Array.isArray(recipe.instructions) && 
-        typeof recipe.nutritionalValue === 'string';
-
-      if (!parsed.every(isValidRecipe)) {
-        console.error('Invalid recipe format in:', parsed);
-        throw new Error('One or more recipes are missing required fields');
-      }
-
-      return parsed;
-    } catch (parseError) {
-      console.error('JSON Parse Error:', parseError);
-      console.log('Failed to parse content:', cleanedContent);
-      throw new Error('Failed to parse recipe data');
-    }
+    console.log('Sending request to Gemini API with ingredients:', ingredients);
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
   } catch (error) {
-    console.error('Groq API Error:', error);
+    console.error('Gemini API Error:', error);
     throw error;
   }
 }
@@ -147,40 +92,31 @@ export async function analyzeNutritionalValue(
   ingredients: string[],
   portions: number = 1
 ): Promise<NutritionalAnalysis> {
-  const prompt = `Analyze the nutritional value of these ingredients for ${portions} portion(s): ${ingredients.join(', ')}. 
-    Provide detailed breakdown including calories, protein, carbs, fats, main vitamins, and health recommendations. Format as JSON.`;
+  const prompt = `Analyze the nutritional value of these ingredients for ${portions} portion(s): ${ingredients.join(', ')}
 
-  const response = await groq.chat.completions.create({
-    messages: [
-      { role: "system", content: "You are a professional nutritionist providing accurate nutritional analysis. Always respond in valid JSON format." },
-      { role: "user", content: prompt }
-    ],
-    model: "llama-3.3-70b-versatile",
-    temperature: 0.3,
-    max_tokens: 1000,
-  });
+Return the analysis in this JSON format:
+{
+  "calories": number,
+  "protein": number (in grams),
+  "carbs": number (in grams),
+  "fat": number (in grams),
+  "recommendations": ["recommendation 1", "recommendation 2", ...]
+}`;
 
-  return JSON.parse(response.choices[0]?.message?.content || '{}');
+  const result = await model.generateContent(prompt);
+  const response = await result.response.text();
+  return await safeJsonParse(response);
 }
 
 export async function getMealPlanSuggestions(
   preferences: string[],
   days: number = 7
 ): Promise<string> {
-  const prompt = `Create a ${days}-day meal plan considering these preferences: ${preferences.join(', ')}. 
-    Include balanced nutrition, variety, and practical cooking suggestions.`;
+  const prompt = `Create a ${days}-day meal plan considering these preferences: ${preferences.join(', ')}
+Focus on balanced nutrition and variety. Include breakfast, lunch, dinner, and snacks for each day.`;
 
-  const response = await groq.chat.completions.create({
-    messages: [
-      { role: "system", content: "You are a professional nutritionist and meal planning expert." },
-      { role: "user", content: prompt }
-    ],
-    model: "llama-3.3-70b-versatile",
-    temperature: 0.7,
-    max_tokens: 2000,
-  });
-
-  return response.choices[0]?.message?.content || '';
+  const result = await model.generateContent(prompt);
+  return result.response.text();
 }
 
 export async function generateAIMealPlan(
@@ -189,116 +125,60 @@ export async function generateAIMealPlan(
   dietaryRestrictions?: string[],
   calorieTarget?: number
 ): Promise<MealPlan[]> {
-  const prompt = `Create a detailed ${days}-day meal plan with the following requirements:
-    - Consider these preferences: ${preferences.join(', ')}
-    ${dietaryRestrictions ? `- Must follow these dietary restrictions: ${dietaryRestrictions.join(', ')}` : ''}
-    ${calorieTarget ? `- Target daily calories: ${calorieTarget}` : ''}
-    - Each day should include breakfast, lunch, dinner, and snacks
-    - Include preparation time estimates
-    - Include nutritional information
-    - Ensure variety and balanced nutrition
-    
-    Respond with a JSON array of ${days} day objects. Each day should follow this exact structure:
-    {
-      "day": number,
-      "meals": {
-        "breakfast": { "title": string, "description": string, "nutritionalInfo": string, "preparationTime": string },
-        "lunch": { "title": string, "description": string, "nutritionalInfo": string, "preparationTime": string },
-        "dinner": { "title": string, "description": string, "nutritionalInfo": string, "preparationTime": string },
-        "snacks": [{ "title": string, "description": string, "nutritionalInfo": string }]
-      },
-      "totalCalories": number,
-      "nutritionSummary": string
-    }`;
+  const prompt = `Create a detailed ${days}-day meal plan with these specifications:
+Preferences: ${preferences.join(', ')}
+${dietaryRestrictions ? `Dietary Restrictions: ${dietaryRestrictions.join(', ')}` : ''}
+${calorieTarget ? `Daily Calorie Target: ${calorieTarget} calories` : ''}
 
-  const response = await groq.chat.completions.create({
-    messages: [
-      {
-        role: "system",
-        content: "You are a professional nutritionist and meal planning expert. Always respond with valid JSON that matches the requested structure exactly."
-      },
-      { role: "user", content: prompt }
-    ],
-    model: "llama-3.3-70b-versatile",
-    temperature: 0.7,
-    max_tokens: 4000,
-  });
+Return the meal plan as a JSON array where each day object has this structure:
+{
+  "day": number,
+  "meals": {
+    "breakfast": {
+      "title": string,
+      "description": string,
+      "nutritionalInfo": string (format: "X kcal, Xg protein, Xg carbs, Xg fat"),
+      "preparationTime": string
+    },
+    "lunch": { same as breakfast },
+    "dinner": { same as breakfast },
+    "snacks": [{
+      "title": string,
+      "description": string,
+      "nutritionalInfo": string
+    }]
+  },
+  "totalCalories": number,
+  "nutritionSummary": string
+}`;
 
-  const content = response.choices[0]?.message?.content;
-  if (!content) {
-    throw new Error('No response from meal plan generation');
-  }
-
-  try {
-    const mealPlan = JSON.parse(content) as MealPlan[];
-    return mealPlan;
-  } catch (error) {
-    console.error('Failed to parse meal plan:', error);
-    throw new Error('Invalid meal plan format received');
-  }
+  const result = await model.generateContent(prompt);
+  const response = await result.response.text();
+  return await safeJsonParse(response);
 }
 
 export async function analyzeMoodSentiment(entry: string) {
-  const response = await groq.chat.completions.create({
-    messages: [
-      {
-        role: "system",
-        content: "You are a mood analysis expert. Analyze the sentiment of cooking experiences and return a JSON response with sentiment analysis and emotions detected. Be specific about cooking-related emotions."
-      },
-      {
-        role: "user",
-        content: `Analyze the mood and sentiment in this cooking experience entry: "${entry}". Return a JSON object with 'sentiment' and 'emotions' fields.`
-      }
-    ],
-    model: "llama-3.3-70b-versatile",
-    temperature: 0.3,
-    max_tokens: 1000,
-  });
+  const prompt = `Analyze the mood and sentiment in this cooking experience entry: "${entry}". 
+Return a JSON object with 'sentiment' (positive/negative/neutral) and 'emotions' (array of specific emotions detected) fields.`;
 
-  const content = response.choices[0]?.message?.content;
-  if (!content) {
-    throw new Error('No response from mood analysis');
-  }
+  const result = await model.generateContent(prompt);
+  const response = await result.response.text();
+  const parsedResult = await safeJsonParse(response);
 
-  try {
-    const result = JSON.parse(content);
-    return {
-      sentiment: result.sentiment,
-      emotions: result.emotions || extractEmotions(result.sentiment)
-    };
-  } catch (error) {
-    console.error('Failed to parse mood analysis:', error);
-    return {
-      sentiment: content,
-      emotions: extractEmotions(content)
-    };
-  }
+  return {
+    sentiment: parsedResult.sentiment,
+    emotions: parsedResult.emotions || []
+  };
 }
 
 export async function generateMoodInsights(entries: Array<{ entry: string; timestamp: string }>) {
   const entriesText = entries.map(e => `${e.timestamp}: ${e.entry}`).join('\n');
   
-  const response = await groq.chat.completions.create({
-    messages: [
-      {
-        role: "system",
-        content: "You are a mood analysis expert. Analyze patterns in cooking experiences and provide structured insights. Focus on cooking-related patterns, skill development, and emotional growth in the kitchen."
-      },
-      {
-        role: "user",
-        content: `Analyze these cooking experience entries and provide insights about mood patterns:\n${entriesText}`
-      }
-    ],
-    model: "llama-3.3-70b-versatile",
-    temperature: 0.5,
-    max_tokens: 1500,
-  });
+  const prompt = `Analyze these cooking experience entries and provide insights about mood patterns, focusing on cooking-related patterns, skill development, and emotional growth in the kitchen:
+${entriesText}`;
 
-  const insights = response.choices[0]?.message?.content;
-  if (!insights) {
-    throw new Error('No response from insights generation');
-  }
-
+  const result = await model.generateContent(prompt);
+  const insights = await result.response.text();
   return { insights };
 }
 
@@ -318,110 +198,26 @@ export async function getNutritionRecommendations(
   }>,
   preferences?: string[]
 ): Promise<NutritionRecommendation> {
-  const prompt = `Based on the nutrition data below, provide ONLY a JSON object with recommendations. No other text:
+  const prompt = `Based on these nutrition goals and progress, provide personalized recommendations:
 
-Goals: calories=${currentGoals.calories}, protein=${currentGoals.protein}g, carbs=${currentGoals.carbs}g, fat=${currentGoals.fat}g
+Current Goals:
+${JSON.stringify(currentGoals, null, 2)}
 
 Progress:
-${progress.map(p => `${p.date}: cal=${p.calories}, p=${p.protein}g, c=${p.carbs}g, f=${p.fat}g`).join('\n')}
+${JSON.stringify(progress, null, 2)}
 
 ${preferences ? `Preferences: ${preferences.join(', ')}` : ''}
 
-Response format:
+Return recommendations in this JSON format:
 {
+  "analysis": string (overall analysis of progress),
   "suggestedGoals": {"calories": number, "protein": number, "carbs": number, "fat": number},
-  "reasoning": "string",
-  "mealSuggestions": [{"type": "string", "suggestions": ["string"]}],
-  "improvements": ["string"]
+  "reasoning": string (explanation for suggested goals),
+  "mealSuggestions": [{"type": string, "suggestions": [string]}],
+  "improvements": [string] (specific areas to improve)
 }`;
 
-  try {
-    const response = await groq.chat.completions.create({
-      messages: [
-        { 
-          role: "system", 
-          content: "You are a nutrition API that ONLY returns valid JSON objects. Never include markdown or extra text."
-        },
-        { role: "user", content: prompt }
-      ],
-      model: "llama-3.3-70b-versatile",
-      temperature: 0.5,
-      max_tokens: 2000,
-    });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error('Empty response from API');
-    }
-
-    // Clean the response
-    let cleanedContent = content
-      .replace(/```[a-z]*\n|\n```/g, '') // Remove code blocks with any language
-      .replace(/^[^{]*(\{[\s\S]*\})[^}]*$/, '$1') // Extract just the JSON object
-      .trim();
-
-    const parsed = JSON.parse(cleanedContent);
-
-    // Validate structure and types
-    const validationErrors = [];
-    if (!parsed.suggestedGoals?.calories) validationErrors.push("Missing calories");
-    if (!parsed.suggestedGoals?.protein) validationErrors.push("Missing protein");
-    if (!parsed.suggestedGoals?.carbs) validationErrors.push("Missing carbs");
-    if (!parsed.suggestedGoals?.fat) validationErrors.push("Missing fat");
-    if (!parsed.reasoning) validationErrors.push("Missing reasoning");
-    if (!Array.isArray(parsed.mealSuggestions)) validationErrors.push("Invalid mealSuggestions");
-    if (!Array.isArray(parsed.improvements)) validationErrors.push("Invalid improvements");
-
-    if (validationErrors.length > 0) {
-      throw new Error(`Invalid response structure: ${validationErrors.join(", ")}`);
-    }
-
-    // Ensure all numbers are valid
-    const recommendation: NutritionRecommendation = {
-      suggestedGoals: {
-        calories: Math.max(0, Number(parsed.suggestedGoals.calories) || currentGoals.calories),
-        protein: Math.max(0, Number(parsed.suggestedGoals.protein) || currentGoals.protein),
-        carbs: Math.max(0, Number(parsed.suggestedGoals.carbs) || currentGoals.carbs),
-        fat: Math.max(0, Number(parsed.suggestedGoals.fat) || currentGoals.fat)
-      },
-      reasoning: String(parsed.reasoning),
-      mealSuggestions: parsed.mealSuggestions.map((m: { type: string; suggestions: string[] }) => ({
-        type: String(m.type),
-        suggestions: Array.isArray(m.suggestions) ? m.suggestions.map(String) : []
-      })),
-      improvements: parsed.improvements.map(String)
-    };
-
-    return recommendation;
-
-  } catch (error) {
-    console.error('Error in getNutritionRecommendations:', error);
-    
-    // Return a safe fallback response
-    return {
-      suggestedGoals: { ...currentGoals },
-      reasoning: "Unable to generate recommendations. Using current goals as baseline.",
-      mealSuggestions: [
-        {
-          type: "general",
-          suggestions: ["Continue with your current meal plan while we resolve the recommendation system."]
-        }
-      ],
-      improvements: ["Maintain current nutrition targets"]
-    };
-  }
-}
-
-function extractEmotions(sentiment: string): string[] {
-  const cookingEmotions = [
-    'happy', 'satisfied', 'proud', 'excited', 'relaxed',
-    'stressed', 'frustrated', 'disappointed', 'anxious',
-    'confident', 'creative', 'accomplished', 'inspired',
-    'curious', 'determined', 'adventurous', 'patient',
-    'overwhelmed', 'grateful', 'energized'
-  ];
-  
-  return cookingEmotions.filter(emotion => 
-    sentiment.toLowerCase().includes(emotion)
-  );
+  const result = await model.generateContent(prompt);
+  const response = await result.response.text();
+  return await safeJsonParse(response);
 }

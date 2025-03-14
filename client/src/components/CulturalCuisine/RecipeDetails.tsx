@@ -59,14 +59,13 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
   const [authenticityScore, setAuthenticityScore] = useState<{ score: number; feedback: string[] }>({ score: 0, feedback: [] });
   const [loading, setLoading] = useState<boolean>(false);
   const [pairings, setPairings] = useState<Pairings | null>(null);
-  const [etiquette, setEtiquette] = useState<Etiquette | null>(null);
+  const [etiquette, setEtiquette] = useState<Etiquette>({ presentation: [], customs: [], taboos: [], servingOrder: [] });
   const [authenticityAnalysis, setAuthenticityAnalysis] = useState<RecipeAuthenticityAnalysis | null>(null);
   const [techniqueTips, setTechniqueTips] = useState<TechniqueTip[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isEditingInstructions, setIsEditingInstructions] = useState(false);
   const [isEditingIngredients, setIsEditingIngredients] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
-  const [isAddingSubstitutions, setIsAddingSubstitutions] = useState(false);
   
   const { data: recipeDetails, refetch } = useQuery({
     queryKey: ['recipe', recipe.id],
@@ -90,10 +89,12 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
     if (!recipe || !cuisine) return;
     setLoading(true);
     try {
+      console.log('Fetching substitutions for:', recipe.name);
       const data = await getSubstitutions(recipe, cuisine);
-      if (data && Array.isArray(data.substitutions)) {
+      console.log('Substitutions response:', data);
+      
+      if (data && data.substitutions) {
         setSubstitutions(data.substitutions);
-        // Update authenticity score if provided
         if (typeof data.authenticityScore === 'number') {
           setAuthenticityScore({
             score: data.authenticityScore,
@@ -118,7 +119,10 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
     if (!recipe || !cuisine) return;
     setLoading(true);
     try {
+      console.log('Fetching pairings for:', recipe.name);
       const data = await getPairings(recipe, cuisine);
+      console.log('Pairings response:', data);
+      
       if (data) {
         setPairings({
           mainDishes: data.mainDishes || [],
@@ -134,7 +138,6 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
         description: "Could not load complementary dishes. Please try again.",
         variant: "destructive",
       });
-      setPairings(null);
     } finally {
       setLoading(false);
     }
@@ -144,7 +147,10 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
     if (!recipe || !cuisine) return;
     setLoading(true);
     try {
+      console.log('Fetching etiquette for:', recipe.name);
       const data = await getEtiquette(recipe, cuisine);
+      console.log('Etiquette response:', data);
+      
       if (data) {
         setEtiquette({
           presentation: data.presentation || [],
@@ -160,7 +166,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
         description: "Could not load serving etiquette. Please try again.",
         variant: "destructive",
       });
-      setEtiquette(null);
+      // Keep the existing etiquette state instead of setting to null
     } finally {
       setLoading(false);
     }
@@ -170,7 +176,10 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
     if (!recipe) return;
     setIsAnalyzing(true);
     try {
+      console.log('Analyzing authenticity for:', recipe.name);
       const analysis = await getRecipeAuthenticityScore(recipe, cuisine);
+      console.log('Authenticity analysis response:', analysis);
+      
       setAuthenticityAnalysis(analysis);
       // Update the authenticity score state when analysis is complete
       setAuthenticityScore({
@@ -254,44 +263,6 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
       toast({
         title: "Error",
         description: "Failed to update recipe. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleAddSubstitution = async (substitution: IngredientSubstitution) => {
-    try {
-      const response = await fetch(`/api/cultural-recipes/${recipe.id}/substitutions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(substitution),
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to add substitution');
-      }
-
-      const data = await response.json();
-      
-      // Update local state with the new substitution
-      setSubstitutions(prev => [...prev, data.substitution]);
-      
-      // Update recipe details through react-query
-      await refetch();
-
-      toast({
-        title: "Substitution Added",
-        description: "The ingredient substitution has been added successfully.",
-      });
-
-      setIsAddingSubstitutions(false);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to add substitution. Please try again.",
         variant: "destructive",
       });
     }
@@ -563,35 +534,24 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                           </CardTitle>
                           <CardDescription>Alternative ingredients and their impact</CardDescription>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={fetchSubstitutions}
-                            disabled={loading}
-                          >
-                            {loading ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Loading...
-                              </>
-                            ) : (
-                              <>
-                                <Sparkles className="mr-2 h-4 w-4" />
-                                Show Substitutions
-                              </>
-                            )}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setIsAddingSubstitutions(true)}
-                            className="whitespace-nowrap"
-                          >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Add Substitution
-                          </Button>
-                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={fetchSubstitutions}
+                          disabled={loading}
+                        >
+                          {loading ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Loading...
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="mr-2 h-4 w-4" />
+                              Show Substitutions
+                            </>
+                          )}
+                        </Button>
                       </CardHeader>
                       <CardContent className="p-6">
                         {substitutions.length > 0 ? (
@@ -1291,48 +1251,6 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
               <Button type="submit" className="w-full">
                 {hasNotes ? 'Save Cultural Notes' : 'Add Cultural Notes'}
               </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
-
-        {/* Add Substitution Dialog */}
-        <Dialog open={isAddingSubstitutions} onOpenChange={setIsAddingSubstitutions}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Ingredient Substitution</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              const substitution = {
-                original: formData.get('original') as string,
-                substitute: formData.get('substitute') as string,
-                notes: formData.get('notes') as string,
-                flavorImpact: formData.get('flavorImpact') as 'minimal' | 'moderate' | 'significant'
-              };
-              handleAddSubstitution(substitution);
-            }} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Original Ingredient</label>
-                <Input name="original" placeholder="Original ingredient" required />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Substitute</label>
-                <Input name="substitute" placeholder="Substitute ingredient" required />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Notes</label>
-                <Textarea name="notes" placeholder="Usage notes and tips" required />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Flavor Impact</label>
-                <select name="flavorImpact" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background" required>
-                  <option value="minimal">Minimal</option>
-                  <option value="moderate">Moderate</option>
-                  <option value="significant">Significant</option>
-                </select>
-              </div>
-              <Button type="submit" className="w-full">Add Substitution</Button>
             </form>
           </DialogContent>
         </Dialog>
