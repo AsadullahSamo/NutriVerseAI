@@ -1,6 +1,7 @@
-import type { CulturalRecipe, PantryItem } from "@shared/schema";
-import Groq from "groq-sdk";
+import type { PantryItem } from "@shared/schema";
 import { CulturalCuisine, CulturalRecipe, CulturalTechnique } from "@shared/schema";
+
+import Groq from "groq-sdk";
 
 const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY || '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',
@@ -160,6 +161,106 @@ export async function getTechniqueTips(technique: CulturalTechnique, cuisine: Cu
   } catch (error) {
     console.error('Failed to parse technique tips:', error, content);
     throw new Error('Invalid technique tips format received');
+  }
+}
+
+export async function generateCulturalDetails(cuisine: CulturalCuisine): Promise<{
+  culturalContext: {
+    history: string;
+    traditions: string;
+    festivals: string;
+    influences: string;
+  };
+  servingEtiquette: {
+    tableSetting: string;
+    diningCustoms: string;
+    servingOrder: string;
+    taboos: string;
+    general: string;
+  };
+}> {
+  const prompt = `As a cultural cuisine expert, generate detailed cultural context and serving etiquette information for ${cuisine.name} cuisine from ${cuisine.region}.
+
+  For narrative sections, provide flowing text:
+  - History: Background and origins
+  - Traditions: Key culinary traditions
+  - Festivals: Important celebrations
+  - Influences: Cultural influences
+  - General Etiquette: Overall guidelines
+
+  For bullet-pointed sections, format each point starting with "• " and separate with "\\n":
+  - Table Setting: List traditional table arrangements
+  - Dining Customs: List specific dining rules
+  - Serving Order: List course sequence
+  - Taboos: List things to avoid
+
+  Return response in this exact JSON format:
+  {
+    "culturalContext": {
+      "history": "Flowing narrative text...",
+      "traditions": "Flowing narrative text...",
+      "festivals": "Flowing narrative text...",
+      "influences": "Flowing narrative text..."
+    },
+    "servingEtiquette": {
+      "tableSetting": "• Point 1\\n• Point 2\\n• Point 3",
+      "diningCustoms": "• Point 1\\n• Point 2\\n• Point 3",
+      "servingOrder": "• Point 1\\n• Point 2\\n• Point 3",
+      "taboos": "• Point 1\\n• Point 2\\n• Point 3",
+      "general": "Flowing narrative text..."
+    }
+  }`;
+
+  const response = await groq.chat.completions.create({
+    messages: [
+      {
+        role: "system",
+        content: "You are an expert in global cuisines and cultural food traditions. For bullet-pointed sections (tableSetting, diningCustoms, servingOrder, taboos), format each item with '• ' prefix and '\\n' separator. Use flowing narrative text for other sections."
+      },
+      { role: "user", content: prompt }
+    ],
+    model: "mixtral-8x7b-32768",
+    temperature: 0.4,
+    max_tokens: 2000
+  });
+
+  const content = response.choices[0]?.message?.content;
+  if (!content) throw new Error('No response from cultural details generation API');
+
+  try {
+    const cleanedContent = content
+      .trim()
+      .replace(/```json\n?|\n?```/g, '')
+      .replace(/^[^{]*({[\s\S]*})[^}]*$/, '$1')
+      .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+      .replace(/\n/g, '\\n')
+      .replace(/\\\\n/g, '\\n')
+      .replace(/,(\s*[}\]])/g, '$1');
+
+    const parsed = JSON.parse(cleanedContent);
+
+    // Process bullet-pointed sections
+    const bulletSections = ['tableSetting', 'diningCustoms', 'servingOrder', 'taboos'];
+    bulletSections.forEach(section => {
+      if (typeof parsed.servingEtiquette[section] === 'string') {
+        // Split content into points and ensure proper bullet point format
+        const points = parsed.servingEtiquette[section]
+          .split(/(?:\\n|\n|\.(?=\s|$))/)
+          .map(point => point.trim())
+          .filter(point => point.length > 0)
+          .map(point => point.replace(/^[•\-]\s*/, '')); // Remove existing bullets
+
+        // Reconstruct with proper bullet point format
+        parsed.servingEtiquette[section] = points
+          .map(point => `• ${point}`)
+          .join('\n');
+      }
+    });
+
+    return parsed;
+  } catch (error) {
+    console.error('Failed to parse cultural details:', error);
+    throw new Error('Invalid cultural details format received');
   }
 }
 

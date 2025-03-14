@@ -18,9 +18,20 @@ import {
   BookOpen, Scroll, History, Star, Map, Loader2, AlertTriangle, ListOrdered, Palette, Ban, Info, Sparkles, ScrollText
 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { analyzeCulturalCuisine, type CulturalInsights } from "@ai-services/cultural-cuisine-service";
+import { analyzeCulturalCuisine, type CulturalInsights, generateCulturalDetails } from "@ai-services/cultural-cuisine-service";
 import type { CulturalCuisine, CulturalRecipe, CulturalTechnique } from "@shared/schema";
 import { RecipeDetails } from "./RecipeDetails";
+
+// Add formatHeading utility function
+const formatHeading = (text: string): string => {
+  return text
+    .replace(/([A-Z])/g, ' $1') // Insert space before capital letters
+    .replace(/_/g, ' ') // Replace underscores with spaces
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ')
+    .trim();
+};
 
 interface CuisineDetailsProps {
   cuisineId: number;
@@ -212,6 +223,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
   const [aiInsights, setAiInsights] = useState<CulturalInsights | null>(null);
   const [isLoadingAI, setIsLoadingAI] = useState(false);
   const [isAddingTechnique, setIsAddingTechnique] = useState(false);
+  const [isGeneratingDetails, setIsGeneratingDetails] = useState(false);
 
   const { data: cuisine, isLoading, error, refetch } = useQuery({
     queryKey: ['cuisine', cuisineId],
@@ -372,38 +384,44 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="container mx-auto px-4 md:px-6 lg:px-8 max-w-7xl">
-        <div className="flex justify-center items-center h-[80vh]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </div>
-    );
-  }
+  const handleGenerateCulturalDetails = async () => {
+    setIsGeneratingDetails(true);
+    try {
+      const details = await generateCulturalDetails(cuisine);
+      
+      // Update the cuisine with new cultural details
+      const response = await fetch(`/api/cultural-cuisines/${cuisineId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          culturalContext: details.culturalContext,
+          servingEtiquette: details.servingEtiquette
+        }),
+        credentials: 'include'
+      });
 
-  if (error || !cuisine) {
-    return (
-      <div className="container mx-auto px-4 md:px-6 lg:px-8 max-w-7xl">
-        <div className="text-center">
-          <p className="text-destructive">Failed to load cuisine details</p>
-          <Button onClick={onBack} variant="outline" className="mt-4">
-            Go Back
-          </Button>
-        </div>
-      </div>
-    );
-  }
+      if (!response.ok) {
+        throw new Error('Failed to update cultural details');
+      }
 
-  if (selectedRecipe) {
-    return (
-      <RecipeDetails 
-        recipe={selectedRecipe} 
-        cuisine={cuisine} 
-        onBack={() => setSelectedRecipe(null)} 
-      />
-    );
-  }
+      toast({
+        title: "Cultural Details Generated",
+        description: "The cuisine's cultural context and serving etiquette have been updated with AI-generated content.",
+      });
+
+      refetch();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate cultural details. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingDetails(false);
+    }
+  };
 
   const handleAddRecipe = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -511,6 +529,39 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
       setIsSubmitting(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 md:px-6 lg:px-8 max-w-7xl">
+        <div className="flex justify-center items-center h-[80vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !cuisine) {
+    return (
+      <div className="container mx-auto px-4 md:px-6 lg:px-8 max-w-7xl">
+        <div className="text-center">
+          <p className="text-destructive">Failed to load cuisine details</p>
+          <Button onClick={onBack} variant="outline" className="mt-4">
+            Go Back
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (selectedRecipe) {
+    return (
+      <RecipeDetails 
+        recipe={selectedRecipe} 
+        cuisine={cuisine} 
+        onBack={() => setSelectedRecipe(null)} 
+      />
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 md:px-6 lg:px-8 max-w-7xl">
@@ -658,83 +709,62 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                           <History className="h-5 w-5 text-primary" />
                           <CardTitle>Cultural Context</CardTitle>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setIsEditingCulturalDetails(true)}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          {cuisine.culturalContext && Object.keys(cuisine.culturalContext).length > 0 ? 'Edit Context' : 'Add Context'}
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleGenerateCulturalDetails}
+                            disabled={isGeneratingDetails}
+                          >
+                            {isGeneratingDetails ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Generating...
+                              </>
+                            ) : (
+                              <>
+                                <Brain className="h-4 w-4 mr-2" />
+                                Generate with AI
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setIsEditingCulturalDetails(true)}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            {cuisine.culturalContext && Object.keys(cuisine.culturalContext).length > 0 ? 'Edit Context' : 'Add Context'}
+                          </Button>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-6">
                       {cuisine.culturalContext && typeof cuisine.culturalContext === 'object' && Object.keys(cuisine.culturalContext).length > 0 ? (
-                        Object.entries(cuisine.culturalContext).map(([key, value]: [string, string], i: number) => {
-                          // Set different icons based on the context type
-                          const getContextIcon = (key: string) => {
+                        <div className="grid gap-6">
+                          {Object.entries(cuisine.culturalContext).map(([key, value]: [string, unknown], i: number) => {
                             const k = key.toLowerCase();
-                            if (k.includes('history')) {
-                              return <History className="h-4 w-4 text-blue-600" />;
-                            } else if (k.includes('significance')) {
-                              return <Star className="h-4 w-4 text-amber-600" />;
-                            } else if (k.includes('tradition')) {
-                              return <ScrollText className="h-4 w-4 text-emerald-600" />;
-                            } else if (k.includes('festival')) {
-                              return <Sparkles className="h-4 w-4 text-purple-600" />;
-                            } else {
-                              return <BookOpen className="h-4 w-4 text-indigo-600" />;
-                            }
-                          };
-                          
-                          // Format value as bullet points if it contains commas or periods
-                          const formatValue = (value: string) => {
-                            if (value.includes('.') && value.split('.').length > 2) {
-                              return value.split('.').filter(item => item.trim().length > 0);
-                            }
-                            if (value.includes(',') && value.split(',').length > 3) {
-                              return value.split(',').filter(item => item.trim().length > 0);
-                            }
-                            return [];
-                          };
-                          
-                          const bulletPoints = formatValue(value);
-                          const hasBullets = bulletPoints.length > 0;
-                          const borderColor = key.toLowerCase().includes('history') ? 'border-blue-500' :
-                                            key.toLowerCase().includes('significance') ? 'border-amber-500' :
-                                            key.toLowerCase().includes('tradition') ? 'border-emerald-500' :
-                                            key.toLowerCase().includes('festival') ? 'border-purple-500' : 'border-indigo-500';
-                          
-                          return (
-                            <div key={i} className="space-y-2">
-                              <div className="flex items-center space-x-2">
-                                {getContextIcon(key)}
-                                <h3 className="font-medium capitalize">{key}</h3>
+                            const sectionStyle = k.includes('history') ? 'border-l-blue-500 bg-blue-50/30 dark:bg-blue-950/30' :
+                                                k.includes('tradition') ? 'border-l-emerald-500 bg-emerald-50/30 dark:bg-emerald-950/30' :
+                                                k.includes('festival') ? 'border-l-purple-500 bg-purple-50/30 dark:bg-purple-950/30' :
+                                                'border-l-amber-500 bg-amber-50/30 dark:bg-amber-950/30';
+
+                            return (
+                              <div key={i} className={`p-6 rounded-lg border-l-4 ${sectionStyle} transition-all duration-200 hover:shadow-md`}>
+                                <div className="flex items-center space-x-3 mb-4">
+                                  {k.includes('history') && <History className="h-5 w-5 text-blue-600" />}
+                                  {k.includes('tradition') && <ScrollText className="h-5 w-5 text-emerald-600" />}
+                                  {k.includes('festival') && <Sparkles className="h-5 w-5 text-purple-600" />}
+                                  {k.includes('influence') && <Globe2 className="h-5 w-5 text-amber-600" />}
+                                  <h3 className="text-lg font-semibold capitalize">{formatHeading(key)}</h3>
+                                </div>
+                                <div className="prose prose-sm dark:prose-invert max-w-none">
+                                  <p className="leading-relaxed text-muted-foreground">{String(value)}</p>
+                                </div>
                               </div>
-                              
-                              <div className={`pl-6 ${hasBullets ? `border-l-2 ${borderColor}` : ''}`}>
-                                {hasBullets ? (
-                                  <ul className="space-y-2 list-none">
-                                    {bulletPoints.map((point, idx) => (
-                                      <li key={idx} className="flex items-start gap-2">
-                                        <div className="h-5 w-5 rounded-full flex-shrink-0 flex items-center justify-center bg-primary/10">
-                                          <span className="text-xs font-medium">{idx + 1}</span>
-                                        </div>
-                                        <span className="text-muted-foreground">{point}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                ) : (
-                                  <p className="text-muted-foreground">{value}</p>
-                                )}
-                              </div>
-                              
-                              {i < Object.entries(cuisine.culturalContext).length - 1 && (
-                                <Separator className="my-4" />
-                              )}
-                            </div>
-                          );
-                        })
+                            );
+                          })}
+                        </div>
                       ) : (
                         <div className="text-center py-6">
                           <Scroll className="h-8 w-8 mx-auto text-muted-foreground mb-2 opacity-50" />
@@ -752,87 +782,57 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                           <Scroll className="h-5 w-5 text-primary" />
                           <CardTitle>Traditional Serving Etiquette</CardTitle>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setIsEditingCulturalDetails(true)}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          {cuisine.servingEtiquette && Object.keys(cuisine.servingEtiquette).length > 0 ? 'Edit Etiquette' : 'Add Etiquette'}
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleGenerateCulturalDetails}
+                            disabled={isGeneratingDetails}
+                          >
+                            {isGeneratingDetails ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Generating...
+                              </>
+                            ) : (
+                              <>
+                                <Brain className="h-4 w-4 mr-2" />
+                                Generate with AI
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setIsEditingCulturalDetails(true)}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            {cuisine.servingEtiquette && Object.keys(cuisine.servingEtiquette).length > 0 ? 'Edit Etiquette' : 'Add Etiquette'}
+                          </Button>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-6">
                       {cuisine.servingEtiquette && typeof cuisine.servingEtiquette === 'object' && Object.keys(cuisine.servingEtiquette).length > 0 ? (
-                        <div className="space-y-4">
-                          {Object.entries(cuisine.servingEtiquette).map(([key, value]: [string, string], i: number) => {
-                            // Set different icons based on the key type
-                            const getIconAndText = (key: string) => {
-                              // Convert key to lowercase for consistent matching
-                              const k = key.toLowerCase();
-                              if (k.includes('taboo') || k.includes('don\'t') || k.includes('avoid')) {
-                                return {
-                                  icon: <AlertTriangle className="h-4 w-4 text-red-600" />,
-                                  itemIcon: <Ban className="h-4 w-4 text-red-600 flex-shrink-0" />,
-                                  textClass: "text-red-700 dark:text-red-400"
-                                };
-                              } else if (k.includes('order') || k.includes('sequence') || k.includes('serving')) {
-                                return {
-                                  icon: <ListOrdered className="h-4 w-4 text-blue-600" />,
-                                  itemIcon: (index: number) => (
-                                    <div className="h-5 w-5 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
-                                      <span className="text-xs font-medium text-blue-700 dark:text-blue-300">{index + 1}</span>
-                                    </div>
-                                  ),
-                                  textClass: "text-blue-700 dark:text-blue-400"
-                                };
-                              } else if (k.includes('presentation') || k.includes('table') || k.includes('setting')) {
-                                return {
-                                  icon: <Palette className="h-4 w-4 text-emerald-600" />,
-                                  itemIcon: <ChefHat className="h-4 w-4 text-emerald-600 flex-shrink-0" />,
-                                  textClass: "text-emerald-700 dark:text-emerald-400"
-                                };
-                              } else {
-                                return {
-                                  icon: <Scroll className="h-4 w-4 text-amber-600" />,
-                                  itemIcon: <Info className="h-4 w-4 text-amber-600 flex-shrink-0" />,
-                                  textClass: "text-amber-700 dark:text-amber-400"
-                                };
-                              }
-                            };
-                            
-                            const { icon, itemIcon, textClass } = getIconAndText(key);
-                            
-                            // Format value as bullet points if it contains a comma or period
-                            const formatValue = (value: string) => {
-                              if (value.includes(',') || value.includes('.')) {
-                                return value.split(/[,.]\s*/).filter(item => item.trim().length > 0);
-                              }
-                              return [value];
-                            };
-                            
-                            const bulletPoints = formatValue(value);
-                            
-                            // Function to format heading with proper spacing
-                            const formatHeading = (text: string) => {
-                              // This regex will add a space before any capital letter that's not at the beginning
-                              return text.replace(/([a-z])([A-Z])/g, '$1 $2');
-                            };
-                            
+                        <div className="grid gap-6">
+                          {Object.entries(cuisine.servingEtiquette).map(([key, value]: [string, unknown], i: number) => {
+                            const k = key.toLowerCase();
+                            const { icon, content } = getEtiquetteDisplay(k, value);
+                            const sectionStyle = k.includes('table') ? 'border-l-emerald-500 bg-emerald-50/30 dark:bg-emerald-950/30' :
+                                                k.includes('custom') ? 'border-l-purple-500 bg-purple-50/30 dark:bg-purple-950/30' :
+                                                k.includes('order') ? 'border-l-blue-500 bg-blue-50/30 dark:bg-blue-950/30' :
+                                                k.includes('taboo') ? 'border-l-red-500 bg-red-50/30 dark:bg-red-950/30' :
+                                                'border-l-amber-500 bg-amber-50/30 dark:bg-amber-950/30';
+
                             return (
-                              <div key={i} className="space-y-2 border rounded-lg p-4">
-                                <div className="flex items-center space-x-2">
+                              <div key={i} className={`p-6 rounded-lg border-l-4 ${sectionStyle} transition-all duration-200 hover:shadow-md`}>
+                                <div className="flex items-center space-x-3 mb-4">
                                   {icon}
-                                  <h3 className="font-medium capitalize">{formatHeading(key)}</h3>
+                                  <h3 className="text-lg font-semibold capitalize">{formatHeading(key)}</h3>
                                 </div>
-                                <ul className="space-y-2 pl-4">
-                                  {bulletPoints.map((point, index) => (
-                                    <li key={index} className="text-sm flex items-start gap-2 p-1.5">
-                                      {typeof itemIcon === 'function' ? itemIcon(index) : itemIcon}
-                                      <span>{point}</span>
-                                    </li>
-                                  ))}
-                                </ul>
+                                <div className="prose prose-sm dark:prose-invert max-w-none">
+                                  {content}
+                                </div>
                               </div>
                             );
                           })}
@@ -1195,3 +1195,74 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
     </div>
   );
 }
+
+const getEtiquetteDisplay = (key: string, value: unknown) => {
+  const items = typeof value === 'string' ? value.split(/[•\n]/).filter(item => item.trim()) : [];
+  
+  if (key.includes('taboo')) {
+    return {
+      icon: <AlertTriangle className="h-5 w-5 text-red-600" />,
+      content: (
+        <ul className="space-y-2 list-none">
+          {items.map((item, idx) => (
+            <li key={idx} className="flex items-start gap-2 text-red-700 dark:text-red-300">
+              <Ban className="h-4 w-4 flex-shrink-0 mt-1" />
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      )
+    };
+  }
+  
+  if (key.includes('order')) {
+    return {
+      icon: <ListOrdered className="h-5 w-5 text-blue-600" />,
+      content: (
+        <ol className="space-y-2 list-none">
+          {items.map((item, idx) => (
+            <li key={idx} className="flex items-start gap-2">
+              <div className="flex-shrink-0 h-5 w-5 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                <span className="text-xs font-medium text-blue-700 dark:text-blue-300">{idx + 1}</span>
+              </div>
+              <span className="text-muted-foreground">{item}</span>
+            </li>
+          ))}
+        </ol>
+      )
+    };
+  }
+  
+  if (key.includes('table') || key.includes('setting')) {
+    return {
+      icon: <ChefHat className="h-5 w-5 text-emerald-600" />,
+      content: (
+        <ul className="space-y-2 list-none">
+          {items.map((item, idx) => (
+            <li key={idx} className="flex items-start gap-2 text-emerald-700 dark:text-emerald-300">
+              <UtensilsCrossed className="h-4 w-4 flex-shrink-0 mt-1" />
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+      )
+    };
+  }
+
+  // Default for customs and general guidelines
+  return {
+    icon: <ScrollText className="h-5 w-5 text-purple-600" />,
+    content: Array.isArray(items) && items.length > 0 ? (
+      <ul className="space-y-2 list-none">
+        {items.map((item, idx) => (
+          <li key={idx} className="flex items-start gap-2 text-purple-700 dark:text-purple-300">
+            <Info className="h-4 w-4 flex-shrink-0 mt-1" />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p className="text-muted-foreground">{String(value)}</p>
+    )
+  };
+};
