@@ -701,6 +701,26 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                   </Card>
                 </div>
 
+                <div className="flex justify-end mb-4">
+                  <Button
+                    variant="outline"
+                    onClick={handleGenerateCulturalDetails}
+                    disabled={isGeneratingDetails}
+                  >
+                    {isGeneratingDetails ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Generating Cultural Details...
+                      </>
+                    ) : (
+                      <>
+                        <Brain className="h-4 w-4 mr-2 text-primary" />
+                        Generate Cultural Details with AI
+                      </>
+                    )}
+                  </Button>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <Card>
                     <CardHeader>
@@ -708,34 +728,6 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                         <div className="flex items-center space-x-3">
                           <History className="h-5 w-5 text-primary" />
                           <CardTitle>Cultural Context</CardTitle>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleGenerateCulturalDetails}
-                            disabled={isGeneratingDetails}
-                          >
-                            {isGeneratingDetails ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Generating...
-                              </>
-                            ) : (
-                              <>
-                                <Brain className="h-4 w-4 mr-2" />
-                                Generate with AI
-                              </>
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setIsEditingCulturalDetails(true)}
-                          >
-                            <Edit className="h-4 w-4 mr-2" />
-                            {cuisine.culturalContext && Object.keys(cuisine.culturalContext).length > 0 ? 'Edit Context' : 'Add Context'}
-                          </Button>
                         </div>
                       </div>
                     </CardHeader>
@@ -756,7 +748,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                                   {k.includes('tradition') && <ScrollText className="h-5 w-5 text-emerald-600" />}
                                   {k.includes('festival') && <Sparkles className="h-5 w-5 text-purple-600" />}
                                   {k.includes('influence') && <Globe2 className="h-5 w-5 text-amber-600" />}
-                                  <h3 className="text-lg font-semibold capitalize">{formatHeading(key)}</h3>
+                                  <h3 className="text-lg font-semibold capitalize text-foreground">{formatHeading(key)}</h3>
                                 </div>
                                 <div className="prose prose-sm dark:prose-invert max-w-none">
                                   <p className="leading-relaxed text-muted-foreground">{String(value)}</p>
@@ -769,7 +761,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                         <div className="text-center py-6">
                           <Scroll className="h-8 w-8 mx-auto text-muted-foreground mb-2 opacity-50" />
                           <p className="text-sm text-muted-foreground">No cultural context has been added yet.</p>
-                          <p className="text-xs text-muted-foreground mt-1">Click 'Add Context' to share cultural information.</p>
+                          <p className="text-xs text-muted-foreground mt-1">Use the AI generation to add cultural information.</p>
                         </div>
                       )}
                     </CardContent>
@@ -781,34 +773,6 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                         <div className="flex items-center space-x-3">
                           <Scroll className="h-5 w-5 text-primary" />
                           <CardTitle>Traditional Serving Etiquette</CardTitle>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleGenerateCulturalDetails}
-                            disabled={isGeneratingDetails}
-                          >
-                            {isGeneratingDetails ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Generating...
-                              </>
-                            ) : (
-                              <>
-                                <Brain className="h-4 w-4 mr-2" />
-                                Generate with AI
-                              </>
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setIsEditingCulturalDetails(true)}
-                          >
-                            <Edit className="h-4 w-4 mr-2" />
-                            {cuisine.servingEtiquette && Object.keys(cuisine.servingEtiquette).length > 0 ? 'Edit Etiquette' : 'Add Etiquette'}
-                          </Button>
                         </div>
                       </div>
                     </CardHeader>
@@ -828,7 +792,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                               <div key={i} className={`p-6 rounded-lg border-l-4 ${sectionStyle} transition-all duration-200 hover:shadow-md`}>
                                 <div className="flex items-center space-x-3 mb-4">
                                   {icon}
-                                  <h3 className="text-lg font-semibold capitalize">{formatHeading(key)}</h3>
+                                  <h3 className="text-lg font-semibold capitalize text-foreground">{formatHeading(key)}</h3>
                                 </div>
                                 <div className="prose prose-sm dark:prose-invert max-w-none">
                                   {content}
@@ -841,7 +805,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                         <div className="text-center py-6">
                           <UtensilsCrossed className="h-8 w-8 mx-auto text-muted-foreground mb-2 opacity-50" />
                           <p className="text-sm text-muted-foreground">No serving etiquette has been added yet.</p>
-                          <p className="text-xs text-muted-foreground mt-1">Click 'Add Etiquette' to add serving customs.</p>
+                          <p className="text-xs text-muted-foreground mt-1">Use the AI generation to add serving customs.</p>
                         </div>
                       )}
                     </CardContent>
@@ -1205,9 +1169,9 @@ const getEtiquetteDisplay = (key: string, value: unknown) => {
       content: (
         <ul className="space-y-2 list-none">
           {items.map((item, idx) => (
-            <li key={idx} className="flex items-start gap-2 text-red-700 dark:text-red-300">
-              <Ban className="h-4 w-4 flex-shrink-0 mt-1" />
-              <span>{item}</span>
+            <li key={idx} className="flex items-start gap-2">
+              <Ban className="h-4 w-4 flex-shrink-0 mt-1 text-red-600" />
+              <span className="text-foreground">{item}</span>
             </li>
           ))}
         </ul>
@@ -1225,7 +1189,7 @@ const getEtiquetteDisplay = (key: string, value: unknown) => {
               <div className="flex-shrink-0 h-5 w-5 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
                 <span className="text-xs font-medium text-blue-700 dark:text-blue-300">{idx + 1}</span>
               </div>
-              <span className="text-muted-foreground">{item}</span>
+              <span className="text-foreground">{item}</span>
             </li>
           ))}
         </ol>
@@ -1239,9 +1203,9 @@ const getEtiquetteDisplay = (key: string, value: unknown) => {
       content: (
         <ul className="space-y-2 list-none">
           {items.map((item, idx) => (
-            <li key={idx} className="flex items-start gap-2 text-emerald-700 dark:text-emerald-300">
-              <UtensilsCrossed className="h-4 w-4 flex-shrink-0 mt-1" />
-              <span>{item}</span>
+            <li key={idx} className="flex items-start gap-2">
+              <UtensilsCrossed className="h-4 w-4 flex-shrink-0 mt-1 text-emerald-600" />
+              <span className="text-foreground">{item}</span>
             </li>
           ))}
         </ul>
@@ -1255,14 +1219,14 @@ const getEtiquetteDisplay = (key: string, value: unknown) => {
     content: Array.isArray(items) && items.length > 0 ? (
       <ul className="space-y-2 list-none">
         {items.map((item, idx) => (
-          <li key={idx} className="flex items-start gap-2 text-purple-700 dark:text-purple-300">
-            <Info className="h-4 w-4 flex-shrink-0 mt-1" />
-            <span>{item}</span>
+          <li key={idx} className="flex items-start gap-2">
+            <Info className="h-4 w-4 flex-shrink-0 mt-1 text-purple-600" />
+            <span className="text-foreground">{item}</span>
           </li>
         ))}
       </ul>
     ) : (
-      <p className="text-muted-foreground">{String(value)}</p>
+      <p className="text-foreground">{String(value)}</p>
     )
   };
 };
