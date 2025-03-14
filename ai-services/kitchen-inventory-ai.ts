@@ -1,9 +1,4 @@
-import Groq from "groq-sdk";
-
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY || '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',
-  dangerouslyAllowBrowser: true
-});
+import { model, safeJsonParse } from "./gemini-client";
 
 export interface KitchenEquipment {
   id: number;  // Changed from string to number to match database
@@ -61,32 +56,16 @@ export async function analyzeKitchenInventory(
   const prompt = `Analyze this kitchen equipment inventory and provide maintenance recommendations, shopping suggestions, and recipe possibilities:
     Equipment: ${JSON.stringify(equipment)}
     Cooking Preferences: ${userCookingPreferences?.join(', ') || 'None specified'}
-    Provide analysis in JSON format with maintenanceRecommendations, shoppingRecommendations, and recipeRecommendations.`;
-
-  const response = await groq.chat.completions.create({
-    messages: [
-      { 
-        role: "system", 
-        content: "You are a professional kitchen equipment expert and chef. Provide detailed analysis in JSON format only." 
-      },
-      { role: "user", content: prompt }
-    ],
-    model: "mixtral-8x7b-32768",
-    temperature: 0.4,
-    max_tokens: 1500,
-  });
-
-  const content = response.choices[0]?.message?.content;
-  if (!content) {
-    throw new Error('No response from kitchen analysis API');
-  }
+    
+    Return analysis in JSON format with maintenanceRecommendations, shoppingRecommendations, and recipeRecommendations.`;
 
   try {
-    const cleanedContent = content.trim().replace(/```json\n?|\n?```/g, '');
-    return JSON.parse(cleanedContent);
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
   } catch (error) {
-    console.error('Failed to parse kitchen analysis:', error);
-    throw new Error('Invalid kitchen analysis format received');
+    console.error('Failed to analyze kitchen inventory:', error);
+    throw error;
   }
 }
 
@@ -97,30 +76,13 @@ export async function getMaintenanceTips(
     ${JSON.stringify(equipment)}
     Return an array of specific, actionable maintenance tips.`;
 
-  const response = await groq.chat.completions.create({
-    messages: [
-      { 
-        role: "system", 
-        content: "You are a kitchen equipment maintenance expert. Provide specific, practical tips in JSON array format." 
-      },
-      { role: "user", content: prompt }
-    ],
-    model: "mixtral-8x7b-32768",
-    temperature: 0.3,
-    max_tokens: 800,
-  });
-
-  const content = response.choices[0]?.message?.content;
-  if (!content) {
-    throw new Error('No response from maintenance tips API');
-  }
-
   try {
-    const cleanedContent = content.trim().replace(/```json\n?|\n?```/g, '');
-    return JSON.parse(cleanedContent);
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
   } catch (error) {
-    console.error('Failed to parse maintenance tips:', error);
-    throw new Error('Invalid maintenance tips format received');
+    console.error('Failed to get maintenance tips:', error);
+    throw error;
   }
 }
 
@@ -134,32 +96,15 @@ export async function getEquipmentRecommendations(
     Cooking Preferences: ${cookingPreferences.join(', ')}
     ${budget ? `Budget Limit: $${budget}` : ''}
     
-    Return recommendations in JSON array format with name, category, reason, priority, and estimated price.`;
-
-  const response = await groq.chat.completions.create({
-    messages: [
-      {
-        role: "system",
-        content: "You are a professional chef and kitchen equipment expert. Provide practical equipment recommendations in JSON format only."
-      },
-      { role: "user", content: prompt }
-    ],
-    model: "mixtral-8x7b-32768",
-    temperature: 0.4,
-    max_tokens: 1500,
-  });
-
-  const content = response.choices[0]?.message?.content;
-  if (!content) {
-    throw new Error('No response from equipment recommendations API');
-  }
+    Return recommendations in JSON array format with name, category, reason, priority, estimatedPrice, and optional alternativeOptions fields.`;
 
   try {
-    const cleanedContent = content.trim().replace(/```json\n?|\n?```/g, '');
-    return JSON.parse(cleanedContent);
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
   } catch (error) {
-    console.error('Failed to parse equipment recommendations:', error);
-    throw new Error('Invalid equipment recommendations format received');
+    console.error('Failed to get equipment recommendations:', error);
+    throw error;
   }
 }
 
@@ -171,33 +116,16 @@ export async function generateMaintenanceSchedule(
   const prompt = `Create a maintenance schedule for these kitchen equipment items from ${startDate} to ${endDate}:
     Equipment: ${JSON.stringify(equipment)}
     
-    Return a schedule in JSON array format with equipmentId, nextMaintenanceDate, tasks, estimatedDuration, and priority.
+    Return a schedule in JSON array format with equipmentId, nextMaintenanceDate, tasks, estimatedDuration, and priority fields.
     Consider the current condition and last maintenance date of each item.`;
 
-  const response = await groq.chat.completions.create({
-    messages: [
-      {
-        role: "system",
-        content: "You are a kitchen equipment maintenance expert. Create practical maintenance schedules in JSON format only."
-      },
-      { role: "user", content: prompt }
-    ],
-    model: "mixtral-8x7b-32768",
-    temperature: 0.3,
-    max_tokens: 1500,
-  });
-
-  const content = response.choices[0]?.message?.content;
-  if (!content) {
-    throw new Error('No response from maintenance schedule API');
-  }
-
   try {
-    const cleanedContent = content.trim().replace(/```json\n?|\n?```/g, '');
-    return JSON.parse(cleanedContent);
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
   } catch (error) {
-    console.error('Failed to parse maintenance schedule:', error);
-    throw new Error('Invalid maintenance schedule format received');
+    console.error('Failed to generate maintenance schedule:', error);
+    throw error;
   }
 }
 
@@ -214,31 +142,106 @@ export async function getRecipesByEquipment(
     
     Return JSON with possibleRecipes (recipes possible with current equipment) and recommendedPurchases (equipment that would enable new recipes).`;
 
-  const response = await groq.chat.completions.create({
-    messages: [
-      {
-        role: "system",
-        content: "You are a professional chef. Suggest recipes based on available equipment and recommend strategic equipment purchases in JSON format only."
-      },
-      { role: "user", content: prompt }
-    ],
-    model: "mixtral-8x7b-32768",
-    temperature: 0.5,
-    max_tokens: 2000,
-  });
-
-  const content = response.choices[0]?.message?.content;
-  if (!content) {
-    throw new Error('No response from recipe suggestions API');
-  }
-
   try {
-    const cleanedContent = content.trim().replace(/```json\n?|\n?```/g, '');
-    return JSON.parse(cleanedContent);
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
   } catch (error) {
-    console.error('Failed to parse recipe suggestions:', error);
-    throw new Error('Invalid recipe suggestions format received');
+    console.error('Failed to get recipes by equipment:', error);
+    throw error;
   }
 }
 
-export { analyzeKitchenInventory, getMaintenanceTips, getEquipmentRecommendations, generateMaintenanceSchedule, getRecipesByEquipment };
+export async function getEquipmentUsageGuide(
+  equipment: string,
+  skillLevel: string
+): Promise<{
+  basicUse: string[];
+  advancedTechniques: string[];
+  maintenanceTips: string[];
+  safetyNotes: string[];
+}> {
+  const prompt = `Create a comprehensive usage guide for ${equipment} appropriate for ${skillLevel} skill level.
+  Return the guide in JSON format with basicUse, advancedTechniques, maintenanceTips, and safetyNotes arrays.`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Failed to get equipment usage guide:', error);
+    throw error;
+  }
+}
+
+export async function getEquipmentCompatibility(
+  newItem: string,
+  currentEquipment: { name: string; type: string }[]
+): Promise<{
+  isCompatible: boolean;
+  compatibilityScore: number;
+  reasons: string[];
+  suggestions: string[];
+}> {
+  const prompt = `Analyze compatibility between ${newItem} and the current kitchen equipment:
+    Current Equipment: ${JSON.stringify(currentEquipment)}
+    
+    Return analysis in JSON format with isCompatible (boolean), compatibilityScore (0-100), reasons array, and suggestions array.`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Failed to get equipment compatibility:', error);
+    throw error;
+  }
+}
+
+export async function getUpgradeRecommendations(
+  equipment: { name: string; condition: string; purchaseDate?: string }[]
+): Promise<{
+  urgentUpgrades: string[];
+  plannedUpgrades: string[];
+  reasonings: Record<string, string>;
+}> {
+  const prompt = `Recommend equipment upgrades based on this inventory:
+    Equipment: ${JSON.stringify(equipment)}
+    
+    Return recommendations in JSON format with urgentUpgrades array, plannedUpgrades array, and reasonings object.`;
+
+  try {
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Failed to get upgrade recommendations:', error);
+    throw error;
+  }
+}
+
+// Mock data functions for fallback when API is not available
+function getMockAnalysis(
+  equipment: KitchenEquipment[], 
+  userCookingPreferences?: string[]
+): EquipmentAnalysis {
+  return {
+    maintenanceRecommendations: [{
+      equipmentId: "1",
+      recommendation: "Regular cleaning needed",
+      priority: "medium",
+      suggestedAction: "Clean after each use"
+    }],
+    shoppingRecommendations: [{
+      itemName: "Chef's Knife",
+      reason: "Essential tool for meal preparation",
+      priority: "high",
+      estimatedPrice: "$50-100"
+    }],
+    recipeRecommendations: [{
+      recipeName: "Simple Pasta",
+      possibleWithCurrent: true,
+      requiredEquipment: ["pot", "strainer"]
+    }]
+  };
+}
