@@ -74,6 +74,11 @@ export async function generateAIMealPlan(
   dietaryRestrictions?: string[],
   calorieTarget?: number
 ): Promise<MealPlan[]> {
+  // Enforce 7-day limit
+  if (days > 7) {
+    throw new Error("Meal plans cannot exceed 7 days");
+  }
+
   const prompt = `Create a detailed ${days}-day meal plan with the following requirements:
     - Consider these preferences: ${preferences.join(', ')}
     ${dietaryRestrictions ? `- Must follow these dietary restrictions: ${dietaryRestrictions.join(', ')}` : ''}

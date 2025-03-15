@@ -1,59 +1,34 @@
 import type { KitchenEquipment, EquipmentRecommendation, MaintenanceSchedule } from '@shared/schema';
-import Groq from "groq-sdk";
-
-// Direct initialization with environment variable and fallback to the same API key used by other working services
-const groq = new Groq({
-  apiKey: import.meta.env.VITE_GROQ_API_KEY || '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',
-  dangerouslyAllowBrowser: true
-});
+import { model, safeJsonParse } from "../../../ai-services/gemini-client";
 
 export async function getEquipmentRecommendations(
   currentEquipment: KitchenEquipment[],
   cookingPreferences: string[],
   budget?: number
 ): Promise<EquipmentRecommendation[]> {
+  const prompt = `You are a JSON API that must return a valid JSON array of kitchen equipment recommendations.
+  Current Equipment: ${JSON.stringify(currentEquipment)}
+  Cooking Preferences: ${cookingPreferences.join(', ')}
+  ${budget ? `Budget: $${budget}` : ''}
+  
+  Return EXACTLY this JSON structure with no additional text:
+  [
+    {
+      "name": "string",
+      "reason": "string",
+      "priority": "high|medium|low",
+      "estimatedCost": "string",
+      "alternativeOptions": ["string"]
+    }
+  ]`;
+
   try {
-    console.log("Calling Groq API for equipment recommendations...");
-    const prompt = `Based on this kitchen equipment inventory and cooking preferences, recommend new equipment to purchase:
-      Current Equipment: ${JSON.stringify(currentEquipment)}
-      Cooking Preferences: ${cookingPreferences.join(', ') || 'None specified'}
-      Budget Limit: ${budget ? `$${budget}` : 'No specific budget'}
-      
-      Return recommendations in JSON format as an array of objects with these properties:
-      - id: number (unique identifier)
-      - name: string (name of recommended equipment)
-      - reason: string (why this is recommended)
-      - priority: string (high, medium, or low)
-      - estimatedCost: string (price range)`;
-
-    const response = await groq.chat.completions.create({
-      messages: [
-        { 
-          role: "system", 
-          content: "You are an expert kitchen equipment advisor. Provide detailed equipment recommendations in JSON format only." 
-        },
-        { role: "user", content: prompt }
-      ],
-      model: "llama-3.3-70b-versatile",
-      temperature: 0.3,
-      max_tokens: 1500,
-    });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error('No response from equipment recommendations API');
-    }
-
-    try {
-      const cleanedContent = content.trim().replace(/```json\n?|\n?```/g, '');
-      return JSON.parse(cleanedContent);
-    } catch (error) {
-      console.error('Failed to parse equipment recommendations:', error);
-      return fallbackToBackendRecommendations(currentEquipment, cookingPreferences, budget);
-    }
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
   } catch (error) {
-    console.error('Error with GROQ API for recommendations:', error);
-    return fallbackToBackendRecommendations(currentEquipment, cookingPreferences, budget);
+    console.error('Error getting equipment recommendations:', error);
+    return getMockRecommendations(currentEquipment, cookingPreferences);
   }
 }
 
@@ -86,7 +61,7 @@ export async function generateMaintenanceSchedule(
   endDate: string
 ): Promise<MaintenanceSchedule[]> {
   try {
-    console.log("Calling Groq API for maintenance schedule...");
+    console.log("Calling Gemini API for maintenance schedule...");
     const prompt = `Generate a maintenance schedule for these kitchen equipment items from ${startDate} to ${endDate}:
       Equipment: ${JSON.stringify(equipment)}
       
@@ -99,183 +74,12 @@ export async function generateMaintenanceSchedule(
       Do not include any explanations, headers, or non-JSON content.
       Just the raw JSON array, nothing else.`;
 
-    const response = await groq.chat.completions.create({
-      messages: [
-        { 
-          role: "system", 
-          content: "You are a JSON-only API that responds with properly formatted JSON arrays. Never include explanations, markdown code blocks, or any text outside of the JSON. Always validate your JSON is correctly formatted before responding." 
-        },
-        { role: "user", content: prompt }
-      ],
-      model: "llama-3.3-70b-versatile",
-      temperature: 0.2, // Lowering temperature for more predictable JSON formatting
-      max_tokens: 1200,
-    });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error('No response from maintenance schedule API');
-    }
-
-    console.log("Raw maintenance schedule response:", content);
-
-    try {
-      // Super aggressive JSON extraction and repair
-      const extractJSON = (str: string): string => {
-        // First attempt: find content between square brackets with a regex
-        const arrayMatch = str.match(/\[([\s\S]*)\]/);
-        if (arrayMatch) {
-          return `[${arrayMatch[1]}]`;
-        }
-        
-        // Second attempt: find the first [ and last ]
-        const firstBracket = str.indexOf('[');
-        const lastBracket = str.lastIndexOf(']');
-        
-        if (firstBracket !== -1 && lastBracket !== -1 && firstBracket < lastBracket) {
-          return str.substring(firstBracket, lastBracket + 1);
-        }
-        
-        // If we can't find brackets, this isn't valid JSON
-        throw new Error('Cannot extract JSON array from response');
-      };
-
-      // Clean and extract the JSON
-      let cleanedContent = content
-        .trim()
-        .replace(/```json\n?|\n?```/g, '')        // Remove markdown code blocks
-        .replace(/^[\s\S]*?(\[)/m, '$1')          // Remove anything before first [
-        .replace(/(\])[\s\S]*?$/m, '$1');         // Remove anything after last ]
-      
-      // If still not starting with [, try more aggressive extraction
-      if (!cleanedContent.startsWith('[')) {
-        cleanedContent = extractJSON(content);
-      }
-      
-      // Final validation - does it look like an array?
-      if (!cleanedContent.startsWith('[') || !cleanedContent.endsWith(']')) {
-        throw new Error('Response is not a valid JSON array');
-      }
-
-      console.log("Cleaned JSON for parsing:", cleanedContent);
-      
-      try {
-        // Attempt to parse the JSON
-        const parsed = JSON.parse(cleanedContent);
-        
-        // Validate it's an array
-        if (!Array.isArray(parsed)) {
-          throw new Error('Expected an array in maintenance schedule response');
-        }
-        
-        // If valid but empty, use mock data
-        if (parsed.length === 0) {
-          console.log("Received empty array, generating maintenance schedule with our logic");
-          return generateMaintenanceScheduleLogic(equipment, startDate, endDate);
-        }
-        
-        // Map to ensure all required properties are present
-        return parsed.map((item, index) => {
-          // Handle equipmentId: ensure it's a number and exists in our equipment array
-          let equipmentId: number;
-          
-          if (typeof item.equipmentId === 'number') {
-            equipmentId = item.equipmentId;
-          } else if (typeof item.equipmentId === 'string' && !isNaN(parseInt(item.equipmentId))) {
-            equipmentId = parseInt(item.equipmentId);
-          } else {
-            equipmentId = equipment[index % equipment.length].id;
-          }
-          
-          // Ensure the equipmentId actually exists in our equipment array
-          const validId = equipment.some(e => e.id === equipmentId) 
-            ? equipmentId 
-            : equipment[index % equipment.length].id;
-          
-          // Handle date: ensure it's a valid ISO string date
-          let date: string;
-          if (typeof item.date === 'string' && !isNaN(new Date(item.date).getTime())) {
-            date = item.date;
-          } else {
-            // Generate a sensible date based on equipment condition
-            const equipItem = equipment.find(e => e.id === validId);
-            date = generateDateBasedOnCondition(equipItem, startDate, endDate);
-          }
-          
-          // Handle tasks: ensure it's an array of strings
-          let tasks: string[];
-          if (Array.isArray(item.tasks) && item.tasks.length > 0) {
-            tasks = item.tasks.map(t => String(t));
-          } else {
-            // Generate tasks based on equipment type
-            const equipItem = equipment.find(e => e.id === validId);
-            tasks = generateTasksForEquipment(equipItem);
-          }
-          
-          return {
-            equipmentId: validId,
-            date,
-            tasks
-          };
-        });
-      } catch (parseError) {
-        console.error('JSON parse error:', parseError);
-        // Try a more manual approach to fix the JSON
-        console.log("Attempting manual JSON repair...");
-        
-        // Look for array items and try to parse them individually
-        const itemRegex = /\{\s*"equipmentId"\s*:.*?\s*"tasks"\s*:\s*\[.*?\]\s*\}/gs;
-        const matches = cleanedContent.match(itemRegex);
-        
-        if (matches && matches.length > 0) {
-          console.log(`Found ${matches.length} maintenance items manually`);
-          
-          // Build schedule items from matches
-          const items: MaintenanceSchedule[] = [];
-          
-          for (let i = 0; i < Math.min(matches.length, equipment.length); i++) {
-            try {
-              // Try to parse each item
-              const itemMatch = matches[i]
-                .replace(/,\s*\}/, '}') // Fix trailing commas
-                .replace(/,\s*\]/, ']'); // Fix array trailing commas
-              
-              const parsedItem = JSON.parse(itemMatch);
-              
-              items.push({
-                equipmentId: parsedItem.equipmentId || equipment[i].id,
-                date: parsedItem.date || generateDateBasedOnCondition(equipment[i], startDate, endDate),
-                tasks: Array.isArray(parsedItem.tasks) ? parsedItem.tasks : generateTasksForEquipment(equipment[i])
-              });
-            } catch (itemError) {
-              console.error('Failed to parse item:', itemError);
-              // Add a fallback item
-              items.push({
-                equipmentId: equipment[i].id,
-                date: generateDateBasedOnCondition(equipment[i], startDate, endDate),
-                tasks: generateTasksForEquipment(equipment[i])
-              });
-            }
-          }
-          
-          if (items.length > 0) {
-            return items;
-          }
-        }
-        
-        // If manual parsing fails, generate from scratch
-        console.log("Manual repair failed, generating maintenance schedule with our logic");
-        return generateMaintenanceScheduleLogic(equipment, startDate, endDate);
-      }
-    } catch (error) {
-      console.error('Failed to parse maintenance schedule:', error);
-      console.log("Generating maintenance schedule with our logic");
-      return generateMaintenanceScheduleLogic(equipment, startDate, endDate);
-    }
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
   } catch (error) {
-    console.error('Error with GROQ API for maintenance schedule:', error);
-    console.log("Generating maintenance schedule with our logic due to API error");
-    return generateMaintenanceScheduleLogic(equipment, startDate, endDate);
+    console.error('Error with Gemini API for maintenance schedule:', error);
+    throw error;
   }
 }
 
@@ -427,49 +231,34 @@ export async function getRecipesByEquipment(
   possibleRecipes: { id: number; title: string; requiredEquipment: string[] }[];
   recommendedPurchases: { equipment: string; enabledRecipes: string[] }[];
 }> {
+  const prompt = `You are a JSON API that must return recipe recommendations based on available kitchen equipment.
+  Equipment: ${JSON.stringify(equipment)}
+  ${userPreferences ? `User Preferences: ${userPreferences.join(', ')}` : ''}
+  
+  Return EXACTLY this JSON structure with no additional text:
+  {
+    "possibleRecipes": [
+      {
+        "id": number,
+        "title": "string",
+        "requiredEquipment": ["string"]
+      }
+    ],
+    "recommendedPurchases": [
+      {
+        "equipment": "string",
+        "enabledRecipes": ["string"]
+      }
+    ]
+  }`;
+
   try {
-    console.log("Calling Groq API for recipe matching...");
-    const prompt = `Based on these kitchen equipment items, suggest recipes that can be prepared and additional equipment that would enable more recipes:
-      Equipment: ${JSON.stringify(equipment)}
-      User Preferences: ${userPreferences?.join(', ') || 'None specified'}
-      
-      Return results in JSON format with two properties:
-      1. possibleRecipes: array of objects with:
-         - id: number (unique identifier)
-         - title: string (recipe name)
-         - requiredEquipment: string[] (equipment needed for this recipe)
-      2. recommendedPurchases: array of objects with:
-         - equipment: string (name of equipment to purchase)
-         - enabledRecipes: string[] (recipes that would become possible with this equipment)`;
-
-    const response = await groq.chat.completions.create({
-      messages: [
-        { 
-          role: "system", 
-          content: "You are a professional chef with extensive knowledge of recipes and kitchen equipment. Provide recipe and equipment suggestions in JSON format only." 
-        },
-        { role: "user", content: prompt }
-      ],
-      model: "llama-3.3-70b-versatile",
-      temperature: 0.4,
-      max_tokens: 1500,
-    });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error('No response from recipe matching API');
-    }
-
-    try {
-      const cleanedContent = content.trim().replace(/```json\n?|\n?```/g, '');
-      return JSON.parse(cleanedContent);
-    } catch (error) {
-      console.error('Failed to parse recipe matches:', error);
-      return fallbackToBackendRecipeMatches(equipment, userPreferences);
-    }
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
   } catch (error) {
-    console.error('Error with GROQ API for recipe matches:', error);
-    return fallbackToBackendRecipeMatches(equipment, userPreferences);
+    console.error('Error getting recipes by equipment:', error);
+    return getMockRecipeMatches(equipment, userPreferences);
   }
 }
 

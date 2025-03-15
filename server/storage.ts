@@ -325,22 +325,6 @@ export class DatabaseStorage implements IStorage {
 
   async deleteRecipe(id: number): Promise<void> {
     try {
-      // First check if there are consumption records for this recipe
-      const consumptionRecords = await db
-        .select({ count: count() })
-        .from(recipeConsumption)
-        .where(eq(recipeConsumption.recipeId, id));
-
-      if (consumptionRecords[0].count > 0) {
-        throw new Error("Cannot delete recipe that has consumption records. Use deleteRecipeConsumption first or force delete.");
-      }
-
-      // Check if there are any likes for this recipe
-      const likeCount = await this.getRecipeLikesCount(id);
-      if (likeCount > 0) {
-        throw new Error("Cannot delete recipe that has likes");
-      }
-
       // Sequential cleanup operations
       // 1. Update any recipes that were forked from this one to remove the reference
       await db
@@ -354,12 +338,17 @@ export class DatabaseStorage implements IStorage {
         .set({ recipeId: null })
         .where(eq(communityPosts.recipeId, id));
 
-      // 3. Clean up any likes for this recipe
+      // 3. Clean up any consumption records for this recipe
+      await db
+        .delete(recipeConsumption)
+        .where(eq(recipeConsumption.recipeId, id));
+
+      // 4. Clean up any likes for this recipe
       await db
         .delete(recipe_likes)
         .where(eq(recipe_likes.recipeId, id));
 
-      // 4. Finally delete the recipe
+      // 5. Finally delete the recipe
       await db
         .delete(recipes)
         .where(eq(recipes.id, id));

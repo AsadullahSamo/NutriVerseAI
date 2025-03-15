@@ -212,11 +212,54 @@ export const insertUserSchema = createInsertSchema(users).pick({
   preferences: true,
 });
 
-export const insertRecipeSchema = createInsertSchema(recipes);
+export const insertRecipeSchema = createInsertSchema(recipes)
+  .extend({
+    title: z.string().min(1, "Title is required"),
+    description: z.string().min(1, "Description is required"),
+    ingredients: z.array(z.string()).min(1, "At least one ingredient is required"),
+    instructions: z.array(z.string()).min(1, "At least one instruction step is required"),
+    nutritionInfo: z.object({
+      calories: z.number().min(0, "Calories must be positive").max(5000, "Calories cannot exceed 5000"),
+      protein: z.number().min(0, "Protein must be positive").max(500, "Protein cannot exceed 500g"),
+      carbs: z.number().min(0, "Carbs must be positive").max(500, "Carbs cannot exceed 500g"),
+      fat: z.number().min(0, "Fat must be positive").max(200, "Fat cannot exceed 200g")
+    }),
+    prepTime: z.number().min(1, "Preparation time must be at least 1 minute"),
+    imageUrl: z.string().url("Please enter a valid image URL").optional().or(z.literal("")),
+    sustainabilityScore: z.number().min(0).max(100).optional(),
+  });
+
 export const insertGroceryListSchema = createInsertSchema(groceryLists);
-export const insertPantryItemSchema = createInsertSchema(pantryItems);
+export const insertPantryItemSchema = createInsertSchema(pantryItems)
+  .extend({
+    name: z.string().min(1, "Name is required"),
+    quantity: z.string().min(1, "Quantity is required"),
+    category: z.string().min(1, "Category is required"),
+    expiryDate: z.date().optional(),
+    nutritionInfo: z.object({
+      calories: z.number().min(0, "Calories must be positive"),
+      protein: z.number().min(0, "Protein must be positive"),
+      carbs: z.number().min(0, "Carbs must be positive"),
+      fat: z.number().min(0, "Fat must be positive")
+    }),
+    sustainabilityInfo: z.object({
+      score: z.number().min(0).max(100),
+      packaging: z.enum(["recyclable", "biodegradable", "reusable", "non-recyclable"]),
+      carbonFootprint: z.enum(["low", "medium", "high"])
+    })
+  });
+
 export const insertCommunityPostSchema = createInsertSchema(communityPosts);
-export const insertNutritionGoalSchema = createInsertSchema(nutritionGoals);
+export const insertNutritionGoalSchema = createInsertSchema(nutritionGoals)
+  .extend({
+    dailyCalories: z.number().min(500, "Daily calories must be at least 500").max(5000, "Daily calories cannot exceed 5000"),
+    dailyProtein: z.number().min(10, "Daily protein must be at least 10g").max(500, "Daily protein cannot exceed 500g"),
+    dailyCarbs: z.number().min(0, "Daily carbs must be non-negative").max(500, "Daily carbs cannot exceed 500g"),
+    dailyFat: z.number().min(0, "Daily fat must be non-negative").max(200, "Daily fat cannot exceed 200g"),
+    startDate: z.date(),
+    endDate: z.date().optional(),
+  });
+
 export const insertKitchenEquipmentSchema = createInsertSchema(kitchenEquipment);
 export const insertCulturalCuisineSchema = createInsertSchema(culturalCuisines);
 export const insertCulturalRecipeSchema = createInsertSchema(culturalRecipes);
@@ -253,6 +296,57 @@ export const insertStorageItemSchema = createInsertSchema(storageItems)
     message: "Quantity must be non-negative",
     path: ["quantity"]
   });
+
+export const insertMealPlanSchema = createInsertSchema(mealPlans)
+  .extend({
+    title: z.string().min(1, "Title is required"),
+    startDate: z.date(),
+    endDate: z.date(),
+    preferences: z.array(z.string()).optional(),
+    meals: z.array(z.object({
+      day: z.number().min(1).max(7, "Meal plan cannot exceed 7 days"),
+      meals: z.object({
+        breakfast: z.object({
+          title: z.string(),
+          description: z.string(),
+          nutritionalInfo: z.string(),
+          preparationTime: z.string().optional()
+        }),
+        lunch: z.object({
+          title: z.string(),
+          description: z.string(),
+          nutritionalInfo: z.string(),
+          preparationTime: z.string().optional()
+        }),
+        dinner: z.object({
+          title: z.string(),
+          description: z.string(),
+          nutritionalInfo: z.string(),
+          preparationTime: z.string().optional()
+        }),
+        snacks: z.array(z.object({
+          title: z.string(),
+          description: z.string(),
+          nutritionalInfo: z.string()
+        })).optional()
+      })
+    }))
+  })
+  .refine(
+    (data) => {
+      if (data.endDate && data.startDate) {
+        const start = new Date(data.startDate);
+        const end = new Date(data.endDate);
+        const diffDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+        return diffDays <= 7;
+      }
+      return true;
+    },
+    {
+      message: "Meal plan duration cannot exceed 7 days",
+      path: ["endDate"],
+    }
+  );
 
 export const moodEntrySchema = z.object({
   recipeId: z.number(),

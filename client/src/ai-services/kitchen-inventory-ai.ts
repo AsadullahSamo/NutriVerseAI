@@ -1,10 +1,4 @@
-import Groq from "groq-sdk";
-
-// Direct initialization with environment variable and fallback to the same API key used by other working services
-const groq = new Groq({
-  apiKey: import.meta.env.VITE_GROQ_API_KEY || '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',
-  dangerouslyAllowBrowser: true
-});
+import { model, safeJsonParse } from "../../../ai-services/gemini-client";
 
 export interface KitchenEquipment {
   id: number;
@@ -41,81 +35,45 @@ export async function analyzeKitchenInventory(
   userCookingPreferences?: string[] 
 ): Promise<EquipmentAnalysis> {
   try {
-    console.log("Calling Groq API for kitchen inventory analysis...");
+    console.log("Calling Gemini API for kitchen inventory analysis...");
     const prompt = `You are a JSON API that must only return a valid JSON object without any explanation or additional text. Analyze this kitchen equipment inventory and provide maintenance recommendations, shopping suggestions, and recipe possibilities.
 
-Equipment: ${JSON.stringify(equipment)}
-Cooking Preferences: ${userCookingPreferences?.join(', ') || 'None specified'}
+    Equipment: ${JSON.stringify(equipment)}
+    Cooking Preferences: ${userCookingPreferences?.join(', ') || 'None specified'}
 
-RESPOND WITH EXACTLY THIS JSON STRUCTURE AND NOTHING ELSE (no explanation, no markdown):
-{
-  "maintenanceRecommendations": [
+    RESPOND WITH EXACTLY THIS JSON STRUCTURE AND NOTHING ELSE (no explanation, no markdown):
     {
-      "equipmentId": "string",
-      "recommendation": "string",
-      "priority": "high|medium|low",
-      "suggestedAction": "string"
-    }
-  ],
-  "shoppingRecommendations": [
-    {
-      "itemName": "string",
-      "reason": "string",
-      "priority": "high|medium|low",
-      "estimatedPrice": "string"
-    }
-  ],
-  "recipeRecommendations": [
-    {
-      "recipeName": "string",
-      "possibleWithCurrent": true|false,
-      "requiredEquipment": ["string"]
-    }
-  ]
-}`;
-
-    const response = await groq.chat.completions.create({
-      messages: [
-        { 
-          role: "system", 
-          content: "You are a strict JSON API that only returns valid JSON objects without any explanation, markdown formatting, or additional text." 
-        },
-        { role: "user", content: prompt }
+      "maintenanceRecommendations": [
+        {
+          "equipmentId": "string",
+          "recommendation": "string",
+          "priority": "high|medium|low",
+          "suggestedAction": "string"
+        }
       ],
-      model: "llama-3.3-70b-versatile",
-      temperature: 0.3,
-      max_tokens: 1500,
-    });
+      "shoppingRecommendations": [
+        {
+          "itemName": "string",
+          "reason": "string",
+          "priority": "high|medium|low",
+          "estimatedCost": "string"
+        }
+      ],
+      "recipeRecommendations": [
+        {
+          "recipeName": "string",
+          "possibleWithCurrentEquipment": boolean,
+          "requiredEquipment": ["string"],
+          "difficulty": "easy|medium|hard"
+        }
+      ]
+    }`;
 
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error('No response from kitchen analysis API');
-    }
-
-    try {
-      // Clean the response to ensure valid JSON
-      const cleanedContent = content
-        .trim()
-        .replace(/```json\n?|\n?```/g, '')           // Remove code blocks
-        .replace(/^[^{]*({[\s\S]*})[^}]*$/, '$1')    // Extract only the JSON object
-        .replace(/\s+/g, ' ')                        // Normalize whitespace
-        .replace(/\\n/g, ' ')                       // Remove newlines
-        .replace(/,(\s*[}\]])/g, '$1');             // Remove trailing commas
-      
-      const result = JSON.parse(cleanedContent);
-      
-      // Validate the structure
-      if (!result.maintenanceRecommendations || !result.shoppingRecommendations || !result.recipeRecommendations) {
-        throw new Error('Invalid response structure');
-      }
-
-      return result;
-    } catch (error) {
-      console.error('Failed to parse kitchen analysis:', error);
-      return getMockAnalysis(equipment, userCookingPreferences);
-    }
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
   } catch (error) {
-    console.error('Error with GROQ API for kitchen analysis:', error);
+    console.error('Error with Gemini API:', error);
     return getMockAnalysis(equipment, userCookingPreferences);
   }
 }
@@ -124,56 +82,19 @@ export async function getMaintenanceTips(
   equipment: KitchenEquipment
 ): Promise<string[]> {
   try {
-    console.log("Calling Groq API for maintenance tips...");
-    const prompt = `You are a JSON API that must return only a JSON array of maintenance tips for this kitchen equipment. No explanation text, no formatting, just the raw JSON array.
+    console.log("Calling Gemini API for maintenance tips...");
+    const prompt = `Provide maintenance tips for this kitchen equipment:
+    ${JSON.stringify(equipment)}
+    
+    Return an array of strings, each containing a specific maintenance tip.
+    The response should be a valid JSON array of strings with no additional text or explanation.`;
 
-Equipment: ${JSON.stringify(equipment)}
-
-RESPOND WITH EXACTLY THIS FORMAT AND NOTHING ELSE (no explanation, no markdown):
-["tip 1", "tip 2", "tip 3"]`;
-
-    const response = await groq.chat.completions.create({
-      messages: [
-        { 
-          role: "system", 
-          content: "You are a strict JSON API that only returns a valid JSON array of strings. No explanations, no markdown, no additional text." 
-        },
-        { role: "user", content: prompt }
-      ],
-      model: "llama-3.3-70b-versatile",
-      temperature: 0.3,
-      max_tokens: 800,
-    });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error('No response from maintenance tips API');
-    }
-
-    try {
-      // Clean the response to ensure valid JSON array
-      const cleanedContent = content
-        .trim()
-        .replace(/```json\n?|\n?```/g, '')           // Remove code blocks
-        .replace(/^[^[]*(\[[\s\S]*\])[^]]*$/, '$1')  // Extract only the JSON array
-        .replace(/\s+/g, ' ')                        // Normalize whitespace
-        .replace(/\\n/g, ' ')                       // Remove newlines
-        .replace(/,(\s*\])/g, ']');                // Remove trailing commas
-
-      const tips = JSON.parse(cleanedContent);
-      
-      if (!Array.isArray(tips)) {
-        throw new Error('Response is not an array');
-      }
-
-      return tips.length > 0 ? tips : generateTasksForEquipment(equipment);
-    } catch (error) {
-      console.error('Failed to parse maintenance tips:', error);
-      return generateTasksForEquipment(equipment);
-    }
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
   } catch (error) {
-    console.error('Error with GROQ API for maintenance tips:', error);
-    return generateTasksForEquipment(equipment);
+    console.error('Error with Gemini API for maintenance tips:', error);
+    return getMockMaintenanceTips(equipment);
   }
 }
 

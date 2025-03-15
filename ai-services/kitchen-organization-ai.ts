@@ -165,6 +165,114 @@ export async function getStorageOptimization(
   return await safeJsonParse(response);
 }
 
+export async function getStorageRecommendations(
+  items: any[],
+  currentStorage: any,
+  space: string
+) {
+  try {
+    const prompt = `You are a JSON API. Analyze these kitchen items and current storage setup to provide organization recommendations.
+    Items: ${JSON.stringify(items)}
+    Current Storage: ${JSON.stringify(currentStorage)}
+    Available Space: ${space}
+    
+    Return EXACTLY this JSON structure with no additional text:
+    {
+      "recommendations": [
+        {
+          "item": "string",
+          "location": "string",
+          "reason": "string",
+          "priority": "high|medium|low"
+        }
+      ],
+      "zoningSuggestions": [
+        {
+          "zone": "string",
+          "purpose": "string",
+          "items": ["string"]
+        }
+      ],
+      "improvements": ["string"]
+    }`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Error getting storage recommendations:', error);
+    throw error;
+  }
+}
+
+export async function getOptimalLayout(
+  space: string,
+  items: any[],
+  workflow: string[]
+) {
+  try {
+    const prompt = `Generate an optimal kitchen layout design based on this information:
+    Space: ${space}
+    Items: ${JSON.stringify(items)}
+    Workflow Steps: ${JSON.stringify(workflow)}
+    
+    Return EXACTLY this JSON structure with no additional text:
+    {
+      "workZones": [
+        {
+          "name": "string",
+          "location": "string",
+          "items": ["string"],
+          "workflowOptimization": "string"
+        }
+      ],
+      "flowOptimization": ["string"],
+      "accessibilityTips": ["string"],
+      "safetyConsiderations": ["string"]
+    }`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Error generating optimal layout:', error);
+    throw error;
+  }
+}
+
+export async function getStorageEfficiency(
+  currentSetup: any,
+  spaceConstraints: any
+) {
+  try {
+    const prompt = `Analyze kitchen storage efficiency:
+    Current Setup: ${JSON.stringify(currentSetup)}
+    Space Constraints: ${JSON.stringify(spaceConstraints)}
+    
+    Return EXACTLY this JSON structure with no additional text:
+    {
+      "efficiencyScore": number,
+      "problemAreas": [
+        {
+          "area": "string",
+          "issue": "string",
+          "solution": "string",
+          "impact": "high|medium|low"
+        }
+      ],
+      "spaceOptimization": ["string"],
+      "organizationalTips": ["string"]
+    }`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Error analyzing storage efficiency:', error);
+    throw error;
+  }
+}
+
 // Helper functions with embedded knowledge
 function getItemType(itemName: string): string {
   // ... existing helper function implementation ...

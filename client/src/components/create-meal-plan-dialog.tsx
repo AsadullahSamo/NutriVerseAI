@@ -42,9 +42,9 @@ export function CreateMealPlanDialog({ open, onOpenChange }: CreateMealPlanDialo
         throw new Error("Please enter a valid number of days");
       }
       
-      // Limit days to prevent AI errors (7 days is optimal)
-      if (daysValue > 14) {
-        throw new Error("For best results, please limit meal plans to 14 days or less");
+      // Enforce strict 7-day limit
+      if (daysValue > 7) {
+        throw new Error("Meal plans cannot exceed 7 days");
       }
 
       // Validate calorie target if provided
@@ -196,14 +196,14 @@ export function CreateMealPlanDialog({ open, onOpenChange }: CreateMealPlanDialo
               id="days"
               type="number"
               min="1"
-              max="14"
+              max="7"
               value={days}
               onChange={(e) => setDays(e.target.value)}
               required
             />
             {parseInt(days) > 7 && (
-              <p className="text-xs text-amber-500 mt-1">
-                Plans longer than 7 days may take more time to generate
+              <p className="text-xs text-red-500 mt-1">
+                Meal plans cannot exceed 7 days
               </p>
             )}
           </div>
