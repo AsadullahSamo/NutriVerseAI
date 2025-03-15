@@ -585,11 +585,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
 
       if (recipeEntries.length === 0) {
-        return res.json({ insights: "Not enough entries to generate insights yet." });
+        return res.json({
+          summary: "Not enough entries to generate insights yet.",
+          patterns: [],
+          recommendations: {
+            title: "Get Started",
+            items: [{
+              focus: "First Entry",
+              suggestion: "Add your first cooking experience to begin tracking your journey."
+            }]
+          }
+        });
       }
 
-      const { insights } = await generateMoodInsights(recipeEntries);
-      res.json({ insights });
+      const insights = await generateMoodInsights(recipeEntries);
+      res.json(insights);
     })
   );
 
