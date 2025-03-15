@@ -15,6 +15,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from 'date-fns';
+import { queryClient } from '@/lib/queryClient';
+
+// Add hashCode function to generate consistent IDs for recommendations
+const hashCode = (str: string): number => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return hash;
+};
 
 const KitchenEquipmentPage: React.FC = () => {
   const [equipment, setEquipment] = useState<KitchenEquipmentType[]>([]);
@@ -30,6 +42,7 @@ const KitchenEquipmentPage: React.FC = () => {
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [analysisDialogOpen, setAnalysisDialogOpen] = useState(false);
   const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
+  const [addingToList, setAddingToList] = useState<number | null>(null);
   
   // Add equipment form states
   const [equipmentDialogOpen, setEquipmentDialogOpen] = useState(false);
@@ -48,6 +61,20 @@ const KitchenEquipmentPage: React.FC = () => {
     { id: 3, name: 'Chef\'s Knife', category: 'Cutlery', condition: 'fair', purchaseDate: '2020-08-15' },
     { id: 4, name: 'Cast Iron Skillet', category: 'Cookware', condition: 'good', lastMaintenanceDate: '2023-03-10', purchaseDate: '2019-12-25' },
   ];
+
+  const enrichEquipmentData = (equipment: KitchenEquipmentType[]) => {
+    return equipment.map(item => ({
+      ...item,
+      userId: 1, // Default user ID
+      maintenanceNotes: null,
+      purchasePrice: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      lastMaintenanceDate: item.lastMaintenanceDate || null,
+      purchaseDate: item.purchaseDate || null,
+      maintenanceInterval: item.maintenanceInterval || null
+    }));
+  };
 
   useEffect(() => {
     async function fetchData() {
@@ -115,11 +142,12 @@ const KitchenEquipmentPage: React.FC = () => {
         recipesResult = { possibleRecipes: JSON.parse(storedRecipes) };
       } else {
         console.log('Fetching fresh AI analysis data');
+        const enrichedEquipment = enrichEquipmentData(equipmentData);
         // Run all AI requests in parallel for better performance
         [recommendationsResult, maintenanceResult, recipesResult] = await Promise.all([
-          getEquipmentRecommendations(equipmentData, ['Italian', 'Healthy Cooking']),
-          generateMaintenanceSchedule(equipmentData, '2023-01-01', '2023-12-31'),
-          getRecipesByEquipment(equipmentData, ['Italian', 'Healthy Cooking']),
+          getEquipmentRecommendations(enrichedEquipment, ['Italian', 'Healthy Cooking']),
+          generateMaintenanceSchedule(enrichedEquipment, '2023-01-01', '2023-12-31'),
+          getRecipesByEquipment(enrichedEquipment, ['Italian', 'Healthy Cooking']),
         ]);
       }
 
@@ -137,7 +165,7 @@ const KitchenEquipmentPage: React.FC = () => {
         // Sort by priority - put items that need maintenance sooner at the beginning
         const sortedMaintenance = [...maintenanceResult].sort((a, b) => {
           // Compare dates - earlier dates first (higher priority)
-          return new Date(a.date).getTime() - new Date(b.date).getTime();
+          return new Date(a.nextMaintenanceDate).getTime() - new Date(b.nextMaintenanceDate).getTime();
         });
         
         // Filter the maintenance schedule to keep only unique equipment names
@@ -145,7 +173,7 @@ const KitchenEquipmentPage: React.FC = () => {
         
         for (const item of sortedMaintenance) {
           // Get the equipment name for this item
-          const equipmentName = equipmentNameMap.get(item.equipmentId) || `Equipment #${item.equipmentId}`;
+          const equipmentName = equipmentNameMap.get(parseInt(item.equipmentId)) || `Equipment #${item.equipmentId}`;
           
           // If we haven't seen this equipment name yet, keep this item
           if (!processedNames.has(equipmentName)) {
@@ -235,17 +263,41 @@ const KitchenEquipmentPage: React.FC = () => {
   };
 
   const handleAddToShoppingList = async (rec: EquipmentRecommendation) => {
+    // Generate a consistent ID based on the recommendation name and category
+    const recId = hashCode(`${rec.name}-${rec.category}`);
+    
     try {
-      await fetch('/api/shopping-list', {
+      setAddingToList(recId);
+      
+      const data = {
+        userId: 1,
+        title: "Kitchen Equipment Shopping",
+        items: [{
+          id: crypto.randomUUID(),
+          name: rec.name,
+          quantity: "1",
+          completed: false,
+          category: "Kitchen Equipment",
+          estimatedPrice: rec.estimatedPrice,
+          priority: rec.priority
+        }],
+        completed: false
+      };
+
+      const response = await fetch('/api/grocery-lists', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ item: rec.name, category: 'Kitchen Equipment', priority: rec.priority }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
       });
+
+      if (!response.ok) throw new Error('Failed to add to shopping list');
+
+      // Immediately invalidate the grocery lists query to refresh the data
+      queryClient.invalidateQueries({ queryKey: ["/api/grocery-lists"] });
+
       setNotification({
         type: 'success',
-        message: `${rec.name} has been added to your shopping list.`
+        message: `${rec.name} has been added to your shopping list. You can find it in the Home > Shopping Lists section.`
       });
     } catch (error) {
       console.error('Error adding to shopping list:', error);
@@ -253,11 +305,13 @@ const KitchenEquipmentPage: React.FC = () => {
         type: 'error',
         message: 'Failed to add item to shopping list. Please try again.'
       });
+    } finally {
+      setAddingToList(null);
     }
   };
 
-  const handleDismissRecommendation = (id: number) => {
-    const updatedRecommendations = recommendations.filter(rec => rec.id !== id);
+  const handleDismissRecommendation = (recommendation: EquipmentRecommendation) => {
+    const updatedRecommendations = recommendations.filter(rec => rec !== recommendation);
     setRecommendations(updatedRecommendations);
     
     // Save updated recommendations to local storage
@@ -265,35 +319,42 @@ const KitchenEquipmentPage: React.FC = () => {
     
     setNotification({
       type: 'success',
-      message: 'Recommendation has been removed from your list.'
+      message: `${recommendation.name} has been removed from your recommendations.`
     });
   };
 
   const handleMarkComplete = async (scheduleItem: MaintenanceSchedule) => {
     try {
       // Update maintenance record
-      const item = equipment.find(e => e.id === scheduleItem.equipmentId);
+      const item = equipment.find(e => e.id === parseInt(scheduleItem.equipmentId));
       if (item) {
-        const updatedItem = { ...item, lastMaintenanceDate: new Date().toISOString() };
+        const now = new Date().toISOString();
+        const updatedItem = { ...item, lastMaintenanceDate: now };
+        
         // Update equipment state with the new maintenance date
-        const updatedEquipment = equipment.map(e => e.id === item.id ? updatedItem : e);
+        const updatedEquipment = equipment.map(e => 
+          e.id === item.id ? updatedItem : e
+        );
         setEquipment(updatedEquipment);
         
         // Save updated equipment to local storage
         localStorage.setItem('kitchen-equipment', JSON.stringify(updatedEquipment));
+
+        // Remove from maintenance schedule
+        const updatedSchedule = maintenanceSchedule.filter(s => 
+          s.equipmentId !== scheduleItem.equipmentId
+        );
+        setMaintenanceSchedule(updatedSchedule);
+        
+        // Save the updated maintenance schedule to local storage
+        localStorage.setItem('kitchen-maintenance-schedule', JSON.stringify(updatedSchedule));
+        
+        // Show success notification with meaningful message
+        setNotification({
+          type: 'success',
+          message: `Maintenance for ${item.name} has been marked as complete and its schedule has been updated.`
+        });
       }
-      
-      // Remove from maintenance schedule
-      const updatedSchedule = maintenanceSchedule.filter(s => s.equipmentId !== scheduleItem.equipmentId);
-      setMaintenanceSchedule(updatedSchedule);
-      
-      // Also save the updated maintenance schedule to local storage
-      localStorage.setItem('kitchen-maintenance-schedule', JSON.stringify(updatedSchedule));
-      
-      setNotification({
-        type: 'success',
-        message: `Maintenance tasks for ${item?.name || 'this item'} have been marked as complete.`
-      });
     } catch (error) {
       console.error('Error marking maintenance complete:', error);
       setNotification({
@@ -460,11 +521,12 @@ const KitchenEquipmentPage: React.FC = () => {
       // This ensures recommendations stay in sync with your inventory
       setAiLoading(true);
       try {
+        const enrichedEquipment = enrichEquipmentData(updatedEquipment);
         // Run AI analysis on the updated equipment set
         const [recResults, maintResults, recipeResults] = await Promise.all([
-          getEquipmentRecommendations(updatedEquipment, ['Italian', 'Healthy Cooking']),
-          generateMaintenanceSchedule(updatedEquipment, '2023-01-01', '2023-12-31'),
-          getRecipesByEquipment(updatedEquipment, ['Italian', 'Healthy Cooking']),
+          getEquipmentRecommendations(enrichedEquipment, ['Italian', 'Healthy Cooking']),
+          generateMaintenanceSchedule(enrichedEquipment, '2023-01-01', '2023-12-31'),
+          getRecipesByEquipment(enrichedEquipment, ['Italian', 'Healthy Cooking']),
         ]);
         
         // Update state and local storage
@@ -566,10 +628,9 @@ const KitchenEquipmentPage: React.FC = () => {
       </div>
       
       <Tabs defaultValue="equipment" className="w-full">
-        <TabsList className="grid grid-cols-4 mb-6">
+        <TabsList className="grid grid-cols-3 mb-6">
           <TabsTrigger value="equipment">Equipment</TabsTrigger>
           <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
-          <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
           <TabsTrigger value="recipes">Recipe Matches</TabsTrigger>
         </TabsList>
 
@@ -628,36 +689,47 @@ const KitchenEquipmentPage: React.FC = () => {
         <TabsContent value="recommendations" className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             {recommendations.length > 0 ? (
-              recommendations.map(rec => (
-                <Card key={rec.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-3">
-                    <div className="flex justify-between items-center">
-                      <CardTitle>{rec.name}</CardTitle>
-                      <Badge className={getPriorityColor(rec.priority)} variant="secondary">{rec.priority} priority</Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <p>{rec.reason}</p>
-                  </CardContent>
-                  <CardFooter className="flex gap-2 border-t">
-                    <Button 
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => handleAddToShoppingList(rec)}
-                    >
-                      Add to Shopping List
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => handleDismissRecommendation(rec.id)}
-                    >
-                      Dismiss
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))
+              recommendations.map(rec => {
+                const recId = hashCode(`${rec.name}-${rec.category}`);
+                return (
+                  <Card key={`${rec.name}-${rec.category}`} className="overflow-hidden hover:shadow-lg transition-shadow">
+                    <CardHeader className="pb-3">
+                      <div className="flex justify-between items-center">
+                        <CardTitle>{rec.name}</CardTitle>
+                        <Badge className={getPriorityColor(rec.priority)} variant="secondary">{rec.priority} priority</Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <p>{rec.reason}</p>
+                    </CardContent>
+                    <CardFooter className="flex gap-2 border-t">
+                      <Button 
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleAddToShoppingList(rec)}
+                        disabled={addingToList === recId}
+                      >
+                        {addingToList === recId ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Adding...
+                          </>
+                        ) : (
+                          'Add to Shopping List'
+                        )}
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleDismissRecommendation(rec)}
+                      >
+                        Dismiss
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                );
+              })
             ) : (
               <div className="col-span-2 flex flex-col items-center justify-center p-8 bg-secondary/10 border border-dashed border-border rounded-md">
                 <AlertTriangle className="h-8 w-8 text-yellow-500 mb-2" />
@@ -667,107 +739,6 @@ const KitchenEquipmentPage: React.FC = () => {
                   onClick={() => handleRunAIAnalysis()}
                 >
                   Get Recommendations
-                </Button>
-              </div>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="maintenance" className="space-y-4">
-          <div className="mb-4 p-4 bg-secondary/10 border border-border rounded-md">
-            <h3 className="text-lg font-semibold mb-2">AI-Powered Maintenance Center</h3>
-            <p className="text-sm text-muted-foreground mb-3">
-              Our AI analyzes your equipment conditions and usage patterns to suggest optimal maintenance schedules.
-            </p>
-            <div className="flex justify-end">
-              <Button 
-                size="sm" 
-                variant="outline" 
-                onClick={() => handleRunAIAnalysis()}
-                disabled={aiLoading}
-                className="flex items-center gap-2"
-              >
-                {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                Refresh Maintenance Recommendations
-              </Button>
-            </div>
-          </div>
-          
-          <div className="grid md:grid-cols-2 gap-4">
-            {maintenanceSchedule.length > 0 ? (
-              maintenanceSchedule.map(schedule => {
-                const item = equipment.find(e => e.id === schedule.equipmentId);
-                // Calculate if maintenance is upcoming (within 7 days)
-                const isUpcoming = new Date(schedule.date).getTime() - new Date().getTime() < 7 * 24 * 60 * 60 * 1000;
-                // Calculate if maintenance is overdue
-                const isOverdue = new Date(schedule.date).getTime() < new Date().getTime();
-                
-                // Use consistent badge styling with other components
-                const statusClassName = isOverdue 
-                  ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-                  : isUpcoming 
-                  ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
-                  : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
-                
-                return (
-                  <Card 
-                    key={schedule.equipmentId} 
-                    className="overflow-hidden hover:shadow-lg transition-shadow"
-                  >
-                    <CardHeader className="pb-3">
-                      <div className="flex justify-between items-center">
-                        <CardTitle>{item?.name || `Equipment #${schedule.equipmentId}`}</CardTitle>
-                        <Badge className={statusClassName} variant="secondary">
-                          {isOverdue ? 'Overdue' : isUpcoming ? 'Upcoming' : 'Scheduled'}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-4">
-                      <p><span className="font-semibold">Scheduled Date:</span> {new Date(schedule.date).toLocaleDateString()}</p>
-                      {item?.lastMaintenanceDate && (
-                        <p><span className="font-semibold">Last Maintained:</span> {new Date(item.lastMaintenanceDate).toLocaleDateString()}</p>
-                      )}
-                      <div className="mt-2">
-                        <p className="font-semibold">Tasks:</p>
-                        <ScrollArea className="h-20 mt-1 bg-secondary/10 rounded border border-border p-2">
-                          <ul className="list-disc pl-5">
-                            {schedule.tasks.map((task, i) => (
-                              <li key={i}>{task}</li>
-                            ))}
-                          </ul>
-                        </ScrollArea>
-                      </div>
-                    </CardContent>
-                    <CardFooter className="flex gap-2 border-t">
-                      <Button 
-                        className="flex-1" 
-                        size="sm"
-                        onClick={() => handleMarkComplete(schedule)}
-                        variant={isOverdue ? "destructive" : "outline"}
-                      >
-                        Mark Complete
-                      </Button>
-                      <Button 
-                        className="flex-1"
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => handleUpdateStatus(item || { id: schedule.equipmentId, name: `Equipment #${schedule.equipmentId}`, category: 'Unknown', condition: 'unknown' })}
-                      >
-                        Get Tips
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                );
-              })
-            ) : (
-              <div className="col-span-2 flex flex-col items-center justify-center p-8 bg-secondary/10 border border-dashed border-border rounded-md">
-                <AlertTriangle className="h-8 w-8 text-yellow-500 mb-2" />
-                <p className="text-center mb-2 text-muted-foreground">No maintenance schedules yet.</p>
-                <Button 
-                  size="sm" 
-                  onClick={() => handleRunAIAnalysis()}
-                >
-                  Generate Maintenance Schedule
                 </Button>
               </div>
             )}

@@ -201,13 +201,32 @@ function generateMaintenanceScheduleLogic(
     processedIds.add(item.id);
     
     // Generate the schedule for this equipment
-    const date = generateDateBasedOnCondition(item, startDate, endDate);
+    const nextMaintenanceDate = generateDateBasedOnCondition(item, startDate, endDate);
     const tasks = generateTasksForEquipment(item);
     
+    // Determine priority based on condition
+    let priority: 'high' | 'medium' | 'low';
+    switch(item.condition) {
+      case 'needs-maintenance':
+      case 'replace':
+        priority = 'high';
+        break;
+      case 'fair':
+        priority = 'medium';
+        break;
+      default:
+        priority = 'low';
+    }
+    
+    // Calculate estimated duration based on number of tasks
+    const estimatedDuration = `${Math.max(30, tasks.length * 15)} minutes`;
+    
     schedules.push({
-      equipmentId: item.id,
-      date,
-      tasks
+      equipmentId: item.id.toString(), // Convert to string as required by type
+      nextMaintenanceDate,
+      tasks,
+      estimatedDuration,
+      priority
     });
   });
   
