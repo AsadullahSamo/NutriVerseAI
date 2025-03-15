@@ -220,9 +220,6 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
   const [isEditingCulturalDetails, setIsEditingCulturalDetails] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
-  const [aiInsights, setAiInsights] = useState<CulturalInsights | null>(null);
-  const [isLoadingAI, setIsLoadingAI] = useState(false);
-  const [isAddingTechnique, setIsAddingTechnique] = useState(false);
   const [isGeneratingDetails, setIsGeneratingDetails] = useState(false);
 
   const { data: cuisine, isLoading, error, refetch } = useQuery({
@@ -341,49 +338,6 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
     }
   };
 
-  const fetchAIInsights = async () => {
-    if (!cuisine || aiInsights) return;
-    setIsLoadingAI(true);
-    try {
-      const insights = await analyzeCulturalCuisine(cuisine);
-      setAiInsights(insights);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to load AI insights. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoadingAI(false);
-    }
-  };
-
-  const handleDeleteSelectedRecipe = async (recipeId: number) => {
-    try {
-      const response = await fetch(`/api/cultural-recipes/${recipeId}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete recipe');
-      }
-
-      toast({
-        title: "Recipe Deleted",
-        description: "The recipe has been deleted successfully.",
-      });
-
-      refetch();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete recipe. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleGenerateCulturalDetails = async () => {
     setIsGeneratingDetails(true);
     try {
@@ -482,51 +436,30 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
     }
   };
 
-  const handleAddTechnique = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setIsSubmitting(true);
-
+  const handleDeleteSelectedRecipe = async (recipeId: number) => {
     try {
-      const formData = new FormData(event.currentTarget);
-      const newTechnique = {
-        name: formData.get('name'),
-        description: formData.get('description'),
-        difficulty: formData.get('difficulty') || 'beginner',
-        cuisineId,
-        steps: [],
-        tips: [],
-        commonUses: {},
-        videoUrl: formData.get('videoUrl') || null
-      };
-
-      const response = await fetch('/api/cultural-techniques', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newTechnique),
+      const response = await fetch(`/api/cultural-recipes/${recipeId}`, {
+        method: 'DELETE',
         credentials: 'include'
       });
 
       if (!response.ok) {
-        throw new Error('Failed to add technique');
+        throw new Error('Failed to delete recipe');
       }
 
       toast({
-        title: "Technique Added",
-        description: "The technique has been added successfully.",
+        title: "Recipe Deleted",
+        description: "The recipe has been deleted successfully.",
       });
 
+      // Refetch cuisine details to update the recipes list
       refetch();
-      setIsAddingTechnique(false);
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to add technique. Please try again.",
+        description: "Failed to delete recipe. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -649,7 +582,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
 
           <div className="space-y-8">
             <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="grid grid-cols-3 mb-8">
+              <TabsList className="grid grid-cols-2 mb-8">
                 <TabsTrigger value="overview">
                   <Globe2 className="h-4 w-4 mr-2 hidden sm:inline" /> 
                   Overview
@@ -657,10 +590,6 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                 <TabsTrigger value="recipes">
                   <UtensilsCrossed className="h-4 w-4 mr-2 hidden sm:inline" /> 
                   Recipes
-                </TabsTrigger>
-                <TabsTrigger value="techniques">
-                  <ChefHat className="h-4 w-4 mr-2 hidden sm:inline" /> 
-                  Techniques
                 </TabsTrigger>
               </TabsList>
 
@@ -871,100 +800,6 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                     </CardContent>
                   </Card>
                 </div>
-
-                <Card className="col-span-full">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Brain className="h-5 w-5 text-primary" />
-                        <CardTitle>AI Cultural Insights</CardTitle>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={fetchAIInsights}
-                        disabled={isLoadingAI || !!aiInsights}
-                      >
-                        {isLoadingAI ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Analyzing...
-                          </>
-                        ) : aiInsights ? (
-                          "Analysis Complete"
-                        ) : (
-                          <>
-                            <Brain className="mr-2 h-4 w-4" />
-                            Analyze Culture
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    {aiInsights ? (
-                      <div className="space-y-6">
-                        <div>
-                          <h3 className="font-medium mb-2">Historical Context</h3>
-                          <p className="text-muted-foreground">{aiInsights.historicalContext}</p>
-                        </div>
-
-                        <div>
-                          <h3 className="font-medium mb-2">Cultural Significance</h3>
-                          <ul className="list-disc pl-4 space-y-1">
-                            {aiInsights.culturalSignificance?.map((item: string, i: number) => (
-                              <li key={i} className="text-muted-foreground">{item}</li>
-                            )) || <li className="text-muted-foreground">No cultural significance information available</li>}
-                          </ul>
-                        </div>
-
-                        <div>
-                          <h3 className="font-medium mb-2">Traditional Occasions</h3>
-                          <ul className="list-disc pl-4 space-y-1">
-                            {aiInsights.traditionalOccasions?.map((occasion: string, i: number) => (
-                              <li key={i} className="text-muted-foreground">{occasion}</li>
-                            )) || <li className="text-muted-foreground">No traditional occasions information available</li>}
-                          </ul>
-                        </div>
-
-                        <div>
-                          <h3 className="font-medium mb-2">Modern Adaptations</h3>
-                          <ul className="list-disc pl-4 space-y-1">
-                            {aiInsights.modernAdaptations?.map((adaptation: string, i: number) => (
-                              <li key={i} className="text-muted-foreground">{adaptation}</li>
-                            )) || <li className="text-muted-foreground">No modern adaptations information available</li>}
-                          </ul>
-                        </div>
-
-                        <div>
-                          <h3 className="font-medium mb-2">Regional Variations</h3>
-                          <div className="grid gap-4 md:grid-cols-2">
-                            {aiInsights.regionalVariations?.map((variation: { region: string; description: string; uniqueIngredients: string[] }, i: number) => (
-                              <Card key={i} className="bg-muted/50">
-                                <CardHeader>
-                                  <CardTitle className="text-base">{variation.region}</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                  <p className="text-sm text-muted-foreground mb-2">{variation.description}</p>
-                                  <div className="flex flex-wrap gap-1">
-                                    {variation.uniqueIngredients?.map((ingredient: string, j: number) => (
-                                      <Badge key={j} variant="outline">{ingredient}</Badge>
-                                    ))}
-                                  </div>
-                                </CardContent>
-                              </Card>
-                            )) || <p className="text-muted-foreground col-span-2">No regional variations information available</p>}
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <Brain className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>Click "Analyze Culture" to get AI-powered insights about {cuisine?.name} cuisine.</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
               </TabsContent>
 
               <TabsContent value="recipes" className="space-y-6">
@@ -1118,95 +953,6 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                       </CardHeader>
                       <CardContent>
                         <p className="text-muted-foreground">{recipe.description}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="techniques" className="space-y-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-2xl font-bold">Traditional Techniques</h2>
-                  <Dialog open={isAddingTechnique} onOpenChange={setIsAddingTechnique}>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <PlusCircle className="h-4 w-4 mr-2" />
-                        Add Technique
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-h-[90vh]">
-                      <ScrollArea className="max-h-[80vh] pr-4">
-                        <DialogHeader>
-                          <DialogTitle>Add New Technique</DialogTitle>
-                        </DialogHeader>
-                        <form onSubmit={handleAddTechnique} className="space-y-6 py-4">
-                          <div className="space-y-4">
-                            <div className="space-y-2">
-                              <label className="text-sm font-medium">Name</label>
-                              <Input name="name" placeholder="Technique name" required />
-                            </div>
-                            <div className="space-y-2">
-                              <label className="text-sm font-medium">Description</label>
-                              <Textarea name="description" placeholder="Technique description" required />
-                            </div>
-                            <div className="space-y-2">
-                              <label className="text-sm font-medium">Difficulty</label>
-                              <Select name="difficulty" defaultValue="beginner">
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select difficulty" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="beginner">Beginner</SelectItem>
-                                  <SelectItem value="intermediate">Intermediate</SelectItem>
-                                  <SelectItem value="advanced">Advanced</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="space-y-2">
-                              <label className="text-sm font-medium">Video URL (optional)</label>
-                              <Input name="videoUrl" placeholder="https://example.com/technique-video" />
-                            </div>
-                          </div>
-                          <Button type="submit" className="w-full" disabled={isSubmitting}>
-                            {isSubmitting ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Adding Technique...
-                              </>
-                            ) : (
-                              'Add Technique'
-                            )}
-                          </Button>
-                        </form>
-                      </ScrollArea>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {cuisine.techniques?.map((technique: CulturalTechnique) => (
-                    <Card key={technique.id}>
-                      <CardHeader>
-                        <CardTitle>{technique.name}</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="mb-4">{technique.description}</p>
-                        <Badge variant={
-                          technique.difficulty === 'beginner' ? 'default' :
-                          technique.difficulty === 'intermediate' ? 'secondary' : 'destructive'
-                        }>
-                          {technique.difficulty}
-                        </Badge>
-                        {technique.videoUrl && (
-                          <a 
-                            href={technique.videoUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-2 text-primary hover:underline mt-2"
-                          >
-                            <Play className="h-4 w-4" />
-                            Watch Technique Video
-                          </a>
-                        )}
                       </CardContent>
                     </Card>
                   ))}
