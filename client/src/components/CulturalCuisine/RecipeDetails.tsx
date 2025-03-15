@@ -90,7 +90,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
     setLoading(true);
     try {
       console.log('Fetching substitutions for:', recipe.name);
-      const data = await getSubstitutions(recipe, cuisine);
+      const data = await getSubstitutions(recipe, [], cuisine.region);
       console.log('Substitutions response:', data);
       
       if (data && data.substitutions) {
@@ -177,11 +177,16 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
     setIsAnalyzing(true);
     try {
       console.log('Analyzing authenticity for:', recipe.name);
-      const analysis = await getRecipeAuthenticityScore(recipe, cuisine);
+      // Convert ingredient substitutions to array format expected by getRecipeAuthenticityScore
+      const substitutionsArray = substitutions.map(s => ({
+        original: s.original,
+        substitute: s.substitute,
+        flavorImpact: s.flavorImpact
+      }));
+      const analysis = await getRecipeAuthenticityScore(recipe, substitutionsArray);
       console.log('Authenticity analysis response:', analysis);
       
       setAuthenticityAnalysis(analysis);
-      // Update the authenticity score state when analysis is complete
       setAuthenticityScore({
         score: analysis.authenticityScore,
         feedback: analysis.suggestions || []
