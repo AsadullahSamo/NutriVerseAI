@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { Button } from "./ui/button";
-import { Card } from "./ui/card";
+import { Card, CardHeader, CardTitle, CardContent } from "./ui/card";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import { Separator } from "./ui/separator";
 import { getRecipeRecommendations, analyzeNutritionalValue } from "../../../ai-services/recipe-ai";
 import { useToast } from "../hooks/use-toast";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles, Plus, X, ChefHat, UtensilsCrossed, ShoppingBasket, ListOrdered, Apple } from "lucide-react";
 
 // Add delay helper
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -80,8 +80,13 @@ export function RecipeRecommendations() {
   };
 
   return (
-    <div className="p-4 space-y-4">
-      <h2 className="text-2xl font-bold">AI Recipe Recommendations</h2>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold flex items-center gap-2">
+          <Sparkles className="h-6 w-6 text-primary" />
+          AI Recipe Recommendations
+        </h2>
+      </div>
       
       {error && (
         <Alert variant="destructive" className="mb-4">
@@ -90,66 +95,105 @@ export function RecipeRecommendations() {
         </Alert>
       )}
 
-      <div className="flex gap-2">
-        <Input
-          value={currentIngredient}
-          onChange={(e) => setCurrentIngredient(e.target.value)}
-          placeholder="Enter an ingredient"
-          onKeyDown={(e) => e.key === "Enter" && addIngredient()}
-          disabled={isLoading}
-        />
-        <Button onClick={addIngredient} disabled={isLoading}>Add</Button>
-      </div>
+      <Card className="p-6">
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            <Input
+              value={currentIngredient}
+              onChange={(e) => setCurrentIngredient(e.target.value)}
+              placeholder="Enter an ingredient"
+              onKeyDown={(e) => e.key === "Enter" && addIngredient()}
+              disabled={isLoading}
+              className="flex-1"
+            />
+            <Button onClick={addIngredient} disabled={isLoading} variant="secondary">
+              <Plus className="h-4 w-4 mr-2" />
+              Add
+            </Button>
+          </div>
 
-      <div className="flex flex-wrap gap-2">
-        {ingredients.map((ingredient, index) => (
-          <Badge
-            key={index}
-            variant="secondary"
-            className="cursor-pointer"
-            onClick={() => removeIngredient(index)}
+          <div className="flex flex-wrap gap-2">
+            {ingredients.map((ingredient, index) => (
+              <Badge
+                key={index}
+                variant="secondary"
+                className="cursor-pointer hover:bg-secondary/80 transition-colors px-3 py-1"
+                onClick={() => removeIngredient(index)}
+              >
+                {ingredient}
+                <X className="h-3 w-3 ml-1" />
+              </Badge>
+            ))}
+          </div>
+
+          <Button 
+            onClick={getRecommendations} 
+            disabled={isLoading || ingredients.length === 0}
+            className="w-full relative bg-primary hover:bg-primary/90"
           >
-            {ingredient} ×
-          </Badge>
-        ))}
-      </div>
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Generating Recipes...
+              </>
+            ) : (
+              <>
+                <ChefHat className="mr-2 h-4 w-4" />
+                Get Recipe Recommendations
+              </>
+            )}
+          </Button>
+        </div>
+      </Card>
 
-      <Button 
-        onClick={getRecommendations} 
-        disabled={isLoading || ingredients.length === 0}
-        className="w-full relative"
-      >
-        {isLoading ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Generating Recipes...
-          </>
-        ) : (
-          "Get Recipe Recommendations"
-        )}
-      </Button>
-
-      <div className="grid gap-4 mt-4">
+      <div className="grid md:grid-cols-2 gap-6">
         {recommendations.map((recipe, index) => (
-          <Card key={index} className="p-4">
-            <h3 className="text-xl font-semibold mb-2">{recipe.title}</h3>
-            <Separator className="my-2" />
-            <div className="space-y-2">
-              <h4 className="font-medium">Ingredients:</h4>
-              <ul className="list-disc pl-4">
-                {recipe.ingredients?.map((ing: string, i: number) => (
-                  <li key={i}>{ing}</li>
-                )) ?? <li>No ingredients listed</li>}
-              </ul>
-              <h4 className="font-medium">Instructions:</h4>
-              <ol className="list-decimal pl-4">
-                {recipe.instructions?.map((step: string, i: number) => (
-                  <li key={i}>{step}</li>
-                )) ?? <li>No instructions provided</li>}
-              </ol>
-              <h4 className="font-medium">Nutritional Value:</h4>
-              <p>{recipe.nutritionalValue || 'Nutritional information not available'}</p>
-            </div>
+          <Card key={index} className="overflow-hidden hover:shadow-lg transition-shadow">
+            <CardHeader className="border-b bg-muted/30 pb-4">
+              <CardTitle className="flex items-center gap-2">
+                <UtensilsCrossed className="h-5 w-5 text-primary" />
+                {recipe.title}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div>
+                <h4 className="font-medium mb-2 flex items-center gap-2">
+                  <ShoppingBasket className="h-4 w-4 text-muted-foreground" />
+                  Ingredients
+                </h4>
+                <ul className="list-disc pl-4 space-y-1">
+                  {recipe.ingredients?.map((ing: string, i: number) => (
+                    <li key={i} className="text-muted-foreground">{ing}</li>
+                  )) ?? <li>No ingredients listed</li>}
+                </ul>
+              </div>
+
+              <Separator />
+
+              <div>
+                <h4 className="font-medium mb-2 flex items-center gap-2">
+                  <ListOrdered className="h-4 w-4 text-muted-foreground" />
+                  Instructions
+                </h4>
+                <ol className="list-decimal pl-4 space-y-2">
+                  {recipe.instructions?.map((step: string, i: number) => (
+                    <li key={i} className="text-muted-foreground leading-relaxed">{step}</li>
+                  )) ?? <li>No instructions provided</li>}
+                </ol>
+              </div>
+
+              <Separator />
+
+              <div>
+                <h4 className="font-medium mb-2 flex items-center gap-2">
+                  <Apple className="h-4 w-4 text-muted-foreground" />
+                  Nutrition Information
+                </h4>
+                <Badge variant="secondary" className="font-mono">
+                  {recipe.nutritionalValue || 'Nutritional information not available'}
+                </Badge>
+              </div>
+            </CardContent>
           </Card>
         ))}
       </div>

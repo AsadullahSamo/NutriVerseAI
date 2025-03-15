@@ -174,12 +174,105 @@ Return a JSON object with 'sentiment' (positive/negative/neutral) and 'emotions'
 export async function generateMoodInsights(entries: Array<{ entry: string; timestamp: string }>) {
   const entriesText = entries.map(e => `${e.timestamp}: ${e.entry}`).join('\n');
   
-  const prompt = `Analyze these cooking experience entries and provide insights about mood patterns, focusing on cooking-related patterns, skill development, and emotional growth in the kitchen:
+  const prompt = `Analyze these cooking experience entries and provide detailed insights about mood patterns, focusing on cooking-related patterns, skill development, and emotional growth in the kitchen. 
+  
+Ensure your response is in this EXACT JSON format without any additional text:
+{
+  "summary": "A concise overview paragraph highlighting the key patterns and insights found in the cooking experiences.",
+  "patterns": [
+    {
+      "category": "Skills",
+      "title": "Cooking Skill Development",
+      "insights": [
+        {
+          "type": "highlight",
+          "content": "Key improvements or achievements in cooking abilities"
+        },
+        {
+          "type": "observation",
+          "content": "Patterns in technique application or learning"
+        },
+        {
+          "type": "tip",
+          "content": "Suggestion for further skill development"
+        }
+      ]
+    },
+    {
+      "category": "Emotions",
+      "title": "Emotional Journey",
+      "insights": [
+        {
+          "type": "highlight",
+          "content": "Notable emotional experiences or breakthroughs"
+        },
+        {
+          "type": "observation",
+          "content": "Recurring emotional patterns during cooking"
+        },
+        {
+          "type": "tip",
+          "content": "Ways to enhance positive emotional experiences"
+        }
+      ]
+    },
+    {
+      "category": "Growth",
+      "title": "Overall Progress",
+      "insights": [
+        {
+          "type": "highlight",
+          "content": "Major milestones or transformations"
+        },
+        {
+          "type": "observation",
+          "content": "General growth patterns"
+        },
+        {
+          "type": "tip",
+          "content": "Next steps for continued development"
+        }
+      ]
+    }
+  ],
+  "recommendations": {
+    "title": "Personalized Growth Recommendations",
+    "items": [
+      {
+        "focus": "Next Challenge",
+        "suggestion": "Specific suggestion for next cooking goal"
+      },
+      {
+        "focus": "Skill Focus",
+        "suggestion": "Area of cooking skill to concentrate on"
+      },
+      {
+        "focus": "Emotional Growth",
+        "suggestion": "Way to enhance enjoyment and confidence"
+      }
+    ]
+  }
+}
+
+Entries to analyze:
 ${entriesText}`;
 
   const result = await model.generateContent(prompt);
-  const insights = await result.response.text();
-  return { insights };
+  const response = await result.response.text();
+  const parsedData = await safeJsonParse(response);
+
+  // Ensure the response has the correct structure
+  return {
+    summary: parsedData.summary || "No insights available yet.",
+    patterns: parsedData.patterns || [],
+    recommendations: parsedData.recommendations || {
+      title: "Getting Started",
+      items: [{
+        focus: "Begin Your Journey",
+        suggestion: "Start by recording your cooking experiences regularly."
+      }]
+    }
+  };
 }
 
 export async function getNutritionRecommendations(

@@ -5,13 +5,15 @@ import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { SmilePlus, ChartLine, Sparkles, Loader2, Trash2 } from "lucide-react";
+import { SmilePlus, ChartLine, Sparkles, Loader2, Trash2, AlertTriangle, BookOpen, GraduationCap, Heart, TrendingUp, Circle, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -26,6 +28,31 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MoodEntry } from "@shared/schema";
+
+interface Insight {
+  type: 'highlight' | 'observation' | 'tip';
+  content: string;
+}
+
+interface Pattern {
+  category: 'Skills' | 'Emotions' | 'Growth';
+  title: string;
+  insights: Insight[];
+}
+
+interface Recommendation {
+  focus: string;
+  suggestion: string;
+}
+
+interface MoodInsights {
+  summary: string;
+  patterns: Pattern[];
+  recommendations: {
+    title: string;
+    items: Recommendation[];
+  };
+}
 
 interface MoodTrackerProps {
   recipeId: number;
@@ -90,113 +117,274 @@ export function MoodTracker({ recipeId }: MoodTrackerProps) {
     queryKey: ["moodInsights", recipeId],
     queryFn: async () => {
       const res = await apiRequest("GET", `/api/mood-journal/${recipeId}/insights`);
-      return res.json() as Promise<{ insights: string }>;
+      if (!res.ok) {
+        throw new Error("Failed to load insights");
+      }
+      return res.json() as Promise<MoodInsights>;
     },
-    enabled: showInsights,
+    staleTime: 30000, // Cache for 30 seconds
+    retry: 1, // Only retry once to avoid too many requests
   });
 
+  // Handle showing insights with error handling
+  const handleShowInsights = () => {
+    if (!moodEntriesQuery.data?.length) {
+      toast({
+        title: "No entries",
+        description: "Add some cooking experiences first to view insights.",
+        variant: "default"
+      });
+      return;
+    }
+    insightsQuery.refetch();
+    setShowInsights(true);
+  };
+
+  const getBadgeColorsByType = (type: string) => {
+    switch (type) {
+      case 'highlight':
+        return 'bg-primary/10 text-primary border-primary/20';
+      case 'observation':
+        return 'bg-blue-500/10 text-blue-600 border-blue-200';
+      case 'tip':
+        return 'bg-green-500/10 text-green-600 border-green-200';
+      default:
+        return 'bg-gray-500/10 text-gray-600 border-gray-200';
+    }
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">How did cooking make you feel?</h3>
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <SmilePlus className="h-5 w-5 text-primary" />
+          Cooking Experience Journal
+        </h3>
         {(moodEntriesQuery.data ?? []).length > 0 && (
-          <Button variant="outline" size="sm" onClick={() => setShowInsights(true)}>
-            <ChartLine className="h-4 w-4 mr-2" />
+          <Button variant="outline" size="sm" onClick={handleShowInsights} className="hover:bg-primary/10">
+            <ChartLine className="h-4 w-4 mr-2 text-primary" />
             View Insights
           </Button>
         )}
       </div>
 
-      <Card className="p-4">
-        <Textarea
-          placeholder="Share your cooking experience..."
-          value={entry}
-          onChange={(e) => setEntry(e.target.value)}
-          className="min-h-[100px] mb-4"
-        />
-        <Button
-          onClick={() => moodMutation.mutate()}
-          disabled={!entry.trim() || moodMutation.isPending}
-        >
-          <SmilePlus className="h-4 w-4 mr-2" />
-          Track Mood
-        </Button>
+      <Card className="overflow-hidden">
+        <CardHeader className="bg-muted/30 pb-4">
+          <CardTitle className="text-sm text-muted-foreground">How did cooking make you feel?</CardTitle>
+        </CardHeader>
+        <CardContent className="p-6 space-y-4">
+          <Textarea
+            placeholder="Share your cooking experience, emotions, and any challenges or triumphs..."
+            value={entry}
+            onChange={(e) => setEntry(e.target.value)}
+            className="min-h-[120px] resize-none"
+          />
+          <div className="flex justify-end">
+            <Button
+              onClick={() => moodMutation.mutate()}
+              disabled={!entry.trim() || moodMutation.isPending}
+              className="bg-primary hover:bg-primary/90"
+            >
+              {moodMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Analyzing...
+                </>
+              ) : (
+                <>
+                  <SmilePlus className="h-4 w-4 mr-2" />
+                  Track Mood
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
       </Card>
 
-      {(moodEntriesQuery.data ?? []).map((moodEntry, index) => (
-        <Card key={index} className="p-4">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <p className="text-sm text-muted-foreground mb-2">
-                {new Date(moodEntry.timestamp).toLocaleDateString()}
-              </p>
-              <p className="mb-2">{moodEntry.entry}</p>
+      <div className="grid gap-4">
+        {(moodEntriesQuery.data ?? []).map((moodEntry, index) => (
+          <Card key={index} className="overflow-hidden hover:shadow-md transition-shadow">
+            <CardHeader className="bg-muted/30 pb-3">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  {new Date(moodEntry.timestamp).toLocaleDateString(undefined, {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                  })}
+                </p>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Entry</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete this cooking experience entry? This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => deleteMoodEntryMutation.mutate(moodEntry.timestamp)}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              <p className="mb-4 leading-relaxed text-muted-foreground">{moodEntry.entry}</p>
               {moodEntry.emotions && Array.isArray(moodEntry.emotions) && moodEntry.emotions.length > 0 && (
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {moodEntry.emotions.map((emotion, i) => (
-                    <span
+                    <Badge
                       key={i}
-                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary"
+                      variant="secondary"
+                      className="bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                     >
                       {emotion}
-                    </span>
+                    </Badge>
                   ))}
                 </div>
               )}
-            </div>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete Entry</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to delete this cooking experience entry? This action cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => deleteMoodEntryMutation.mutate(moodEntry.timestamp)}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        </Card>
-      ))}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
       <Dialog open={showInsights} onOpenChange={setShowInsights}>
-        <DialogContent className="max-w-2xl max-h-[80vh]">
-          <DialogHeader className="pb-4">
-            <DialogTitle className="flex items-center text-xl">
-              <Sparkles className="h-5 w-5 mr-2 text-primary" />
-              Mood Insights
+        <DialogContent className="max-w-2xl h-[80vh]">
+          <DialogHeader className="border-b pb-4">
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Mood Insights & Patterns
             </DialogTitle>
           </DialogHeader>
           
-          <Card>
-            <CardContent className="p-6">
+          <ScrollArea className="flex-1 h-[calc(80vh-8rem)]">
+            <div className="px-1 py-4 space-y-6">
               {insightsQuery.isLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                  <span className="ml-2 text-sm">Analyzing your mood patterns...</span>
-                </div>
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                      <span className="ml-2 text-muted-foreground">Analyzing your mood patterns...</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : insightsQuery.error ? (
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="text-center space-y-4">
+                      <AlertTriangle className="h-8 w-8 text-destructive mx-auto" />
+                      <p className="text-muted-foreground">Failed to load insights. Please try again.</p>
+                      <Button onClick={() => insightsQuery.refetch()} variant="outline" size="sm">
+                        Retry
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               ) : (
-                <ScrollArea className="h-[400px] pr-4">
-                  <div className="text-foreground leading-relaxed space-y-4 whitespace-pre-wrap">
-                    {insightsQuery.data?.insights}
+                <>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <BookOpen className="h-4 w-4 text-primary" />
+                        Overview
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      <p className="text-lg font-medium tracking-tight text-muted-foreground">
+                        {insightsQuery.data?.summary}
+                      </p>
+                    </CardContent>
+                  </Card>
+
+                  <div className="grid gap-4">
+                    {insightsQuery.data?.patterns?.map((pattern, index) => (
+                      <Card key={index}>
+                        <CardHeader>
+                          <CardTitle className="text-base flex items-center gap-2">
+                            {pattern.category === 'Skills' && <GraduationCap className="h-4 w-4 text-primary" />}
+                            {pattern.category === 'Emotions' && <Heart className="h-4 w-4 text-primary" />}
+                            {pattern.category === 'Growth' && <TrendingUp className="h-4 w-4 text-primary" />}
+                            {pattern.title}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-6">
+                          <div className="space-y-3">
+                            {pattern.insights.map((insight, i) => (
+                              <div key={i} className="flex items-start gap-3">
+                                <Badge className={getBadgeColorsByType(insight.type)} variant="secondary">
+                                  {insight.type.charAt(0).toUpperCase() + insight.type.slice(1)}
+                                </Badge>
+                                <p className="text-muted-foreground flex-1">{insight.content}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
-                </ScrollArea>
+
+                  {insightsQuery.data?.recommendations && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Sparkles className="h-4 w-4 text-primary" />
+                          {insightsQuery.data.recommendations.title}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-6">
+                        <div className="grid gap-4">
+                          {insightsQuery.data.recommendations.items.map((item, index) => (
+                            <div key={index} className="space-y-1.5">
+                              <h4 className="font-medium text-sm">{item.focus}</h4>
+                              <p className="text-sm text-muted-foreground">{item.suggestion}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </ScrollArea>
+
+          <DialogFooter className="border-t pt-4">
+            <Button 
+              variant="outline" 
+              onClick={() => setShowInsights(false)}
+            >
+              Close
+            </Button>
+            <Button
+              variant="default"
+              onClick={() => insightsQuery.refetch()}
+              disabled={insightsQuery.isFetching}
+            >
+              {insightsQuery.isFetching ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Refreshing...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh Insights
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
