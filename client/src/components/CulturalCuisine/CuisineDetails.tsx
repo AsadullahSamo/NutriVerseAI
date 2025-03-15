@@ -779,23 +779,83 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                     <CardContent className="space-y-6">
                       {cuisine.servingEtiquette && typeof cuisine.servingEtiquette === 'object' && Object.keys(cuisine.servingEtiquette).length > 0 ? (
                         <div className="grid gap-6">
-                          {Object.entries(cuisine.servingEtiquette).map(([key, value]: [string, unknown], i: number) => {
+                          {Object.entries(cuisine.servingEtiquette).map(([key, value]) => {
+                            if (!value) return null;
                             const k = key.toLowerCase();
-                            const { icon, content } = getEtiquetteDisplay(k, value);
-                            const sectionStyle = k.includes('table') ? 'border-l-emerald-500 bg-emerald-50/30 dark:bg-emerald-950/30' :
-                                                k.includes('custom') ? 'border-l-purple-500 bg-purple-50/30 dark:bg-purple-950/30' :
-                                                k.includes('order') ? 'border-l-blue-500 bg-blue-50/30 dark:bg-blue-950/30' :
-                                                k.includes('taboo') ? 'border-l-red-500 bg-red-50/30 dark:bg-red-950/30' :
-                                                'border-l-amber-500 bg-amber-50/30 dark:bg-amber-950/30';
+                            
+                            // Determine if this is a general descriptive section
+                            const isGeneralSection = !k.includes('table') && !k.includes('order') && !k.includes('taboo') && !k.includes('dining');
 
                             return (
-                              <div key={i} className={`p-6 rounded-lg border-l-4 ${sectionStyle} transition-all duration-200 hover:shadow-md`}>
-                                <div className="flex items-center space-x-3 mb-4">
-                                  {icon}
-                                  <h3 className="text-lg font-semibold capitalize text-foreground">{formatHeading(key)}</h3>
-                                </div>
-                                <div className="prose prose-sm dark:prose-invert max-w-none">
-                                  {content}
+                              <div key={k} className={`p-4 border-l-4 rounded-lg ${
+                                k.includes('table') ? 'border-l-emerald-500 bg-emerald-50/30 dark:bg-emerald-950/30' :
+                                k.includes('dining') ? 'border-l-purple-500 bg-purple-50/30 dark:bg-purple-950/30' :
+                                k.includes('order') ? 'border-l-blue-500 bg-blue-50/30 dark:bg-blue-950/30' :
+                                k.includes('taboo') ? 'border-l-red-500 bg-red-50/30 dark:bg-red-950/30' :
+                                'border-l-gray-500 bg-gray-50/30 dark:bg-gray-950/30'
+                              }`}>
+                                <h4 className="font-medium mb-2">{
+                                  k.includes('table') ? 'Table Setting' :
+                                  k.includes('dining') ? 'Dining Customs' :
+                                  k.includes('order') ? 'Serving Order' :
+                                  k.includes('taboo') ? 'Cultural Taboos' :
+                                  key.replace(/([A-Z])/g, ' $1').trim()
+                                }</h4>
+                                <div className="space-y-2">
+                                  {isGeneralSection ? (
+                                    // General descriptive text without bullet points
+                                    <p className="text-sm text-muted-foreground">
+                                      {typeof value === 'string' ? value : Array.isArray(value) ? value.join(' ') : String(value)}
+                                    </p>
+                                  ) : (
+                                    // Specific sections with icons or numbers
+                                    <div className="space-y-3">
+                                      {(Array.isArray(value) ? value : 
+                                        typeof value === 'string' ? value.split(/\n|•/).filter(item => item.trim()) : 
+                                        [String(value)]
+                                      ).map((item, i) => {
+                                        // Serving order section with numbered circles
+                                        if (k.includes('order')) {
+                                          return (
+                                            <div key={i} className="flex items-start gap-3">
+                                              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
+                                                <span className="text-sm font-medium text-blue-600 dark:text-blue-400">{i + 1}</span>
+                                              </div>
+                                              <span className="text-sm text-muted-foreground mt-0.5">{item}</span>
+                                            </div>
+                                          );
+                                        }
+                                        
+                                        // Table setting section with utensil icons
+                                        if (k.includes('table')) {
+                                          return (
+                                            <div key={i} className="flex items-start gap-3">
+                                              <UtensilsCrossed className="h-4 w-4 flex-shrink-0 mt-1 text-emerald-600" />
+                                              <span className="text-sm text-muted-foreground">{item}</span>
+                                            </div>
+                                          );
+                                        }
+
+                                        // Taboos section with warning icons
+                                        if (k.includes('taboo')) {
+                                          return (
+                                            <div key={i} className="flex items-start gap-3">
+                                              <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-1 text-red-600" />
+                                              <span className="text-sm text-muted-foreground">{item}</span>
+                                            </div>
+                                          );
+                                        }
+
+                                        // Dining customs with custom bullet points
+                                        return (
+                                          <div key={i} className="flex items-start gap-3">
+                                            <Info className="h-4 w-4 flex-shrink-0 mt-1 text-purple-600" />
+                                            <span className="text-sm text-muted-foreground">{item}</span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             );
@@ -1161,15 +1221,40 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
 }
 
 const getEtiquetteDisplay = (key: string, value: unknown) => {
-  const items = typeof value === 'string' ? value.split(/[•\n]/).filter(item => item.trim()) : [];
+  // Convert both string and array inputs into a consistent array format
+  const items = Array.isArray(value) 
+    ? value 
+    : typeof value === 'string' 
+      ? value.split(/[•\n]/).filter(item => item.trim())
+      : [];
   
-  if (key.includes('taboo')) {
+  // Special handling for serving order - use numbered circles
+  if (key.includes('order') || key.includes('sequence')) {
+    return {
+      icon: <ListOrdered className="h-5 w-5 text-blue-600" />,
+      content: (
+        <ol className="space-y-3 list-none">
+          {items.map((item, idx) => (
+            <li key={idx} className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
+                <span className="text-sm font-medium text-blue-600 dark:text-blue-400">{idx + 1}</span>
+              </div>
+              <span className="text-foreground mt-0.5">{item}</span>
+            </li>
+          ))}
+        </ol>
+      )
+    };
+  }
+
+  // Special handling for taboos - use warning icons and red styling
+  if (key.includes('taboo') || key.includes('avoid')) {
     return {
       icon: <AlertTriangle className="h-5 w-5 text-red-600" />,
       content: (
-        <ul className="space-y-2 list-none">
+        <ul className="space-y-3 list-none">
           {items.map((item, idx) => (
-            <li key={idx} className="flex items-start gap-2">
+            <li key={idx} className="flex items-start gap-3">
               <Ban className="h-4 w-4 flex-shrink-0 mt-1 text-red-600" />
               <span className="text-foreground">{item}</span>
             </li>
@@ -1178,33 +1263,16 @@ const getEtiquetteDisplay = (key: string, value: unknown) => {
       )
     };
   }
-  
-  if (key.includes('order')) {
+
+  // Special handling for table setting - use utensils icon
+  if (key.includes('table') || key.includes('setting') || key.includes('arrangement')) {
     return {
-      icon: <ListOrdered className="h-5 w-5 text-blue-600" />,
+      icon: <UtensilsCrossed className="h-5 w-5 text-emerald-600" />,
       content: (
-        <ol className="space-y-2 list-none">
+        <ul className="space-y-3 list-none">
           {items.map((item, idx) => (
-            <li key={idx} className="flex items-start gap-2">
-              <div className="flex-shrink-0 h-5 w-5 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                <span className="text-xs font-medium text-blue-700 dark:text-blue-300">{idx + 1}</span>
-              </div>
-              <span className="text-foreground">{item}</span>
-            </li>
-          ))}
-        </ol>
-      )
-    };
-  }
-  
-  if (key.includes('table') || key.includes('setting')) {
-    return {
-      icon: <ChefHat className="h-5 w-5 text-emerald-600" />,
-      content: (
-        <ul className="space-y-2 list-none">
-          {items.map((item, idx) => (
-            <li key={idx} className="flex items-start gap-2">
-              <UtensilsCrossed className="h-4 w-4 flex-shrink-0 mt-1 text-emerald-600" />
+            <li key={idx} className="flex items-start gap-3">
+              <ChefHat className="h-4 w-4 flex-shrink-0 mt-1 text-emerald-600" />
               <span className="text-foreground">{item}</span>
             </li>
           ))}
@@ -1213,20 +1281,20 @@ const getEtiquetteDisplay = (key: string, value: unknown) => {
     };
   }
 
-  // Default for customs and general guidelines
+  // Default for dining customs and general guidelines
   return {
     icon: <ScrollText className="h-5 w-5 text-purple-600" />,
-    content: Array.isArray(items) && items.length > 0 ? (
-      <ul className="space-y-2 list-none">
+    content: items.length > 0 ? (
+      <ul className="space-y-3 list-none">
         {items.map((item, idx) => (
-          <li key={idx} className="flex items-start gap-2">
+          <li key={idx} className="flex items-start gap-3">
             <Info className="h-4 w-4 flex-shrink-0 mt-1 text-purple-600" />
             <span className="text-foreground">{item}</span>
           </li>
         ))}
       </ul>
     ) : (
-      <p className="text-foreground">{String(value)}</p>
+      <p className="text-muted-foreground">{String(value)}</p>
     )
   };
 };

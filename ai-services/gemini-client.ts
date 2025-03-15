@@ -6,24 +6,58 @@ export const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || "AIzaS
 // Get the generative model
 export const model = genAI.getGenerativeModel({ model: "gemini-2.0-pro-exp-02-05" });
 
+// Helper function to clean potential JSON string
+function cleanJsonString(str: string): string {
+  // Remove any leading/trailing whitespace
+  str = str.trim();
+  
+  // Remove any markdown code block syntax
+  str = str.replace(/^```(json)?\n?/, '').replace(/\n?```$/, '');
+  
+  // Handle potential line breaks and indentation issues
+  str = str.replace(/\\n/g, '\n').replace(/\t/g, '  ');
+  
+  return str;
+}
+
 // Helper function to parse JSON response safely
 export async function safeJsonParse(response: string) {
   try {
-    // Try to parse the response directly
-    return JSON.parse(response);
-  } catch (e) {
-    // If direct parsing fails, try to extract JSON from the response
-    const jsonMatch = response.match(/```json\n?([\s\S]*?)\n?```/) || 
-                     response.match(/```\n?([\s\S]*?)\n?```/) ||
-                     response.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+    // Clean the response first
+    const cleaned = cleanJsonString(response);
     
-    if (jsonMatch) {
-      try {
-        return JSON.parse(jsonMatch[1] || jsonMatch[0]);
-      } catch (e) {
-        throw new Error('Failed to parse JSON from response');
+    // Try to parse the cleaned response directly
+    return JSON.parse(cleaned);
+  } catch (firstError) {
+    try {
+      // Look for JSON-like content in the response
+      const patterns = [
+        /\{[\s\S]*\}/, // Object pattern
+        /\[[\s\S]*\]/, // Array pattern
+        /```json\n?([\s\S]*?)\n?```/, // JSON code block
+        /```\n?([\s\S]*?)\n?```/ // Generic code block
+      ];
+
+      for (const pattern of patterns) {
+        const match = response.match(pattern);
+        if (match) {
+          const jsonContent = cleanJsonString(match[1] || match[0]);
+          try {
+            return JSON.parse(jsonContent);
+          } catch {
+            continue; // Try next pattern if this one fails
+          }
+        }
       }
+
+      // If we get here, no patterns worked
+      console.error('Original response:', response);
+      console.error('First parse error:', firstError);
+      throw new Error('Could not extract valid JSON from response. The AI response may be malformed.');
+    } catch (e) {
+      console.error('Original response:', response);
+      console.error('Parse error:', e);
+      throw new Error('Failed to parse JSON response: ' + (e instanceof Error ? e.message : 'Unknown error'));
     }
-    throw new Error('No valid JSON found in response');
   }
 }

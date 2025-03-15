@@ -24,10 +24,12 @@ import {
   getNutritionRecommendations,
 } from "../ai-services/recipe-ai";
 import {
-  findIngredientSubstitutes,
-  analyzeAuthenticityScore,
-  findComplementaryDishes,
-  getServingEtiquetteGuide
+  analyzeRecipe,
+  analyzeCulturalCuisine,
+  getRecipeAuthenticityScore,
+  getEtiquette,
+  getPairings,
+  getSubstitutions
 } from "../ai-services/cultural-cuisine-service";
 import type { User } from "@shared/schema";
 import { desc, eq, and, count } from "drizzle-orm";
@@ -1134,13 +1136,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userRegion = user?.preferences?.region || 'unknown';
 
       // Find ingredient substitutions
-      const substitutions = findIngredientSubstitutes(recipe, userPantry, userRegion);
-      const authenticity = analyzeAuthenticityScore(recipe, substitutions);
+      const result = await getSubstitutions(recipe, userPantry, userRegion);
+      const authenticity = await getRecipeAuthenticityScore(recipe, result.substitutions);
 
       res.json({
-        substitutions,
-        authenticityScore: authenticity.score,
-        authenticityFeedback: authenticity.feedback
+        substitutions: result.substitutions,
+        authenticityScore: result.authenticityScore,
+        authenticityFeedback: result.authenticityFeedback
       });
     } catch (error) {
       console.error('Error finding substitutions:', error);
@@ -1162,15 +1164,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(culturalCuisines)
         .where(eq(culturalCuisines.id, recipe.cuisineId));
 
-      const pairings = findComplementaryDishes(recipe, {
-        region: cuisine.region,
-        keyIngredients: cuisine.keyIngredients as string[]
-      });
+      const pairings = await getPairings(recipe, cuisine);
 
       res.json(pairings);
     } catch (error) {
       console.error('Error finding pairings:', error);
-      res.status(500).json({ error: 'Failed to find pairings' });
+      res.status(500).json({ error: 'Failed to find complementary dishes' });
     }
   });
 
@@ -1188,7 +1187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(culturalCuisines)
         .where(eq(culturalCuisines.id, recipe.cuisineId));
 
-      const etiquette = getServingEtiquetteGuide(recipe, cuisine.region);
+      const etiquette = await getEtiquette(recipe, cuisine);
       res.json(etiquette);
     } catch (error) {
       console.error('Error getting etiquette guide:', error);
