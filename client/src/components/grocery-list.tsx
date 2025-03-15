@@ -8,6 +8,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMutation } from "@tanstack/react-query";
 import { Trash2, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Badge } from "@/components/ui/badge";
 
 interface GroceryListProps {
   list: GroceryListType;
@@ -18,6 +19,8 @@ interface GroceryItem {
   name: string;
   completed: boolean;
   quantity: string;
+  category?: string;
+  priority?: 'high' | 'medium' | 'low';
 }
 
 export function GroceryList({ list }: GroceryListProps) {
@@ -132,21 +135,37 @@ export function GroceryList({ list }: GroceryListProps) {
                   onCheckedChange={() => toggleItem(item.id)}
                 />
                 <div className="flex-1 flex items-center justify-between">
-                  <span className={item.completed ? "line-through text-muted-foreground" : ""}>
-                    {item.name}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">
-                      Qty: {item.quantity}
+                  <div className="flex flex-col">
+                    <span className={item.completed ? "line-through text-muted-foreground" : ""}>
+                      {item.name}
                     </span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeItem(item.id)}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-sm text-muted-foreground">
+                        Qty: {item.quantity}
+                      </span>
+                      {item.category && (
+                        <Badge variant="secondary" className="text-xs">
+                          {item.category}
+                        </Badge>
+                      )}
+                      {item.priority && (
+                        <Badge variant="outline" className={
+                          item.priority === 'high' ? 'border-red-500 text-red-500' :
+                          item.priority === 'medium' ? 'border-yellow-500 text-yellow-500' :
+                          'border-green-500 text-green-500'
+                        }>
+                          {item.priority}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => removeItem(item.id)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
                 </div>
               </div>
             ))}

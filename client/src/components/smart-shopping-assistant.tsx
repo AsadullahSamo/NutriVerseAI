@@ -26,12 +26,48 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { StoreSpecificList } from "@shared/schema";
-import { generatePriceComparisons, optimizeShoppingList } from "@/ai-services/recipe-ai";
+
+interface Store {
+  id: number;
+  name: string;
+  location: string;
+}
 
 interface ShoppingItem {
+  id: string;
   name: string;
   quantity: string;
+  category?: string;
+  priority?: 'high' | 'medium' | 'low';
+}
+
+interface StoreSpecificList {
+  id: number;
+  name: string;
+  storeId: number;
+  items: ShoppingItem[];
+  totalEstimatedCost?: number;
+}
+
+interface PriceComparison {
+  productName: string;
+  stores: {
+    storeName: string;
+    price: number;
+    unit: string;
+    onSale: boolean;
+  }[];
+}
+
+interface OptimizedList {
+  storeName: string;
+  items: ShoppingItem[];
+  totalCost: number;
+}
+
+interface OptimizationResult {
+  optimizedLists: OptimizedList[];
+  reasoning: string;
 }
 
 export function SmartShoppingAssistant() {
@@ -39,10 +75,11 @@ export function SmartShoppingAssistant() {
   const [currentQuantity, setCurrentQuantity] = useState("1");
   const [items, setItems] = useState<ShoppingItem[]>([]);
   const [selectedStore, setSelectedStore] = useState<string>("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const { toast } = useToast();
 
   // Get nearby stores
-  const { data: stores } = useQuery({
+  const { data: stores } = useQuery<Store[]>({
     queryKey: ["/api/stores"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/stores");
@@ -51,24 +88,28 @@ export function SmartShoppingAssistant() {
   });
 
   // Get store-specific lists
-  const { data: storeLists } = useQuery({
+  const { data: storeLists } = useQuery<StoreSpecificList[]>({
     queryKey: ["/api/store-lists"],
     queryFn: async () => {
       const res = await apiRequest("GET", "/api/store-lists");
-      return res.json() as Promise<StoreSpecificList[]>;
+      return res.json();
     },
   });
 
   // Optimize shopping list
-  const optimizeMutation = useMutation({
+  const optimizeMutation = useMutation<OptimizationResult, Error, void>({
     mutationFn: async () => {
-      // Get user's location (in a real app, would use proper geolocation)
       const userLocation = { lat: 40.7128, lng: -74.0060 };
-      return optimizeShoppingList(items, userLocation, {
-        maxStores: 3,
-        prioritizeSustainability: true,
-        maxTravelDistance: 10,
+      const response = await apiRequest("POST", "/api/shopping/optimize", {
+        items,
+        location: userLocation,
+        preferences: {
+          maxStores: 3,
+          prioritizeSustainability: true,
+          maxTravelDistance: 10,
+        }
       });
+      return response.json();
     },
     onSuccess: (data) => {
       // Save optimized lists to database
@@ -90,29 +131,37 @@ export function SmartShoppingAssistant() {
   });
 
   // Compare prices
-  const comparePricesMutation = useMutation({
+  const comparePricesMutation = useMutation<PriceComparison[], Error, void>({
     mutationFn: async () => {
       const userLocation = { lat: 40.7128, lng: -74.0060 };
-      return generatePriceComparisons(
-        items.map(i => i.name),
-        userLocation
-      );
+      const response = await apiRequest("POST", "/api/shopping/compare-prices", {
+        items: items.map(i => i.name),
+        location: userLocation
+      });
+      return response.json();
     },
   });
+
+  // Filter items based on selected category
+  const filteredItems = items.filter(item => 
+    selectedCategory === "all" || item.category === selectedCategory
+  );
 
   const addItem = () => {
     if (currentItem.trim()) {
       setItems(prev => [...prev, { 
+        id: crypto.randomUUID(),
         name: currentItem.trim(), 
-        quantity: currentQuantity 
+        quantity: currentQuantity,
+        category: 'Groceries' // Default category for manually added items
       }]);
       setCurrentItem("");
       setCurrentQuantity("1");
     }
   };
 
-  const removeItem = (index: number) => {
-    setItems(prev => prev.filter((_, i) => i !== index));
+  const removeItem = (id: string) => {
+    setItems(prev => prev.filter(item => item.id !== id));
   };
 
   return (
@@ -142,6 +191,20 @@ export function SmartShoppingAssistant() {
           </TabsList>
 
           <TabsContent value="list" className="space-y-4">
+            <div className="flex gap-2 items-center mb-4">
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="All Categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  <SelectItem value="Kitchen Equipment">Kitchen Equipment</SelectItem>
+                  <SelectItem value="Groceries">Groceries</SelectItem>
+                  <SelectItem value="Pantry">Pantry</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
             <div className="flex gap-2">
               <Input
                 value={currentItem}
@@ -163,9 +226,9 @@ export function SmartShoppingAssistant() {
             </div>
 
             <ScrollArea className="h-[300px] rounded-md border p-4">
-              {items.map((item, index) => (
+              {filteredItems.map((item, index) => (
                 <div 
-                  key={index}
+                  key={item.id}
                   className="flex items-center justify-between py-2 hover:bg-accent/50 rounded-lg px-2"
                 >
                   <div className="flex flex-col gap-1">
@@ -177,7 +240,7 @@ export function SmartShoppingAssistant() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => removeItem(index)}
+                    onClick={() => removeItem(item.id)}
                     className="h-8 w-8 text-destructive hover:text-destructive"
                   >
                     <Trash2 className="h-4 w-4" />

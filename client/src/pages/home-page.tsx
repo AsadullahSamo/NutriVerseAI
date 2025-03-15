@@ -9,11 +9,26 @@ import { Link } from "wouter";
 import { RecipeCard } from "@/components/recipe-card";
 import { CreateGroceryListDialog } from "@/components/create-grocery-list-dialog";
 
+interface GroceryItem {
+  id: string;
+  name: string;
+  quantity: string;
+  category?: string;
+  completed: boolean;
+}
+
+interface ExtendedGroceryList extends GroceryListType {
+  items: GroceryItem[];
+  createdAt: string;
+}
+
 export default function HomePage() {
   const { user } = useAuth();
 
-  const { data: groceryLists, isLoading: listsLoading } = useQuery<GroceryListType[]>({
+  const { data: groceryLists, isLoading: listsLoading } = useQuery<ExtendedGroceryList[]>({
     queryKey: ["/api/grocery-lists"],
+    refetchOnWindowFocus: true, // Ensure lists refresh when window regains focus
+    refetchOnMount: true // Refresh when component mounts
   });
 
   const { data: recommendedRecipes, isLoading: recipesLoading } = useQuery<Recipe[]>({
@@ -53,7 +68,15 @@ export default function HomePage() {
                   </p>
                 ) : (
                   <div className="space-y-4">
-                    {groceryLists?.map((list) => (
+                    {groceryLists?.sort((a, b) => {
+                      // Sort kitchen equipment lists first
+                      const hasKitchenA = a.items.some((item: GroceryItem) => item.category === "Kitchen Equipment");
+                      const hasKitchenB = b.items.some((item: GroceryItem) => item.category === "Kitchen Equipment");
+                      if (hasKitchenA && !hasKitchenB) return -1;
+                      if (!hasKitchenA && hasKitchenB) return 1;
+                      // Then sort by date
+                      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                    }).map((list) => (
                       <GroceryList key={list.id} list={list} />
                     ))}
                   </div>
