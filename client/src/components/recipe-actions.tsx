@@ -43,17 +43,15 @@ export function RecipeActions({ recipe, size = "default", showDelete = false, hi
     mutationFn: async () => {
       setIsDeleting(true);
       try {
-        // Keeping this simple to match the original functionality
         const res = await apiRequest("DELETE", `/api/recipes/${recipe.id}`);
         if (!res.ok) {
-          const errorData = await res.json().catch(() => ({}));
-          throw new Error(errorData.message || "Failed to delete recipe");
+          throw new Error("Failed to delete recipe");
         }
         return { success: true };
       } catch (error) {
         toast({
           title: "Error",
-          description: error instanceof Error ? error.message : "Failed to delete recipe. Please try again.",
+          description: "Failed to delete recipe. Please try again.",
           variant: "destructive"
         });
         throw error;
@@ -69,22 +67,6 @@ export function RecipeActions({ recipe, size = "default", showDelete = false, hi
         title: "Recipe deleted",
         description: "Recipe has been deleted successfully.",
       });
-    },
-    onError: (error: any) => {
-      // Handle specific server errors
-      if (error.message?.includes("foreign key constraint")) {
-        toast({
-          title: "Cannot delete recipe",
-          description: "This recipe is being used in your meal history. Try removing related meal consumption records first.",
-          variant: "destructive"
-        });
-      } else if (error.message === "Cannot delete recipe that has likes") {
-        toast({
-          title: "Cannot delete recipe",
-          description: "This recipe has been liked by others in the community. As it's valuable to them, it cannot be deleted.",
-          variant: "destructive"
-        });
-      }
     }
   });
 

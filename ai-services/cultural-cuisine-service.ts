@@ -345,6 +345,213 @@ export async function getSubstitutions(recipe: CulturalRecipe, pantryItems: Pant
   });
 }
 
+export async function getCulturalCuisineInfo(
+  cuisine: string,
+  includeImagePrompts: boolean = false
+) {
+  try {
+    const prompt = `Provide detailed information about ${cuisine} cuisine as a JSON object with the following structure:
+    {
+      "overview": "Brief overview of the cuisine",
+      "keyIngredients": ["list of essential ingredients"],
+      "commonDishes": ["list of popular dishes"],
+      "cookingTechniques": ["list of cooking techniques"],
+      "culturalSignificance": "Cultural importance and history",
+      ${includeImagePrompts ? '"imagePrompts": ["list of detailed image generation prompts for dishes"],' : ''}
+      "dietaryConsiderations": ["list of dietary considerations"]
+    }`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Error getting cuisine information:', error);
+    throw error;
+  }
+}
+
+export async function getAuthenticRecipeAdaptation(
+  recipe: string,
+  cuisine: string,
+  dietaryRestrictions?: string[]
+) {
+  try {
+    const prompt = `Adapt this recipe "${recipe}" to be more authentic to ${cuisine} cuisine.
+    ${dietaryRestrictions ? `Consider these dietary restrictions: ${dietaryRestrictions.join(', ')}` : ''}
+    
+    Return a JSON object with:
+    {
+      "originalDish": "Name of original dish",
+      "adaptedDish": "Name of adapted dish",
+      "changes": ["list of major changes"],
+      "ingredients": ["list of ingredients"],
+      "instructions": ["step by step instructions"],
+      "culturalNotes": "Cultural context and authenticity notes"
+    }`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Error adapting recipe:', error);
+    throw error;
+  }
+}
+
+export async function getCrossCulturalFusion(
+  cuisine1: string,
+  cuisine2: string,
+  preferences?: string[]
+) {
+  try {
+    const prompt = `Create a fusion recipe combining elements from ${cuisine1} and ${cuisine2} cuisines.
+    ${preferences ? `Consider these preferences: ${preferences.join(', ')}` : ''}
+    
+    Return a JSON object with:
+    {
+      "dishName": "Name of fusion dish",
+      "description": "Description of the fusion concept",
+      "elements": {
+        "${cuisine1}": ["elements from first cuisine"],
+        "${cuisine2}": ["elements from second cuisine"]
+      },
+      "ingredients": ["list of ingredients"],
+      "instructions": ["step by step instructions"],
+      "culturalNotes": "Notes about the fusion approach"
+    }`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Error creating fusion recipe:', error);
+    throw error;
+  }
+}
+
+export async function getCuisineInsights(cuisine: string) {
+  try {
+    const prompt = `Provide detailed insights about this cuisine:
+    Cuisine: ${cuisine}
+    
+    Return EXACTLY this JSON structure with no additional text:
+    {
+      "cuisine": "string",
+      "overview": "string",
+      "keyIngredients": ["string"],
+      "commonDishes": [
+        {
+          "name": "string",
+          "description": "string",
+          "significance": "string"
+        }
+      ],
+      "cookingTechniques": [
+        {
+          "name": "string",
+          "description": "string",
+          "commonUses": ["string"]
+        }
+      ],
+      "culturalContext": {
+        "history": "string",
+        "traditions": ["string"],
+        "regionalVariations": ["string"]
+      }
+    }`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Error getting cuisine insights:', error);
+    throw error;
+  }
+}
+
+export async function getAuthenticRecipe(dish: string, cuisine: string) {
+  try {
+    const prompt = `Provide an authentic recipe for this cultural dish:
+    Dish: ${dish}
+    Cuisine: ${cuisine}
+    
+    Return EXACTLY this JSON structure with no additional text:
+    {
+      "recipe": {
+        "name": "string",
+        "description": "string",
+        "authenticity": {
+          "origin": "string",
+          "variations": ["string"],
+          "culturalNotes": "string"
+        },
+        "ingredients": [
+          {
+            "item": "string",
+            "amount": "string",
+            "traditional": boolean,
+            "substitutes": ["string"]
+          }
+        ],
+        "instructions": ["string"],
+        "techniques": [
+          {
+            "name": "string",
+            "description": "string",
+            "tips": ["string"]
+          }
+        ]
+      }
+    }`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Error getting authentic recipe:', error);
+    throw error;
+  }
+}
+
+export async function getCulturalCookingTips(cuisine: string) {
+  try {
+    const prompt = `Provide cultural cooking tips for this cuisine:
+    Cuisine: ${cuisine}
+    
+    Return EXACTLY this JSON structure with no additional text:
+    {
+      "cuisine": "string",
+      "essentialTips": ["string"],
+      "ingredients": {
+        "staples": ["string"],
+        "handling": ["string"],
+        "substitutes": [
+          {
+            "original": "string",
+            "alternatives": ["string"],
+            "notes": "string"
+          }
+        ]
+      },
+      "techniques": [
+        {
+          "name": "string",
+          "description": "string",
+          "tips": ["string"]
+        }
+      ],
+      "etiquette": ["string"]
+    }`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Error getting cultural cooking tips:', error);
+    throw error;
+  }
+}
+
 // Helper functions with embedded cultural knowledge data
 function getSubstitutionRules(): Record<string, {
   substitutes: string[];

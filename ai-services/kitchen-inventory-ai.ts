@@ -245,3 +245,88 @@ function getMockAnalysis(
     }]
   };
 }
+
+export async function analyzeInventory(items: any[]) {
+  try {
+    const prompt = `Analyze this kitchen inventory and provide insights:
+    Items: ${JSON.stringify(items)}
+    
+    Return EXACTLY this JSON structure with no additional text:
+    {
+      "stapleItems": ["string"],
+      "lowStock": ["string"],
+      "expiringItems": ["string"],
+      "recommendations": ["string"],
+      "shoppingList": ["string"],
+      "inventoryScore": number
+    }`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Error analyzing inventory:', error);
+    throw error;
+  }
+}
+
+export async function getMealSuggestions(inventory: any[]) {
+  try {
+    const prompt = `Suggest meals based on these available ingredients:
+    Inventory: ${JSON.stringify(inventory)}
+    
+    Return EXACTLY this JSON structure with no additional text:
+    {
+      "quickMeals": [
+        {
+          "name": "string",
+          "ingredients": ["string"],
+          "missing": ["string"]
+        }
+      ],
+      "plannedMeals": [
+        {
+          "name": "string",
+          "ingredients": ["string"],
+          "preparation": "string"
+        }
+      ],
+      "shoppingNeeded": ["string"]
+    }`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Error getting meal suggestions:', error);
+    throw error;
+  }
+}
+
+export async function getStorageRecommendations(items: any[]) {
+  try {
+    const prompt = `Provide storage recommendations for these items:
+    Items: ${JSON.stringify(items)}
+    
+    Return EXACTLY this JSON structure with no additional text:
+    {
+      "recommendations": [
+        {
+          "item": "string",
+          "storage": "string",
+          "duration": "string",
+          "tips": ["string"]
+        }
+      ],
+      "generalTips": ["string"],
+      "organizationSuggestions": ["string"]
+    }`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Error getting storage recommendations:', error);
+    throw error;
+  }
+}
