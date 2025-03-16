@@ -150,14 +150,15 @@ export function RecipeCard({ recipe, compact = false, showDelete = false, hideEd
     <>
       <Card className="flex flex-col h-full">
         <div className="flex-1 flex flex-col">
-          {!hideEditDelete && (
+          {/* Show RecipeActions when not hideEditDelete */}
+          {!hideEditDelete && !compact && (
             <div className="border-b bg-secondary/10">
               <div className="px-2 py-1">
                 <RecipeActions 
                   recipe={recipe} 
                   size="sm" 
                   showDelete={showDelete}
-                  hideEditDelete={hideEditDelete}
+                  hideEditDelete={hideEditDelete} // Remove the hardcoded true to restore edit/delete buttons
                 />
               </div>
             </div>
@@ -175,19 +176,22 @@ export function RecipeCard({ recipe, compact = false, showDelete = false, hideEd
                   />
                 </div>
               )}
+              
               <div className="space-y-4">
                 <div>
                   <h3 className="font-medium text-lg tracking-tight">
                     {recipe.title}
                   </h3>
-                  {recipe.forkedFrom && (
+                  {recipe.forkedFrom && !compact && (
                     <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1.5">
                       <GitFork className="h-3 w-3 flex-shrink-0" />
                       Forked recipe
                     </p>
                   )}
                 </div>
-                {!compact && recipe.description && (
+                
+                {/* Show description in both compact and regular mode */}
+                {recipe.description && (
                   <p className="text-sm text-muted-foreground leading-relaxed">
                     {recipe.description}
                   </p>
@@ -225,7 +229,7 @@ export function RecipeCard({ recipe, compact = false, showDelete = false, hideEd
                     </HoverCardContent>
                   </HoverCard>
 
-                  {!compact && recipe.instructions && recipe.instructions.length > 0 && (
+                  {recipe.instructions && recipe.instructions.length > 0 && (
                     <HoverCard>
                       <HoverCardTrigger asChild>
                         <Button variant="ghost" className="p-0 h-auto hover:bg-transparent">
@@ -263,12 +267,14 @@ export function RecipeCard({ recipe, compact = false, showDelete = false, hideEd
               </div>
             </div>
 
+            {/* Nutrition info - show in both compact and regular mode */}
+            <div className="p-4 border-t">
+              <NutritionDisplay nutrition={recipe.nutritionInfo as any} />
+            </div>
+
             {/* Additional sections for non-compact view */}
             {!compact && (
               <>
-                <div className="p-4 border-t">
-                  <NutritionDisplay nutrition={recipe.nutritionInfo as any} />
-                </div>
                 <div className="p-4 border-t bg-card">
                   <MoodTracker recipeId={recipe.id} />
                 </div>
