@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { SmilePlus, ChartLine, Sparkles, Loader2, Trash2, AlertTriangle, BookOpen, GraduationCap, Heart, TrendingUp, Circle, RefreshCw } from "lucide-react";
@@ -63,13 +63,14 @@ export function MoodTracker({ recipeId }: MoodTrackerProps) {
   const [showInsights, setShowInsights] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const moodEntriesQuery = useQuery({
     queryKey: ["moodEntries", recipeId],
     queryFn: async () => {
       const res = await apiRequest("GET", `/api/mood-journal/${recipeId}`);
       return res.json() as Promise<MoodEntry[]>;
-    },
+    }
   });
 
   const moodMutation = useMutation({
@@ -113,6 +114,7 @@ export function MoodTracker({ recipeId }: MoodTrackerProps) {
     },
   });
 
+  // Modify insights query to use proper caching and prevent unnecessary requests
   const insightsQuery = useQuery({
     queryKey: ["moodInsights", recipeId],
     queryFn: async () => {
@@ -122,11 +124,13 @@ export function MoodTracker({ recipeId }: MoodTrackerProps) {
       }
       return res.json() as Promise<MoodInsights>;
     },
-    staleTime: 30000, // Cache for 30 seconds
-    retry: 1, // Only retry once to avoid too many requests
+    enabled: false, // Don't fetch automatically
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes before garbage collection
+    retry: 1 // Only retry once
   });
 
-  // Handle showing insights with error handling
+  // Handle showing insights with proper error handling and caching
   const handleShowInsights = () => {
     if (!moodEntriesQuery.data?.length) {
       toast({
@@ -136,6 +140,14 @@ export function MoodTracker({ recipeId }: MoodTrackerProps) {
       });
       return;
     }
+
+    // Check if we have valid cached data
+    const cachedData = queryClient.getQueryData(["moodInsights", recipeId]);
+    if (cachedData) {
+      setShowInsights(true);
+    }
+
+    // Fetch new data only if needed
     insightsQuery.refetch();
     setShowInsights(true);
   };
@@ -161,9 +173,24 @@ export function MoodTracker({ recipeId }: MoodTrackerProps) {
           Cooking Experience Journal
         </h3>
         {(moodEntriesQuery.data ?? []).length > 0 && (
-          <Button variant="outline" size="sm" onClick={handleShowInsights} className="hover:bg-primary/10">
-            <ChartLine className="h-4 w-4 mr-2 text-primary" />
-            View Insights
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleShowInsights} 
+            className="hover:bg-primary/10"
+            disabled={insightsQuery.isFetching} // Disable while fetching
+          >
+            {insightsQuery.isFetching ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Loading...
+              </>
+            ) : (
+              <>
+                <ChartLine className="h-4 w-4 mr-2 text-primary" />
+                View Insights
+              </>
+            )}
           </Button>
         )}
       </div>
