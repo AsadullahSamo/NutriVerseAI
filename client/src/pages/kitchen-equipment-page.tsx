@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getEquipmentRecommendations, generateMaintenanceSchedule, getRecipesByEquipment } from '@/ai-services/kitchen-ai';
 import { analyzeKitchenInventory, getMaintenanceTips, type KitchenEquipment as KitchenEquipmentType } from '@/ai-services/kitchen-inventory-ai';
-import type { EquipmentRecommendation, MaintenanceSchedule } from '@shared/schema';
+import type { EquipmentRecommendation, MaintenanceSchedule, Recipe } from '@shared/schema';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from 'date-fns';
 import { queryClient } from '@/lib/queryClient';
+import { RecipeCard } from '@/components/recipe-card';
 
 // Add hashCode function to generate consistent IDs for recommendations
 const hashCode = (str: string): number => {
@@ -28,11 +29,24 @@ const hashCode = (str: string): number => {
   return hash;
 };
 
+// Add RecipeCardType type definition
+type RecipeCardType = Recipe & {
+  postId?: number;
+  ingredients: string[];
+  instructions: string[];
+};
+
+interface AIRecipeResult {
+  id: number;
+  title: string;
+  requiredEquipment: string[];
+}
+
 const KitchenEquipmentPage: React.FC = () => {
   const [equipment, setEquipment] = useState<KitchenEquipmentType[]>([]);
   const [recommendations, setRecommendations] = useState<EquipmentRecommendation[]>([]);
   const [maintenanceSchedule, setMaintenanceSchedule] = useState<MaintenanceSchedule[]>([]);
-  const [recipes, setRecipes] = useState<any[]>([]);
+  const [recipes, setRecipes] = useState<RecipeCardType[]>([]); // Update type to RecipeCardType
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -189,14 +203,37 @@ const KitchenEquipmentPage: React.FC = () => {
         maintenanceResult = []; // Fallback
       }
       
+      // Process recipe matches to include full recipe details
+      if (Array.isArray(recipesResult.possibleRecipes)) {
+        setRecipes(recipesResult.possibleRecipes.map((recipe: AIRecipeResult) => ({
+          ...recipe,
+          id: recipe.id,
+          title: recipe.title,
+          description: `Recipe that works perfectly with your ${recipe.requiredEquipment.join(', ')}. Explore this dish to make the most of your kitchen equipment.`,
+          prepTime: 30,
+          imageUrl: `https://source.unsplash.com/featured/?food,${encodeURIComponent(recipe.title)}`,
+          nutritionInfo: {
+            calories: 250,
+            protein: 15,
+            carbs: 30,
+            fat: 10
+          },
+          sustainabilityScore: 50,
+          instructions: [`Prepare ingredients using your ${recipe.requiredEquipment.join(', ')}`, "Cook according to your preferred method", "Serve and enjoy!"],
+          ingredients: recipe.requiredEquipment || [],
+          createdBy: 1,
+          createdAt: new Date().toISOString(),
+          postId: undefined
+        })));
+      }
+
       // Store results in local storage (with deduplicated maintenance)
       localStorage.setItem('kitchen-recommendations', JSON.stringify(recommendationsResult));
       localStorage.setItem('kitchen-maintenance-schedule', JSON.stringify(maintenanceResult));
-      localStorage.setItem('kitchen-recipes', JSON.stringify(recipesResult.possibleRecipes));
+      localStorage.setItem('kitchen-recipes', JSON.stringify(recipes));
 
       setRecommendations(recommendationsResult);
       setMaintenanceSchedule(maintenanceResult);
-      setRecipes(recipesResult.possibleRecipes);
       
       setNotification({
         type: 'success',
@@ -396,48 +433,63 @@ const KitchenEquipmentPage: React.FC = () => {
   const handleRunAIAnalysis = async () => {
     setAiLoading(true);
     try {
-      console.log('Running AI analysis on kitchen equipment...');
-      // Direct AI call for analysis
-      const analysis = await analyzeKitchenInventory(equipment, ['Italian', 'Baking', 'Healthy']);
-      console.log('AI analysis complete:', analysis);
+      const enrichedEquipment = enrichEquipmentData(equipment);
       
-      // Ensure analysis has the expected structure
-      const validatedAnalysis = {
-        maintenanceRecommendations: Array.isArray(analysis.maintenanceRecommendations) 
-          ? analysis.maintenanceRecommendations 
-          : [],
-        shoppingRecommendations: Array.isArray(analysis.shoppingRecommendations) 
-          ? analysis.shoppingRecommendations 
-          : [],
-        recipeRecommendations: Array.isArray(analysis.recipeRecommendations) 
-          ? analysis.recipeRecommendations 
-          : []
-      };
-      
-      setAiAnalysis(validatedAnalysis);
-      setAnalysisDialogOpen(true);
+      // Run all AI requests in parallel for better performance
+      // Only run the necessary recommendation-related requests
+      const [recResults, maintResults, recipeResults] = await Promise.all([
+        getEquipmentRecommendations(enrichedEquipment, ['Italian', 'Healthy Cooking']),
+        generateMaintenanceSchedule(enrichedEquipment, new Date().toISOString(), new Date(Date.now() + 30*24*60*60*1000).toISOString()),
+        getRecipesByEquipment(enrichedEquipment, ['Italian', 'Healthy Cooking'])
+      ]);
+
+      // Transform recipe results to match RecipeCardType
+      const transformedRecipes = recipeResults.possibleRecipes.map(recipe => ({
+        ...recipe,
+        id: recipe.id,
+        title: recipe.title,
+        description: `Recipe that works perfectly with your ${recipe.requiredEquipment.join(', ')}. Explore this dish to make the most of your kitchen equipment.`,
+        prepTime: 30,
+        imageUrl: `https://source.unsplash.com/featured/?food,${encodeURIComponent(recipe.title)}`,
+        nutritionInfo: {
+          calories: 250,
+          protein: 15,
+          carbs: 30,
+          fat: 10
+        },
+        sustainabilityScore: 50,
+        instructions: [`Prepare ingredients using your ${recipe.requiredEquipment.join(', ')}`, "Cook according to your preferred method", "Serve and enjoy!"],
+        ingredients: recipe.requiredEquipment || [],
+        createdBy: 1,
+        createdAt: new Date().toISOString(),
+        postId: undefined
+      }));
+
+      // Update state with all results
+      setRecommendations(recResults);
+      setMaintenanceSchedule(maintResults);
+      setRecipes(transformedRecipes);
+
+      // Store results in local storage
+      localStorage.setItem('kitchen-recommendations', JSON.stringify(recResults));
+      localStorage.setItem('kitchen-maintenance-schedule', JSON.stringify(maintResults));
+      localStorage.setItem('kitchen-recipes', JSON.stringify(transformedRecipes));
+
       setNotification({
         type: 'success',
-        message: 'AI analysis completed successfully!'
+        message: 'Successfully generated recommendations!'
       });
     } catch (error) {
-      console.error('Error running AI analysis:', error);
-      // Set a default structure to prevent mapping errors
-      setAiAnalysis({
-        maintenanceRecommendations: [],
-        shoppingRecommendations: [],
-        recipeRecommendations: []
-      });
-      
+      console.error('Error in AI analysis:', error);
       setNotification({
         type: 'error',
-        message: 'Failed to run AI analysis. Please try again.'
+        message: 'Failed to generate recommendations. Please try again.'
       });
     } finally {
       setAiLoading(false);
     }
   };
-  
+
   // New functions for equipment form
   const openAddEquipmentDialog = () => {
     setFormData({
@@ -532,12 +584,34 @@ const KitchenEquipmentPage: React.FC = () => {
         // Update state and local storage
         setRecommendations(recResults);
         setMaintenanceSchedule(maintResults);
-        setRecipes(recipeResults.possibleRecipes);
+        
+        // Transform recipe results to match RecipeCardType
+        const transformedRecipes = recipeResults.possibleRecipes.map((recipe: AIRecipeResult) => ({
+          ...recipe,
+          id: recipe.id,
+          title: recipe.title,
+          description: `Recipe that works perfectly with your ${recipe.requiredEquipment.join(', ')}. Explore this dish to make the most of your kitchen equipment.`,
+          prepTime: 30,
+          imageUrl: `https://source.unsplash.com/featured/?food,${encodeURIComponent(recipe.title)}`,
+          nutritionInfo: {
+            calories: 250,
+            protein: 15,
+            carbs: 30,
+            fat: 10
+          },
+          sustainabilityScore: 50,
+          instructions: [`Prepare ingredients using your ${recipe.requiredEquipment.join(', ')}`, "Cook according to your preferred method", "Serve and enjoy!"],
+          ingredients: recipe.requiredEquipment || [],
+          createdBy: 1,
+          createdAt: new Date().toISOString(),
+          postId: undefined
+        }));
+        setRecipes(transformedRecipes);
         
         // Save updated AI results to local storage
         localStorage.setItem('kitchen-recommendations', JSON.stringify(recResults));
         localStorage.setItem('kitchen-maintenance-schedule', JSON.stringify(maintResults));
-        localStorage.setItem('kitchen-recipes', JSON.stringify(recipeResults.possibleRecipes));
+        localStorage.setItem('kitchen-recipes', JSON.stringify(transformedRecipes));
       } catch (aiError) {
         console.error('Error refreshing AI analysis:', aiError);
         // Don't show an error notification here since we already showed a success message for the equipment update
@@ -613,8 +687,17 @@ const KitchenEquipmentPage: React.FC = () => {
           disabled={aiLoading} 
           className="flex items-center gap-2"
         >
-          {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
-          Run AI Analysis on Your Kitchen
+          {aiLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Getting Recommendations...
+            </>
+          ) : (
+            <>
+              <AlertTriangle className="h-4 w-4" />
+              Get Recommendations
+            </>
+          )}
         </Button>
         
         <Button 
@@ -736,9 +819,17 @@ const KitchenEquipmentPage: React.FC = () => {
                 <p className="text-center mb-2 text-muted-foreground">No AI recommendations yet.</p>
                 <Button 
                   size="sm" 
-                  onClick={() => handleRunAIAnalysis()}
+                  onClick={handleRunAIAnalysis}
+                  disabled={aiLoading}
                 >
-                  Get Recommendations
+                  {aiLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Getting Recommendations...
+                    </>
+                  ) : (
+                    'Get Recommendations'
+                  )}
                 </Button>
               </div>
             )}
@@ -748,29 +839,12 @@ const KitchenEquipmentPage: React.FC = () => {
         <TabsContent value="recipes" className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             {recipes.length > 0 ? (
-              recipes.map(recipe => (
-                <Card key={recipe.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                  <CardHeader className="pb-3">
-                    <CardTitle>{recipe.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="font-semibold">Required Equipment:</p>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {recipe.requiredEquipment.map((eq: string, i: number) => (
-                        <Badge key={i} variant="secondary" className="bg-secondary/30">{eq}</Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                  <CardFooter className="border-t">
-                    <Button 
-                      className="w-full" 
-                      size="sm"
-                      onClick={() => handleViewRecipe(recipe.id)}
-                    >
-                      View Recipe
-                    </Button>
-                  </CardFooter>
-                </Card>
+              recipes.map((recipe) => (
+                <RecipeCard 
+                  key={recipe.id} 
+                  recipe={recipe}
+                  compact={true}
+                />
               ))
             ) : (
               <div className="col-span-2 flex flex-col items-center justify-center p-8 bg-secondary/10 border border-dashed border-border rounded-md">
@@ -778,9 +852,60 @@ const KitchenEquipmentPage: React.FC = () => {
                 <p className="text-center mb-2 text-muted-foreground">No recipe matches yet.</p>
                 <Button 
                   size="sm" 
-                  onClick={() => handleRunAIAnalysis()}
+                  onClick={async () => {
+                    setAiLoading(true);
+                    try {
+                      const enrichedEquipment = enrichEquipmentData(equipment);
+                      const recipeResults = await getRecipesByEquipment(enrichedEquipment, ['Italian', 'Healthy Cooking']);
+                      
+                      const transformedRecipes = recipeResults.possibleRecipes.map(recipe => ({
+                        ...recipe,
+                        id: recipe.id,
+                        title: recipe.title,
+                        description: `Recipe that works perfectly with your ${recipe.requiredEquipment.join(', ')}. Explore this dish to make the most of your kitchen equipment.`,
+                        prepTime: 30,
+                        imageUrl: `https://source.unsplash.com/featured/?food,${encodeURIComponent(recipe.title)}`,
+                        nutritionInfo: {
+                          calories: 250,
+                          protein: 15,
+                          carbs: 30,
+                          fat: 10
+                        },
+                        sustainabilityScore: 50,
+                        instructions: [`Prepare ingredients using your ${recipe.requiredEquipment.join(', ')}`, "Cook according to your preferred method", "Serve and enjoy!"],
+                        ingredients: recipe.requiredEquipment || [],
+                        createdBy: 1,
+                        createdAt: new Date().toISOString(),
+                        postId: undefined
+                      }));
+                      
+                      setRecipes(transformedRecipes);
+                      localStorage.setItem('kitchen-recipes', JSON.stringify(transformedRecipes));
+                      
+                      setNotification({
+                        type: 'success',
+                        message: 'Recipe matches found!'
+                      });
+                    } catch (error) {
+                      console.error('Error finding recipe matches:', error);
+                      setNotification({
+                        type: 'error',
+                        message: 'Failed to find recipe matches. Please try again.'
+                      });
+                    } finally {
+                      setAiLoading(false);
+                    }
+                  }}
+                  disabled={aiLoading}
                 >
-                  Find Recipe Matches
+                  {aiLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Finding Matches...
+                    </>
+                  ) : (
+                    'Find Recipe Matches'
+                  )}
                 </Button>
               </div>
             )}

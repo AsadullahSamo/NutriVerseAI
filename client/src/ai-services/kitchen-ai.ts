@@ -247,7 +247,18 @@ export async function getRecipesByEquipment(
   equipment: KitchenEquipment[],
   userPreferences?: string[]
 ): Promise<{
-  possibleRecipes: { id: number; title: string; requiredEquipment: string[] }[];
+  possibleRecipes: { 
+    id: number; 
+    title: string;
+    description: string;
+    requiredEquipment: string[];
+    nutritionInfo: {
+      calories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+    };
+  }[];
   recommendedPurchases: { equipment: string; enabledRecipes: string[] }[];
 }> {
   const prompt = `You are a JSON API that must return recipe recommendations based on available kitchen equipment.
@@ -260,7 +271,14 @@ export async function getRecipesByEquipment(
       {
         "id": number,
         "title": "string",
-        "requiredEquipment": ["string"]
+        "description": "A description of the recipe including cooking method and flavors",
+        "requiredEquipment": ["string"],
+        "nutritionInfo": {
+          "calories": number,
+          "protein": number,
+          "carbs": number,
+          "fat": number
+        }
       }
     ],
     "recommendedPurchases": [
@@ -356,7 +374,18 @@ function getMockRecipeMatches(
   equipment: KitchenEquipment[],
   userPreferences?: string[]
 ): {
-  possibleRecipes: { id: number; title: string; requiredEquipment: string[] }[];
+  possibleRecipes: { 
+    id: number; 
+    title: string;
+    description: string;
+    requiredEquipment: string[];
+    nutritionInfo: {
+      calories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+    };
+  }[];
   recommendedPurchases: { equipment: string; enabledRecipes: string[] }[];
 } {
   const hasProcessor = equipment.some(e => e.name.toLowerCase().includes('processor'));
@@ -368,21 +397,41 @@ function getMockRecipeMatches(
     {
       id: 1,
       title: 'Simple Pasta with Tomato Sauce',
-      requiredEquipment: ['Chef\'s Knife', 'Large Pot']
+      description: 'A classic Italian dish featuring al dente pasta tossed in a rich tomato sauce. Perfect for beginners and quick weeknight meals.',
+      requiredEquipment: ['Chef\'s Knife', 'Large Pot'],
+      nutritionInfo: {
+        calories: 450,
+        protein: 12,
+        carbs: 65,
+        fat: 15
+      }
     },
     {
       id: 2,
       title: 'Pan-Seared Steak',
-      requiredEquipment: ['Cast Iron Skillet', 'Chef\'s Knife']
+      description: 'Restaurant-quality steak cooked to perfection in a cast iron skillet, developing a beautiful crust while staying juicy inside.',
+      requiredEquipment: ['Cast Iron Skillet', 'Chef\'s Knife'],
+      nutritionInfo: {
+        calories: 350,
+        protein: 35,
+        carbs: 0,
+        fat: 22
+      }
     }
   ];
-  
-  // Add conditional recipes based on available equipment
+
   if (hasProcessor) {
     possibleRecipes.push({
       id: 3,
       title: 'Homemade Hummus',
-      requiredEquipment: ['Food Processor']
+      description: 'Creamy and smooth hummus made from scratch with chickpeas, tahini, and fresh lemon juice.',
+      requiredEquipment: ['Food Processor'],
+      nutritionInfo: {
+        calories: 180,
+        protein: 8,
+        carbs: 20,
+        fat: 10
+      }
     });
   }
   
@@ -390,7 +439,14 @@ function getMockRecipeMatches(
     possibleRecipes.push({
       id: 4,
       title: 'Stir-Fried Vegetables',
-      requiredEquipment: ['Cast Iron Skillet', 'Chef\'s Knife']
+      description: 'Colorful medley of fresh vegetables stir-fried to crisp-tender perfection with aromatic garlic and ginger.',
+      requiredEquipment: ['Cast Iron Skillet', 'Chef\'s Knife'],
+      nutritionInfo: {
+        calories: 150,
+        protein: 5,
+        carbs: 25,
+        fat: 6
+      }
     });
   }
   
@@ -398,10 +454,17 @@ function getMockRecipeMatches(
     possibleRecipes.push({
       id: 5,
       title: 'Artisan Bread',
-      requiredEquipment: ['Stand Mixer', 'Baking Sheet']
+      description: 'Crusty on the outside, soft on the inside artisan bread made with just a few simple ingredients.',
+      requiredEquipment: ['Stand Mixer', 'Baking Sheet'],
+      nutritionInfo: {
+        calories: 120,
+        protein: 4,
+        carbs: 23,
+        fat: 1
+      }
     });
   }
-  
+
   const recommendedPurchases = [
     {
       equipment: hasProcessor ? 'Immersion Blender' : 'Food Processor',
