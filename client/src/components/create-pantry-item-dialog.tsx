@@ -409,8 +409,8 @@ export function CreatePantryItemDialog({ trigger }: CreatePantryItemDialogProps)
                             <SelectContent>
                               <SelectItem value="recyclable">Recyclable</SelectItem>
                               <SelectItem value="biodegradable">Biodegradable</SelectItem>
-                              <SelectItem value="plastic">Plastic</SelectItem>
-                              <SelectItem value="mixed">Mixed Materials</SelectItem>
+                              <SelectItem value="reusable">Reusable</SelectItem>
+                              <SelectItem value="non-recyclable">Non-Recyclable</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />

@@ -3,7 +3,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -15,11 +15,12 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { 
   ArrowLeft, Info as InfoIcon, ChevronRight, AlertTriangle, Sparkles, 
   ChefHat, Brain, Loader2, Edit, Plus, Trash2, History, 
-  Star, UtensilsCrossed, Map, Scroll, ArrowRight, Info, Globe2, Wine, Palette, ListOrdered, Ban, MapPin 
+  Star, UtensilsCrossed, Map, Scroll, ArrowRight, Info, Globe2, Wine, Palette, ListOrdered, Ban, MapPin, Wrench 
 } from "lucide-react";
-import type { CulturalRecipe, CulturalCuisine } from "@shared/schema";
+import type { CulturalCuisine } from "@shared/schema";
 import { getRecipeAuthenticityScore, getTechniqueTips, getSubstitutions, getPairings, getEtiquette } from "@ai-services/cultural-cuisine-service";
 import type { RecipeAuthenticityAnalysis, TechniqueTip } from "@ai-services/cultural-cuisine-service";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface RecipeDetailsProps {
   recipe: CulturalRecipe;
@@ -52,21 +53,73 @@ interface CulturalNotes {
   [key: string]: string;
 }
 
+interface CulturalRecipe {
+  id: number;
+  name: string;
+  description: string;
+  createdAt: Date;
+  cuisineId: number;
+  localName: string | null;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  authenticIngredients: unknown;
+  instructions: string[] | Record<string, string>;
+  culturalNotes: Record<string, string>;  // Changed from optional to required
+  localSubstitutes: Record<string, string>;  // Changed from optional to required
+  imageUrl?: string;
+  image?: string;
+  updatedAt: Date;
+  servingSuggestions: unknown;
+  complementaryDishes: unknown;
+}
+
 export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
   const { toast } = useToast();
   const { user } = useAuth();
-  const [substitutions, setSubstitutions] = useState<IngredientSubstitution[]>([]);
-  const [authenticityScore, setAuthenticityScore] = useState<{ score: number; feedback: string[] }>({ score: 0, feedback: [] });
-  const [loading, setLoading] = useState<boolean>(false);
-  const [pairings, setPairings] = useState<Pairings | null>(null);
-  const [etiquette, setEtiquette] = useState<Etiquette>({ presentation: [], customs: [], taboos: [], servingOrder: [] });
-  const [authenticityAnalysis, setAuthenticityAnalysis] = useState<RecipeAuthenticityAnalysis | null>(null);
-  const [techniqueTips, setTechniqueTips] = useState<TechniqueTip[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isEditingInstructions, setIsEditingInstructions] = useState(false);
   const [isEditingIngredients, setIsEditingIngredients] = useState(false);
   const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [substitutions, setSubstitutions] = useState<IngredientSubstitution[]>([]);
+  const [pairings, setPairings] = useState<Pairings | null>(null);
+  const [etiquette, setEtiquette] = useState<Etiquette | null>(null);
+  const [authenticityAnalysis, setAuthenticityAnalysis] = useState<RecipeAuthenticityAnalysis | null>(null);
+  const [authenticityScore, setAuthenticityScore] = useState<{ score: number; feedback: string[] } | null>(null);
+  const [techniqueTips, setTechniqueTips] = useState<TechniqueTip[]>([]);
+  const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
   
+  // Add console logging at the start of component
+  console.log('Full recipe details:', {
+    ...recipe,
+    hasImageUrl: !!recipe.imageUrl,
+    fallbackImageUrl: `https://source.unsplash.com/1200x800/?${encodeURIComponent(recipe.name.toLowerCase() + ' italian food')}`
+  });
+
+  // Add new function to handle image loading errors
+  const getFallbackImageUrl = (recipeName: string) => {
+    return `https://source.unsplash.com/1200x800/?${encodeURIComponent(recipeName.toLowerCase() + ' ' + cuisine.name.toLowerCase() + ' food')}`;
+  };
+
+  // Add more detailed logging at component mount
+  useEffect(() => {
+    console.log('Recipe image details:', {
+      imageUrl: recipe.imageUrl,
+      image: recipe.image,
+      name: recipe.name,
+      hasImageUrl: !!recipe.imageUrl,
+      hasImage: !!recipe.image,
+      fallbackUrl: getFallbackImageUrl(recipe.name)
+    });
+  }, [recipe]);
+
+  useEffect(() => {
+    // Try to get image URL from localStorage first
+    const storedImageUrl = localStorage.getItem(`recipe-image-${recipe.id}`);
+    if (storedImageUrl) {
+      setLocalImageUrl(storedImageUrl);
+    }
+  }, [recipe.id]);
+
   const { data: recipeDetails, refetch } = useQuery({
     queryKey: ['recipe', recipe.id],
     queryFn: async () => {
@@ -234,7 +287,13 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
 
   const handleUpdateRecipe = async (updatedData: Partial<CulturalRecipe>) => {
     try {
-      // Convert arrays to objects with numbered keys if present
+      if (updatedData.imageUrl) {
+        // Store image URL in localStorage
+        localStorage.setItem(`recipe-image-${recipe.id}`, updatedData.imageUrl);
+        setLocalImageUrl(updatedData.imageUrl);
+      }
+
+      // Format the data for the API
       const formattedData = {
         ...updatedData,
         instructions: Array.isArray(updatedData.instructions) 
@@ -258,7 +317,14 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
         throw new Error('Failed to update recipe');
       }
 
-      await refetch(); // Refetch recipe data after update
+      // Force reload the image by clearing and resetting localStorage
+      if (updatedData.imageUrl) {
+        localStorage.removeItem(`recipe-image-${recipe.id}`);
+        localStorage.setItem(`recipe-image-${recipe.id}`, updatedData.imageUrl);
+        setLocalImageUrl(updatedData.imageUrl);
+      }
+
+      await refetch();
 
       toast({
         title: "Recipe Updated",
@@ -332,46 +398,46 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to {cuisine.name} Cuisine
             </Button>
-            
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete Recipe
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete this recipe.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDeleteRecipe} className="bg-destructive text-destructive-foreground">
-                    Delete
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
           </div>
 
           {/* Main content */}
           <div className="grid gap-2">
-            {/* Recipe Card */}
+            {/* Recipe Header */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-2xl">{recipe.name}</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-4">
                 <p className="text-muted-foreground">{recipe.description}</p>
-                <Badge variant={
-                  recipe.difficulty === 'beginner' ? 'default' :
-                  recipe.difficulty === 'intermediate' ? 'secondary' : 'destructive'
-                }>
-                  {recipe.difficulty}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant={
+                    recipe.difficulty === 'beginner' ? 'default' :
+                    recipe.difficulty === 'intermediate' ? 'secondary' : 'destructive'
+                  }>
+                    {recipe.difficulty}
+                  </Badge>
+                </div>
+                
+                {/* Recipe Image with enhanced styling */}
+                <div className="relative aspect-[16/6] w-full overflow-hidden rounded-lg">
+                  {localImageUrl || recipe.imageUrl || recipe.image ? (
+                    <img
+                      src={localImageUrl || recipe.imageUrl || recipe.image}
+                      alt={recipe.name}
+                      className="object-cover w-full h-full"
+                      onError={(e) => {
+                        e.currentTarget.src = getFallbackImageUrl(recipe.name);
+                      }}
+                    />
+                  ) : (
+                    <img
+                      src={getFallbackImageUrl(recipe.name)}
+                      alt={recipe.name}
+                      className="object-cover w-full h-full"
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 pointer-events-none" />
+                </div>
               </CardContent>
             </Card>
 
@@ -380,15 +446,6 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
               <MapPin className="h-4 w-4 text-white/90" />
               <span className="text-sm font-medium text-white/90">{cuisine.region}</span>
             </div>
-            
-            {/* Recipe Image */}
-            <div 
-              className="h-64 w-full bg-cover bg-center rounded-lg shadow-md"
-              style={{ 
-                backgroundImage: `url(https://source.unsplash.com/1200x800/?${encodeURIComponent(recipe.name.toLowerCase())})`,
-                backgroundSize: 'cover'
-              }}
-            />
             
             {/* Tabs Content */}
             <div className="mt-2">
@@ -889,11 +946,12 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                               Loading...
                             </>
-                          ) : etiquette && 
-                              etiquette.presentation?.length > 0 || 
-                              etiquette.customs?.length > 0 || 
-                              etiquette.taboos?.length > 0 || 
-                              etiquette.servingOrder?.length > 0 ? (
+                          ) : etiquette && (
+                              (etiquette.presentation?.length ?? 0) > 0 || 
+                              (etiquette.customs?.length ?? 0) > 0 || 
+                              (etiquette.taboos?.length ?? 0) > 0 || 
+                              (etiquette.servingOrder?.length ?? 0) > 0
+                          ) ? (
                             <>
                               <Edit className="mr-2 h-4 w-4" />
                               Edit Etiquette
@@ -913,7 +971,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                               <div className="space-y-3 p-4 rounded-lg border">
                                 <h4 className="font-medium text-sm flex items-center gap-2">
                                   <AlertTriangle className="h-4 w-4 text-red-600" />
-                                  Cultural Taboos
+                                  <strong>Cultural Taboos</strong>
                                 </h4>
                                 <ul className="space-y-2">
                                   {etiquette.taboos.map((taboo, i) => (
@@ -930,7 +988,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                               <div className="space-y-3 p-4 rounded-lg border">
                                 <h4 className="font-medium text-sm flex items-center gap-2">
                                   <Scroll className="h-4 w-4 text-amber-600" />
-                                  Traditional Customs
+                                  <strong>Traditional Customs</strong>
                                 </h4>
                                 <ul className="space-y-2">
                                   {etiquette.customs.map((custom, i) => (
@@ -947,7 +1005,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                               <div className="space-y-3 p-4 rounded-lg border">
                                 <h4 className="font-medium text-sm flex items-center gap-2">
                                   <Palette className="h-4 w-4 text-emerald-600" />
-                                  Table Setting & Presentation
+                                  <strong>Table Setting & Presentation</strong>
                                 </h4>
                                 <ul className="space-y-2">
                                   {etiquette.presentation.map((tip, i) => (
@@ -964,7 +1022,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                               <div className="space-y-3 p-4 rounded-lg border">
                                 <h4 className="font-medium text-sm flex items-center gap-2">
                                   <ListOrdered className="h-4 w-4 text-blue-600" />
-                                  Serving Order
+                                  <strong>Serving Order</strong>
                                 </h4>
                                 <ul className="space-y-2">
                                   {etiquette.servingOrder.map((step, i) => (
@@ -1125,138 +1183,159 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
 
         {/* Edit Instructions Dialog */}
         <Dialog open={isEditingInstructions} onOpenChange={setIsEditingInstructions}>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>{hasInstructions ? 'Edit Recipe Instructions' : 'Add Recipe Instructions'}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              const instructionsText = formData.get('instructions') as string;
-              const instructions = instructionsText.split('\n').filter(Boolean);
-              handleUpdateRecipe({ instructions });
-              setIsEditingInstructions(false);
-            }} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Instructions</label>
-                <Textarea 
-                  name="instructions"
-                  defaultValue={Array.isArray(recipeDetails.instructions) ? 
-                    recipeDetails.instructions.join('\n') : 
-                    Object.values(recipeDetails.instructions || {}).join('\n')}
-                  placeholder="Enter each step on a new line"
-                  rows={10}
-                />
-                <p className="text-sm text-muted-foreground">
-                  Enter each step on a new line. For example:
-                  {'\nChop the vegetables\nHeat oil in a pan\nAdd spices'}
-                </p>
+            <ScrollArea className="flex-1">
+              <div className="p-6">
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  const instructionsText = formData.get('instructions') as string;
+                  const instructions = instructionsText.split('\n').filter(Boolean);
+                  handleUpdateRecipe({ instructions });
+                  setIsEditingInstructions(false);
+                }} className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Instructions</label>
+                    <Textarea 
+                      name="instructions"
+                      defaultValue={Array.isArray(recipeDetails.instructions) ? 
+                        recipeDetails.instructions.join('\n') : 
+                        Object.values(recipeDetails.instructions || {}).join('\n')}
+                      placeholder="Enter each step on a new line"
+                      rows={10}
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Enter each step on a new line. For example:
+                      {'\nChop the vegetables\nHeat oil in a pan\nAdd spices'}
+                    </p>
+                  </div>
+                  <Button type="submit" className="w-full">
+                    {hasInstructions ? 'Save Instructions' : 'Add Instructions'}
+                  </Button>
+                </form>
               </div>
-              <Button type="submit" className="w-full">
-                {hasInstructions ? 'Save Instructions' : 'Add Instructions'}
-              </Button>
-            </form>
+            </ScrollArea>
+            <DialogFooter className="mt-2">
+              <Button onClick={() => setIsEditingInstructions(false)}>Close</Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
         {/* Edit Ingredients Dialog */}
         <Dialog open={isEditingIngredients} onOpenChange={setIsEditingIngredients}>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>
                 {hasIngredients ? 'Edit Authentic Ingredients' : 'Add Authentic Ingredients'}
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              const ingredientsText = formData.get('ingredients') as string;
-              const ingredients = ingredientsText.split(',').map(i => i.trim()).filter(Boolean);
-              handleUpdateRecipe({ authenticIngredients: ingredients });
-              setIsEditingIngredients(false);
-            }} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Ingredients</label>
-                <Textarea 
-                  name="ingredients"
-                  defaultValue={Array.isArray(recipeDetails.authenticIngredients) ? 
-                    recipeDetails.authenticIngredients.join(', ') : 
-                    Object.keys(recipeDetails.authenticIngredients || {}).join(', ')}
-                  placeholder="Enter ingredients separated by commas"
-                  rows={6}
-                />
-                <p className="text-sm text-muted-foreground">
-                  Enter ingredients separated by commas. For example:
-                  {'\nrice, ginger, soy sauce, sesame oil'}
-                </p>
+            <ScrollArea className="flex-1">
+              <div className="p-6">
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  const ingredientsText = formData.get('ingredients') as string;
+                  const ingredients = ingredientsText.split(',').map(i => i.trim()).filter(Boolean);
+                  handleUpdateRecipe({ authenticIngredients: ingredients });
+                  setIsEditingIngredients(false);
+                }} className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Ingredients</label>
+                    <Textarea 
+                      name="ingredients"
+                      defaultValue={Array.isArray(recipeDetails.authenticIngredients) ? 
+                        recipeDetails.authenticIngredients.join(', ') : 
+                        Object.keys(recipeDetails.authenticIngredients || {}).join(', ')}
+                      placeholder="Enter ingredients separated by commas"
+                      rows={6}
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Enter ingredients separated by commas. For example:
+                      {'\nrice, ginger, soy sauce, sesame oil'}
+                    </p>
+                  </div>
+                  <Button type="submit" className="w-full">
+                    {hasIngredients ? 'Save Ingredients' : 'Add Ingredients'}
+                  </Button>
+                </form>
               </div>
-              <Button type="submit" className="w-full">
-                {hasIngredients ? 'Save Ingredients' : 'Add Ingredients'}
-              </Button>
-            </form>
+            </ScrollArea>
+            <DialogFooter className="mt-2">
+              <Button onClick={() => setIsEditingIngredients(false)}>Close</Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
         {/* Edit Cultural Notes Dialog */}
         <Dialog open={isEditingNotes} onOpenChange={setIsEditingNotes}>
-          <DialogContent>
+          <DialogContent className="max-h-[90vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>{hasNotes ? 'Edit Cultural Notes' : 'Add Cultural Notes'}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              const culturalNotes: CulturalNotes = {};
-              const sections = ['history', 'significance', 'serving', 'variations'];
-              
-              sections.forEach(section => {
-                const content = formData.get(`note_${section}`) as string;
-                if (content?.trim()) {
-                  culturalNotes[section] = content.trim();
-                }
-              });
-              
-              handleUpdateRecipe({ culturalNotes });
-              setIsEditingNotes(false);
-            }} className="space-y-4">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Historical Context</label>
-                  <Textarea 
-                    name="note_history"
-                    defaultValue={recipeDetails.culturalNotes?.history || ''}
-                    placeholder="Historical background of the dish"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Cultural Significance</label>
-                  <Textarea 
-                    name="note_significance"
-                    defaultValue={recipeDetails.culturalNotes?.significance || ''}
-                    placeholder="Cultural importance and meaning"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Serving Traditions</label>
-                  <Textarea 
-                    name="note_serving"
-                    defaultValue={recipeDetails.culturalNotes?.serving || ''}
-                    placeholder="Traditional serving methods"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Regional Variations</label>
-                  <Textarea 
-                    name="note_variations"
-                    defaultValue={recipeDetails.culturalNotes?.variations || ''}
-                    placeholder="Different variations across regions"
-                  />
-                </div>
+            <ScrollArea className="flex-1">
+              <div className="p-6">
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  const culturalNotes: CulturalNotes = {};
+                  const sections = ['history', 'significance', 'serving', 'variations'];
+                  
+                  sections.forEach(section => {
+                    const content = formData.get(`note_${section}`) as string;
+                    if (content?.trim()) {
+                      culturalNotes[section] = content.trim();
+                    }
+                  });
+                  
+                  handleUpdateRecipe({ culturalNotes });
+                  setIsEditingNotes(false);
+                }} className="space-y-4">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Historical Context</label>
+                      <Textarea 
+                        name="note_history"
+                        defaultValue={recipeDetails.culturalNotes?.history || ''}
+                        placeholder="Historical background of the dish"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Cultural Significance</label>
+                      <Textarea 
+                        name="note_significance"
+                        defaultValue={recipeDetails.culturalNotes?.significance || ''}
+                        placeholder="Cultural importance and meaning"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Serving Traditions</label>
+                      <Textarea 
+                        name="note_serving"
+                        defaultValue={recipeDetails.culturalNotes?.serving || ''}
+                        placeholder="Traditional serving methods"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Regional Variations</label>
+                      <Textarea 
+                        name="note_variations"
+                        defaultValue={recipeDetails.culturalNotes?.variations || ''}
+                        placeholder="Different variations across regions"
+                      />
+                    </div>
+                  </div>
+                  <Button type="submit" className="w-full">
+                    {hasNotes ? 'Save Cultural Notes' : 'Add Cultural Notes'}
+                  </Button>
+                </form>
               </div>
-              <Button type="submit" className="w-full">
-                {hasNotes ? 'Save Cultural Notes' : 'Add Cultural Notes'}
-              </Button>
-            </form>
+            </ScrollArea>
+            <DialogFooter className="mt-2">
+              <Button onClick={() => setIsEditingNotes(false)}>Close</Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>

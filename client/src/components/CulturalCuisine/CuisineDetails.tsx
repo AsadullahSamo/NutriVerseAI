@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,6 +36,13 @@ const formatHeading = (text: string): string => {
 interface CuisineDetailsProps {
   cuisineId: number;
   onBack: () => void;
+}
+
+// Add proper typing for recipes
+interface Recipe extends CulturalRecipe {
+  instructions: string[] | Record<string, string>;
+  authenticIngredients: string[] | Record<string, string>;
+  culturalNotes: Record<string, string>;
 }
 
 interface EditImagesDialogProps {
@@ -214,13 +221,22 @@ function EditCulturalDetailsDialog({ open, onOpenChange, onSubmit, currentDetail
 export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
-  const [selectedRecipe, setSelectedRecipe] = useState<CulturalRecipe | null>(null);
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [isAddingRecipe, setIsAddingRecipe] = useState(false);
   const [isEditingImages, setIsEditingImages] = useState(false);
   const [isEditingCulturalDetails, setIsEditingCulturalDetails] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const [isGeneratingDetails, setIsGeneratingDetails] = useState(false);
+  const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Try to get image URL from localStorage first
+    const storedImageUrl = localStorage.getItem(`cuisine-image-${cuisineId}`);
+    if (storedImageUrl) {
+      setLocalImageUrl(storedImageUrl);
+    }
+  }, [cuisineId]);
 
   const { data: cuisine, isLoading, error, refetch } = useQuery({
     queryKey: ['cuisine', cuisineId],
@@ -235,6 +251,9 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
 
   const handleUpdateImages = async (data: { bannerUrl: string }) => {
     try {
+      // Store banner URL in localStorage
+      localStorage.setItem(`cuisine-image-${cuisineId}`, data.bannerUrl);
+      setLocalImageUrl(data.bannerUrl);
       const response = await fetch(`/api/cultural-cuisines/${cuisineId}`, {
         method: 'PATCH',
         headers: {
@@ -383,12 +402,14 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
 
     try {
       const formData = new FormData(event.currentTarget);
+      const imageUrl = formData.get('imageUrl')?.toString();
+
       const newRecipe = {
         name: formData.get('name'),
         description: formData.get('description'),
         difficulty: formData.get('difficulty') || 'beginner',
+        imageUrl, // Will be sent to database but not used for display
         cuisineId,
-        // Initialize with empty but valid structures that match the database schema
         authenticIngredients: formData.get('ingredients')?.toString().split(',').map(i => i.trim()).filter(Boolean) || [],
         instructions: formData.get('instructions')?.toString().split('\n').filter(Boolean) || [],
         culturalNotes: {
@@ -415,15 +436,19 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
 
       const addedRecipe = await response.json();
 
+      // Store and force refresh image URL in localStorage using the new recipe's ID
+      if (imageUrl) {
+        localStorage.removeItem(`recipe-image-${addedRecipe.id}`);
+        localStorage.setItem(`recipe-image-${addedRecipe.id}`, imageUrl);
+      }
+
       toast({
         title: "Recipe Added",
         description: "The recipe has been added successfully.",
       });
 
-      // Refetch cuisine details to get the updated recipes list
       await refetch();
       setIsAddingRecipe(false);
-      // Automatically select the newly added recipe for editing
       setSelectedRecipe(addedRecipe);
     } catch (error) {
       toast({
@@ -463,6 +488,17 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
     }
   };
 
+  const handleViewRecipe = (recipe: CulturalRecipe) => {
+    // Cast the recipe to match our Recipe interface
+    const fullRecipe: Recipe = {
+      ...recipe,
+      instructions: recipe.instructions as string[] | Record<string, string>,
+      authenticIngredients: recipe.authenticIngredients as string[] | Record<string, string>,
+      culturalNotes: recipe.culturalNotes as Record<string, string>
+    };
+    setSelectedRecipe(fullRecipe);
+  };
+
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 md:px-6 lg:px-8 max-w-7xl">
@@ -499,12 +535,15 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
   return (
     <div className="container mx-auto px-4 md:px-6 lg:px-8 max-w-7xl">
       <div className="relative space-y-6 pb-12">
-        {cuisine?.bannerUrl && (
+        {(localImageUrl || cuisine?.bannerUrl) && (
           <div className="relative w-full h-[300px] rounded-lg overflow-hidden">
             <img 
-              src={cuisine.bannerUrl} 
+              src={localImageUrl || cuisine.bannerUrl}
               alt={`${cuisine.name} banner`}
               className="absolute inset-0 w-full h-full object-cover"
+              onError={(e) => {
+                e.currentTarget.src = `https://source.unsplash.com/1200x400/?${encodeURIComponent(cuisine.name.toLowerCase() + ' food')}`;
+              }}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-background/20" />
             <div className="absolute bottom-0 left-0 p-6">
@@ -841,6 +880,17 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                               </Select>
                             </div>
                             <div className="space-y-2">
+                              <label className="text-sm font-medium">Image URL</label>
+                              <Input 
+                                name="imageUrl"
+                                type="url"
+                                placeholder="https://example.com/recipe-image.jpg"
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Add an image URL to showcase your recipe
+                              </p>
+                            </div>
+                            <div className="space-y-2">
                               <label className="text-sm font-medium">Ingredients</label>
                               <Textarea 
                                 name="ingredients" 
@@ -920,7 +970,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => setSelectedRecipe(recipe)}
+                              onClick={() => handleViewRecipe(recipe)}
                             >
                               View Details
                             </Button>
@@ -1043,4 +1093,42 @@ const getEtiquetteDisplay = (key: string, value: unknown) => {
       <p className="text-muted-foreground">{String(value)}</p>
     )
   };
+};
+
+// In the handleAddRecipe function, add the new recipe
+const newRecipe = {
+  name: "Risotto alla Milanese",
+  description: "A luxurious Northern Italian dish where saffron-infused Carnaroli rice is slowly cooked to creamy perfection, embodying Milan's refined culinary heritage. The distinctive golden color and rich, yet delicate flavor profile make this dish a cornerstone of Lombardy cuisine.",
+  difficulty: "advanced",
+  imageUrl: "https://source.unsplash.com/featured/?risotto-milanese",
+  authenticIngredients: [
+    "Carnaroli rice",
+    "Saffron threads",
+    "White wine (dry)",
+    "Parmigiano-Reggiano cheese",
+    "White onion",
+    "European-style butter",
+    "Beef or vegetable stock (homemade preferred)",
+    "Extra virgin olive oil",
+    "Sea salt",
+    "Black pepper"
+  ],
+  instructions: [
+    "Toast saffron threads lightly and steep in warm stock",
+    "Finely dice white onion and sweat in butter and olive oil until translucent",
+    "Add Carnaroli rice and toast until grains are hot and slightly translucent",
+    "Deglaze with dry white wine and stir until absorbed",
+    "Begin adding hot saffron-infused stock gradually, stirring constantly",
+    "Continue adding stock and stirring for about 18-20 minutes until rice is al dente",
+    "Remove from heat and vigorously stir in cold butter and Parmigiano-Reggiano",
+    "Let rest for 2 minutes before serving",
+    "Plate and finish with additional Parmigiano-Reggiano if desired"
+  ],
+  culturalNotes: {
+    history: "Risotto alla Milanese originated in Milan during the 16th century, influenced by the city's trade connections and wealth. The use of saffron was inspired by its use in cathedral stained glass artwork.",
+    significance: "This dish represents Milan's refined culinary tradition and its historical prosperity. The golden color from saffron symbolizes wealth and luxury in Milanese culture.",
+    serving: "Traditionally served as 'all'onda' (wave-like consistency) on warm plates. Often accompanies Ossobuco in the complete dish 'Ossobuco alla Milanese'.",
+    variations: "While the authentic recipe remains strict, modern variations might include bone marrow or different rice varieties. However, true Risotto alla Milanese must use Carnaroli or Vialone Nano rice and real saffron."
+  },
+  prepTime: 35
 };

@@ -48,7 +48,7 @@ export function GroceryList({ list }: GroceryListProps) {
       await apiRequest("DELETE", `/api/grocery-lists/${list.id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/grocery-lists"] }, { exact: true });
+      queryClient.invalidateQueries({ queryKey: ["/api/grocery-lists"] });
       toast({
         title: "List deleted",
         description: "Your grocery list has been deleted.",
@@ -56,19 +56,18 @@ export function GroceryList({ list }: GroceryListProps) {
     },
   });
 
-
   const toggleItem = (itemId: string) => {
     const updatedItems = items.map((item) =>
       item.id === itemId ? { ...item, completed: !item.completed } : item
     );
     setItems(updatedItems);
-    updateMutation.mutate({ ...list, items: updatedItems });
+    updateMutation.mutate({ ...list, items: updatedItems, title: list.title });
   };
 
   const removeItem = (itemId: string) => {
     const updatedItems = items.filter((item) => item.id !== itemId);
     setItems(updatedItems);
-    updateMutation.mutate({ ...list, items: updatedItems });
+    updateMutation.mutate({ ...list, items: updatedItems, title: list.title });
   };
 
   const addItem = () => {
@@ -83,7 +82,11 @@ export function GroceryList({ list }: GroceryListProps) {
 
     const updatedItems = [...items, newItemObject];
     setItems(updatedItems);
-    updateMutation.mutate({ ...list, items: updatedItems });
+    updateMutation.mutate({ 
+      ...list, 
+      items: updatedItems,
+      title: list.title || "Shopping List" // Ensure title is maintained
+    });
     setNewItem("");
     setNewQuantity("1");
   };

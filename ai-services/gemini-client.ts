@@ -3,8 +3,50 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 // Initialize the Google Generative AI client
 export const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY || "AIzaSyDKcf0RjTq9yT4kXv4ANfT1ZB4Y6SQDKwc");
 
-// Get the generative model
-export const model = genAI.getGenerativeModel({ model: "gemini-2.0-pro-exp-02-05" });
+// Get the generative model with retry configuration
+export const model = genAI.getGenerativeModel({ 
+  model: "gemini-2.0-flash-lite",
+  safetySettings: [
+    {
+      category: "HARM_CATEGORY_HARASSMENT",
+      threshold: "BLOCK_MEDIUM_AND_ABOVE",
+    },
+  ],
+});
+
+// Queue management for rate limiting
+let requestQueue: Promise<any>[] = [];
+const MIN_DELAY_BETWEEN_REQUESTS = 2000; // Increase to 2 seconds between requests
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 1000;
+let lastRequestTime = 0;
+
+async function wait(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function retryWithExponentialBackoff<T>(
+  operation: () => Promise<T>,
+  retryCount = 0
+): Promise<T> {
+  try {
+    return await operation();
+  } catch (error: any) {
+    if (retryCount >= MAX_RETRIES) {
+      throw error;
+    }
+
+    // Check if it's a rate limit error
+    if (error?.status === 429 || error?.message?.includes('Resource has been exhausted')) {
+      const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount);
+      console.log(`Rate limit hit, retrying in ${delay}ms...`);
+      await wait(delay);
+      return retryWithExponentialBackoff(operation, retryCount + 1);
+    }
+
+    throw error;
+  }
+}
 
 // Helper function to clean potential JSON string
 function cleanJsonString(str: string): string {
@@ -23,25 +65,36 @@ function cleanJsonString(str: string): string {
 // Helper function to parse JSON response safely
 export async function safeJsonParse(response: string) {
   try {
+    // Print debug info
+    console.log('Attempting to parse response:', response);
+    
     // Clean the response first
     const cleaned = cleanJsonString(response);
+    console.log('Cleaned response:', cleaned);
     
     // Try to parse the cleaned response directly
     return JSON.parse(cleaned);
   } catch (firstError) {
     try {
-      // Look for JSON-like content in the response
+      // Extract the JSON content if it's wrapped in a code block or has extra text
+      const jsonMatch = response.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const jsonContent = jsonMatch[0];
+        console.log('Extracted JSON content:', jsonContent);
+        return JSON.parse(jsonContent);
+      }
+
+      // If no JSON object/array found, try other patterns
       const patterns = [
-        /\{[\s\S]*\}/, // Object pattern
-        /\[[\s\S]*\]/, // Array pattern
         /```json\n?([\s\S]*?)\n?```/, // JSON code block
-        /```\n?([\s\S]*?)\n?```/ // Generic code block
+        /```\n?([\s\S]*?)\n?```/, // Generic code block
       ];
 
       for (const pattern of patterns) {
         const match = response.match(pattern);
         if (match) {
           const jsonContent = cleanJsonString(match[1] || match[0]);
+          console.log('Matched pattern, attempting to parse:', jsonContent);
           try {
             return JSON.parse(jsonContent);
           } catch {
@@ -60,4 +113,19 @@ export async function safeJsonParse(response: string) {
       throw new Error('Failed to parse JSON response: ' + (e instanceof Error ? e.message : 'Unknown error'));
     }
   }
+}
+
+export async function generateContent(prompt: string) {
+  const now = Date.now();
+  const timeToWait = Math.max(0, MIN_DELAY_BETWEEN_REQUESTS - (now - lastRequestTime));
+  
+  if (timeToWait > 0) {
+    await wait(timeToWait);
+  }
+
+  return retryWithExponentialBackoff(async () => {
+    const result = await model.generateContent(prompt);
+    lastRequestTime = Date.now();
+    return result;
+  });
 }

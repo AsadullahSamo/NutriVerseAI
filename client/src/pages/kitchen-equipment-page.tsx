@@ -1,22 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { getEquipmentRecommendations, generateMaintenanceSchedule, getRecipesByEquipment } from '@/ai-services/kitchen-ai';
 import { analyzeKitchenInventory, getMaintenanceTips, type KitchenEquipment as KitchenEquipmentType } from '@/ai-services/kitchen-inventory-ai';
-import type { EquipmentRecommendation, MaintenanceSchedule, Recipe } from '@shared/schema';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import type { EquipmentRecommendation, MaintenanceSchedule } from '@shared/schema';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Loader2, AlertTriangle, CheckCircle, XCircle, PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { Loader2, AlertTriangle, CheckCircle, XCircle, PlusCircle, Edit, Trash2, Clock, Leaf, Utensils } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from 'date-fns';
-import { queryClient } from '@/lib/queryClient';
-import { RecipeCard } from '@/components/recipe-card';
+import { queryClient, apiRequest } from '@/lib/queryClient';
+import { useAuth } from "@/hooks/use-auth";
+import { NutritionDisplay } from "@/components/nutrition-display";
+import * as kitchenInventoryAI from '@/ai-services/kitchen-inventory-ai';
 
 // Add hashCode function to generate consistent IDs for recommendations
 const hashCode = (str: string): number => {
@@ -29,24 +31,37 @@ const hashCode = (str: string): number => {
   return hash;
 };
 
-// Add RecipeCardType type definition
-type RecipeCardType = Recipe & {
-  postId?: number;
-  ingredients: string[];
-  instructions: string[];
-};
+interface GroceryListItem {
+  id: string;
+  name: string;
+  quantity: string;
+  completed: boolean;
+  category?: string;
+  estimatedPrice?: string;
+  priority?: 'high' | 'medium' | 'low';
+  description?: string;
+}
 
-interface AIRecipeResult {
+interface Recipe {
   id: number;
   title: string;
+  description: string;
   requiredEquipment: string[];
+  nutritionInfo: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    sustainabilityScore?: number;
+  };
 }
 
 const KitchenEquipmentPage: React.FC = () => {
+  const { user } = useAuth();
   const [equipment, setEquipment] = useState<KitchenEquipmentType[]>([]);
   const [recommendations, setRecommendations] = useState<EquipmentRecommendation[]>([]);
   const [maintenanceSchedule, setMaintenanceSchedule] = useState<MaintenanceSchedule[]>([]);
-  const [recipes, setRecipes] = useState<RecipeCardType[]>([]); // Update type to RecipeCardType
+  const [recipes, setRecipes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -55,8 +70,14 @@ const KitchenEquipmentPage: React.FC = () => {
   const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [analysisDialogOpen, setAnalysisDialogOpen] = useState(false);
-  const [notification, setNotification] = useState<{type: 'success' | 'error', message: string} | null>(null);
+  const [notification, setNotification] = useState<{type: 'success' | 'error' | 'info', message: string} | null>(null);
   const [addingToList, setAddingToList] = useState<number | null>(null);
+  const [shoppingList, setShoppingList] = useState<Array<{
+    item: string;
+    description: string;
+    priority: 'high' | 'medium' | 'low';
+    estimatedPrice?: string;
+  }>>([]);
   
   // Add equipment form states
   const [equipmentDialogOpen, setEquipmentDialogOpen] = useState(false);
@@ -203,37 +224,14 @@ const KitchenEquipmentPage: React.FC = () => {
         maintenanceResult = []; // Fallback
       }
       
-      // Process recipe matches to include full recipe details
-      if (Array.isArray(recipesResult.possibleRecipes)) {
-        setRecipes(recipesResult.possibleRecipes.map((recipe: AIRecipeResult) => ({
-          ...recipe,
-          id: recipe.id,
-          title: recipe.title,
-          description: `Recipe that works perfectly with your ${recipe.requiredEquipment.join(', ')}. Explore this dish to make the most of your kitchen equipment.`,
-          prepTime: 30,
-          imageUrl: `https://source.unsplash.com/featured/?food,${encodeURIComponent(recipe.title)}`,
-          nutritionInfo: {
-            calories: 250,
-            protein: 15,
-            carbs: 30,
-            fat: 10
-          },
-          sustainabilityScore: 50,
-          instructions: [`Prepare ingredients using your ${recipe.requiredEquipment.join(', ')}`, "Cook according to your preferred method", "Serve and enjoy!"],
-          ingredients: recipe.requiredEquipment || [],
-          createdBy: 1,
-          createdAt: new Date().toISOString(),
-          postId: undefined
-        })));
-      }
-
       // Store results in local storage (with deduplicated maintenance)
       localStorage.setItem('kitchen-recommendations', JSON.stringify(recommendationsResult));
       localStorage.setItem('kitchen-maintenance-schedule', JSON.stringify(maintenanceResult));
-      localStorage.setItem('kitchen-recipes', JSON.stringify(recipes));
+      localStorage.setItem('kitchen-recipes', JSON.stringify(recipesResult.possibleRecipes));
 
       setRecommendations(recommendationsResult);
       setMaintenanceSchedule(maintenanceResult);
+      setRecipes(recipesResult.possibleRecipes);
       
       setNotification({
         type: 'success',
@@ -300,41 +298,81 @@ const KitchenEquipmentPage: React.FC = () => {
   };
 
   const handleAddToShoppingList = async (rec: EquipmentRecommendation) => {
-    // Generate a consistent ID based on the recommendation name and category
     const recId = hashCode(`${rec.name}-${rec.category}`);
+    const listTitle = "Kitchen Equipment Shopping";
     
     try {
       setAddingToList(recId);
       
-      const data = {
-        userId: 1,
-        title: "Kitchen Equipment Shopping",
-        items: [{
-          id: crypto.randomUUID(),
-          name: rec.name,
-          quantity: "1",
-          completed: false,
-          category: "Kitchen Equipment",
-          estimatedPrice: rec.estimatedPrice,
-          priority: rec.priority
-        }],
-        completed: false
+      // First check if a kitchen equipment list exists
+      const response = await apiRequest("GET", "/api/grocery-lists");
+      const lists = await response.json();
+      
+      // Find the kitchen equipment list by exact title match first
+      let kitchenList = lists.find((list: any) => list.title === listTitle);
+      
+      // If no list found by title, check for a list that has kitchen equipment items
+      if (!kitchenList) {
+        kitchenList = lists.find((list: any) => 
+          Array.isArray(list.items) && 
+          list.items.some((item: GroceryListItem) => item.category === "Kitchen Equipment")
+        );
+      }
+
+      const newItem = {
+        id: crypto.randomUUID(),
+        name: rec.name,
+        quantity: "1",
+        completed: false,
+        category: "Kitchen Equipment",
+        estimatedPrice: rec.estimatedPrice || "",
+        priority: rec.priority || "medium",
+        description: rec.reason || `Recommended kitchen equipment`
       };
 
-      const response = await fetch('/api/grocery-lists', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
+      if (kitchenList) {
+        // Check if item already exists using case-insensitive comparison
+        const itemExists = kitchenList.items.some((item: GroceryListItem) => 
+          item.name.toLowerCase() === rec.name.toLowerCase() && 
+          item.category === "Kitchen Equipment"
+        );
 
-      if (!response.ok) throw new Error('Failed to add to shopping list');
+        if (itemExists) {
+          setNotification({
+            type: 'info',
+            message: `${rec.name} is already in your shopping list`
+          });
+          setAddingToList(null);
+          return;
+        }
 
-      // Immediately invalidate the grocery lists query to refresh the data
+        // Add to existing list and maintain all existing items
+        const updatedItems = [...kitchenList.items, newItem];
+
+        // Ensure the title is set correctly when updating
+        await apiRequest("PATCH", `/api/grocery-lists/${kitchenList.id}`, {
+          ...kitchenList,
+          title: listTitle, // Ensure consistent title
+          items: updatedItems
+        });
+      } else {
+        // Create new kitchen equipment list only if none exists
+        const data = {
+          userId: user?.id,
+          title: listTitle,
+          items: [newItem],
+          completed: false
+        };
+
+        await apiRequest("POST", "/api/grocery-lists", data);
+      }
+
+      // Invalidate queries to refresh the lists
       queryClient.invalidateQueries({ queryKey: ["/api/grocery-lists"] });
 
       setNotification({
         type: 'success',
-        message: `${rec.name} has been added to your shopping list. You can find it in the Home > Shopping Lists section.`
+        message: `${rec.name} has been added to your kitchen equipment shopping list`
       });
     } catch (error) {
       console.error('Error adding to shopping list:', error);
@@ -433,63 +471,48 @@ const KitchenEquipmentPage: React.FC = () => {
   const handleRunAIAnalysis = async () => {
     setAiLoading(true);
     try {
-      const enrichedEquipment = enrichEquipmentData(equipment);
+      console.log('Running AI analysis on kitchen equipment...');
+      // Direct AI call for analysis
+      const analysis = await analyzeKitchenInventory(equipment, ['Italian', 'Baking', 'Healthy']);
+      console.log('AI analysis complete:', analysis);
       
-      // Run all AI requests in parallel for better performance
-      // Only run the necessary recommendation-related requests
-      const [recResults, maintResults, recipeResults] = await Promise.all([
-        getEquipmentRecommendations(enrichedEquipment, ['Italian', 'Healthy Cooking']),
-        generateMaintenanceSchedule(enrichedEquipment, new Date().toISOString(), new Date(Date.now() + 30*24*60*60*1000).toISOString()),
-        getRecipesByEquipment(enrichedEquipment, ['Italian', 'Healthy Cooking'])
-      ]);
-
-      // Transform recipe results to match RecipeCardType
-      const transformedRecipes = recipeResults.possibleRecipes.map(recipe => ({
-        ...recipe,
-        id: recipe.id,
-        title: recipe.title,
-        description: `Recipe that works perfectly with your ${recipe.requiredEquipment.join(', ')}. Explore this dish to make the most of your kitchen equipment.`,
-        prepTime: 30,
-        imageUrl: `https://source.unsplash.com/featured/?food,${encodeURIComponent(recipe.title)}`,
-        nutritionInfo: {
-          calories: 250,
-          protein: 15,
-          carbs: 30,
-          fat: 10
-        },
-        sustainabilityScore: 50,
-        instructions: [`Prepare ingredients using your ${recipe.requiredEquipment.join(', ')}`, "Cook according to your preferred method", "Serve and enjoy!"],
-        ingredients: recipe.requiredEquipment || [],
-        createdBy: 1,
-        createdAt: new Date().toISOString(),
-        postId: undefined
-      }));
-
-      // Update state with all results
-      setRecommendations(recResults);
-      setMaintenanceSchedule(maintResults);
-      setRecipes(transformedRecipes);
-
-      // Store results in local storage
-      localStorage.setItem('kitchen-recommendations', JSON.stringify(recResults));
-      localStorage.setItem('kitchen-maintenance-schedule', JSON.stringify(maintResults));
-      localStorage.setItem('kitchen-recipes', JSON.stringify(transformedRecipes));
-
+      // Ensure analysis has the expected structure
+      const validatedAnalysis = {
+        maintenanceRecommendations: Array.isArray(analysis.maintenanceRecommendations) 
+          ? analysis.maintenanceRecommendations 
+          : [],
+        shoppingRecommendations: Array.isArray(analysis.shoppingRecommendations) 
+          ? analysis.shoppingRecommendations 
+          : [],
+        recipeRecommendations: Array.isArray(analysis.recipeRecommendations) 
+          ? analysis.recipeRecommendations 
+          : []
+      };
+      
+      setAiAnalysis(validatedAnalysis);
+      setAnalysisDialogOpen(true);
       setNotification({
         type: 'success',
-        message: 'Successfully generated recommendations!'
+        message: 'AI analysis completed successfully!'
       });
     } catch (error) {
-      console.error('Error in AI analysis:', error);
+      console.error('Error running AI analysis:', error);
+      // Set a default structure to prevent mapping errors
+      setAiAnalysis({
+        maintenanceRecommendations: [],
+        shoppingRecommendations: [],
+        recipeRecommendations: []
+      });
+      
       setNotification({
         type: 'error',
-        message: 'Failed to generate recommendations. Please try again.'
+        message: 'Failed to run AI analysis. Please try again.'
       });
     } finally {
       setAiLoading(false);
     }
   };
-
+  
   // New functions for equipment form
   const openAddEquipmentDialog = () => {
     setFormData({
@@ -584,34 +607,12 @@ const KitchenEquipmentPage: React.FC = () => {
         // Update state and local storage
         setRecommendations(recResults);
         setMaintenanceSchedule(maintResults);
-        
-        // Transform recipe results to match RecipeCardType
-        const transformedRecipes = recipeResults.possibleRecipes.map((recipe: AIRecipeResult) => ({
-          ...recipe,
-          id: recipe.id,
-          title: recipe.title,
-          description: `Recipe that works perfectly with your ${recipe.requiredEquipment.join(', ')}. Explore this dish to make the most of your kitchen equipment.`,
-          prepTime: 30,
-          imageUrl: `https://source.unsplash.com/featured/?food,${encodeURIComponent(recipe.title)}`,
-          nutritionInfo: {
-            calories: 250,
-            protein: 15,
-            carbs: 30,
-            fat: 10
-          },
-          sustainabilityScore: 50,
-          instructions: [`Prepare ingredients using your ${recipe.requiredEquipment.join(', ')}`, "Cook according to your preferred method", "Serve and enjoy!"],
-          ingredients: recipe.requiredEquipment || [],
-          createdBy: 1,
-          createdAt: new Date().toISOString(),
-          postId: undefined
-        }));
-        setRecipes(transformedRecipes);
+        setRecipes(recipeResults.possibleRecipes);
         
         // Save updated AI results to local storage
         localStorage.setItem('kitchen-recommendations', JSON.stringify(recResults));
         localStorage.setItem('kitchen-maintenance-schedule', JSON.stringify(maintResults));
-        localStorage.setItem('kitchen-recipes', JSON.stringify(transformedRecipes));
+        localStorage.setItem('kitchen-recipes', JSON.stringify(recipeResults.possibleRecipes));
       } catch (aiError) {
         console.error('Error refreshing AI analysis:', aiError);
         // Don't show an error notification here since we already showed a success message for the equipment update
@@ -646,6 +647,68 @@ const KitchenEquipmentPage: React.FC = () => {
       });
     }
   };
+
+  const handleGetRecommendations = async () => {
+    setAiLoading(true);
+    try {
+      const enrichedEquipment = enrichEquipmentData(equipment);
+      const [equipRecResults, recipeResults] = await Promise.all([
+        getEquipmentRecommendations(enrichedEquipment, ['Italian', 'Healthy Cooking']),
+        getRecipesByEquipment(enrichedEquipment, ['Italian', 'Healthy Cooking'])
+      ]);
+
+      console.log('Recipe Results from AI:', recipeResults);
+      console.log('Recipe data structure:', JSON.stringify(recipeResults.possibleRecipes[0], null, 2));
+      
+      setRecommendations(equipRecResults);
+      setRecipes(recipeResults.possibleRecipes);
+
+      console.log('Recipes after state update:', recipes);
+    } catch (error) {
+      console.error('Error fetching recommendations:', error);
+      setNotification({
+        type: 'error',
+        message: 'Failed to fetch recommendations'
+      });
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const addToShoppingList = (item: string, description: string, priority: 'high' | 'medium' | 'low', estimatedPrice?: string) => {
+    setShoppingList(prev => [...prev, { item, description, priority, estimatedPrice }]);
+    setNotification({
+      type: 'success',
+      message: `${item} added to shopping list`
+    });
+  };
+
+  useEffect(() => {
+    const fetchRecommendations = async () => {
+      try {
+        const enrichedEquipment = enrichEquipmentData(equipment);
+        const recommendations = await getRecipesByEquipment(enrichedEquipment);
+        console.log('Raw recipe recommendations:', recommendations);
+        if (recommendations?.possibleRecipes) {
+          const recipes = recommendations.possibleRecipes.map((recipe: Recipe) => ({
+            ...recipe,
+            nutritionInfo: {
+              ...recipe.nutritionInfo,
+              sustainabilityScore: recipe.nutritionInfo.sustainabilityScore || 50
+            }
+          }));
+          console.log('Processed recipes:', recipes);
+          setRecipes(recipes);
+        }
+      } catch (error) {
+        console.error('Error fetching recipe recommendations:', error);
+      }
+    };
+
+    if (equipment.length > 0) {
+      fetchRecommendations();
+    }
+  }, [equipment]);
 
   if (loading) {
     return (
@@ -687,17 +750,8 @@ const KitchenEquipmentPage: React.FC = () => {
           disabled={aiLoading} 
           className="flex items-center gap-2"
         >
-          {aiLoading ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Getting Recommendations...
-            </>
-          ) : (
-            <>
-              <AlertTriangle className="h-4 w-4" />
-              Get Recommendations
-            </>
-          )}
+          {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <AlertTriangle className="h-4 w-4" />}
+          Run AI Analysis on Your Kitchen
         </Button>
         
         <Button 
@@ -770,68 +824,134 @@ const KitchenEquipmentPage: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="recommendations" className="space-y-4">
-          <div className="grid md:grid-cols-2 gap-4">
-            {recommendations.length > 0 ? (
-              recommendations.map(rec => {
-                const recId = hashCode(`${rec.name}-${rec.category}`);
-                return (
-                  <Card key={`${rec.name}-${rec.category}`} className="overflow-hidden hover:shadow-lg transition-shadow">
-                    <CardHeader className="pb-3">
-                      <div className="flex justify-between items-center">
-                        <CardTitle>{rec.name}</CardTitle>
-                        <Badge className={getPriorityColor(rec.priority)} variant="secondary">{rec.priority} priority</Badge>
+          <div className="flex justify-between items-center">
+            <h2 className="text-2xl font-bold">Equipment Recommendations</h2>
+            <Button 
+              onClick={handleGetRecommendations} 
+              disabled={aiLoading}
+            >
+              {aiLoading ? 'Loading...' : 'Get Recommendations'}
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recommended Equipment</CardTitle>
+                <CardDescription className="text-gray-600 dark:text-gray-300">Equipment that could enhance your kitchen capabilities</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[400px]">
+                  {recommendations.map((rec, index) => (
+                    <div key={index} className="mb-4 p-4 border rounded-lg">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-semibold">{rec.name}</h3>
+                          <p className="text-sm text-gray-400">{rec.reason}</p>
+                          <div className="flex gap-2 mt-2">
+                            <Badge variant={rec.priority === 'high' ? 'destructive' : rec.priority === 'medium' ? 'default' : 'secondary'}>
+                              {rec.priority}
+                            </Badge>
+                            {rec.estimatedPrice && (
+                              <Badge variant="outline">{rec.estimatedPrice}</Badge>
+                            )}
+                          </div>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleAddToShoppingList(rec)}
+                          disabled={addingToList === hashCode(`${rec.name}-${rec.category}`)}
+                        >
+                          {addingToList === hashCode(`${rec.name}-${rec.category}`) ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : null}
+                          Add to Shopping List
+                        </Button>
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      <p>{rec.reason}</p>
-                    </CardContent>
-                    <CardFooter className="flex gap-2 border-t">
-                      <Button 
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => handleAddToShoppingList(rec)}
-                        disabled={addingToList === recId}
-                      >
-                        {addingToList === recId ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Adding...
-                          </>
-                        ) : (
-                          'Add to Shopping List'
-                        )}
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => handleDismissRecommendation(rec)}
-                      >
-                        Dismiss
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                );
-              })
-            ) : (
-              <div className="col-span-2 flex flex-col items-center justify-center p-8 bg-secondary/10 border border-dashed border-border rounded-md">
-                <AlertTriangle className="h-8 w-8 text-yellow-500 mb-2" />
-                <p className="text-center mb-2 text-muted-foreground">No AI recommendations yet.</p>
-                <Button 
-                  size="sm" 
-                  onClick={handleRunAIAnalysis}
-                  disabled={aiLoading}
-                >
-                  {aiLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Getting Recommendations...
-                    </>
-                  ) : (
-                    'Get Recommendations'
-                  )}
-                </Button>
-              </div>
+                    </div>
+                  ))}
+                </ScrollArea>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Recipe Matches</CardTitle>
+                <CardDescription className="text-gray-600 dark:text-gray-300">Recipes you can make with your current equipment</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[400px]">
+                  {recipes.map((recipe, index) => (
+                    <div key={index} className="mb-4 p-4 border rounded-lg">
+                      <h3 className="font-semibold text-lg">{recipe.title}</h3>
+                      <p className="text-sm text-gray-400 mb-2">{recipe.description}</p>
+                      
+                      <div className="space-y-2">
+                        <div>
+                          <h4 className="font-medium">Required Equipment:</h4>
+                          <div className="flex flex-wrap gap-1">
+                            {recipe.requiredEquipment.map((eq: string, i: number) => (
+                              <Badge key={i} variant="secondary">{eq}</Badge>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        <div className="mt-2">
+                          <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>Calories: {recipe.nutritionInfo.calories}</div>
+                            <div>Protein: {recipe.nutritionInfo.protein}g</div>
+                            <div>Carbs: {recipe.nutritionInfo.carbs}g</div>
+                            <div>Fat: {recipe.nutritionInfo.fat}g</div>
+                          </div>
+                          <div className="mt-1">
+                            <Badge variant="outline">
+                              Sustainability Score: {recipe.nutritionInfo.sustainabilityScore}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </ScrollArea>
+              </CardContent>
+            </Card>
+
+            {shoppingList.length > 0 && (
+              <Card className="md:col-span-2">
+                <CardHeader>
+                  <CardTitle>Shopping List</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-[200px]">
+                    {shoppingList.map((item, index) => (
+                      <div key={index} className="flex justify-between items-center p-2 border-b">
+                        <div>
+                          <div className="font-medium">{item.item}</div>
+                          <div className="text-sm text-gray-600">{item.description}</div>
+                          <Badge variant={
+                            item.priority === 'high' ? 'destructive' : 
+                            item.priority === 'medium' ? 'default' : 
+                            'secondary'
+                          }>
+                            {item.priority}
+                          </Badge>
+                          {item.estimatedPrice && (
+                            <Badge variant="outline" className="ml-2">{item.estimatedPrice}</Badge>
+                          )}
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setShoppingList(list => list.filter((_, i) => i !== index))}
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    ))}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
             )}
           </div>
         </TabsContent>
@@ -839,78 +959,51 @@ const KitchenEquipmentPage: React.FC = () => {
         <TabsContent value="recipes" className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             {recipes.length > 0 ? (
-              recipes.map((recipe) => (
-                <RecipeCard 
-                  key={recipe.id} 
-                  recipe={recipe}
-                  compact={true}
-                />
+              recipes.map(recipe => (
+                <Card key={recipe.id} className="flex flex-col h-full">
+                  <CardHeader className="p-5">
+                    <div className="space-y-4">
+                      <div>
+                        <h3 className="font-medium text-lg tracking-tight">
+                          {recipe.title}
+                        </h3>
+                        <p className="text-sm text-muted-foreground leading-relaxed mt-1">
+                          {recipe.description}
+                        </p>
+                      </div>
+                    </div>
+                  </CardHeader>
+
+                  <div className="px-4 py-2.5 border-t bg-muted/5">
+                    <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">Required Equipment</Badge>
+                        {recipe.requiredEquipment.map((eq: string, i: number) => (
+                          <Badge key={i} variant="outline">{eq}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-4 border-t">
+                    <NutritionDisplay nutrition={recipe.nutritionInfo} />
+                  </div>
+                </Card>
               ))
             ) : (
-              <div className="col-span-2 flex flex-col items-center justify-center p-8 bg-secondary/10 border border-dashed border-border rounded-md">
-                <AlertTriangle className="h-8 w-8 text-yellow-500 mb-2" />
-                <p className="text-center mb-2 text-muted-foreground">No recipe matches yet.</p>
-                <Button 
-                  size="sm" 
-                  onClick={async () => {
-                    setAiLoading(true);
-                    try {
-                      const enrichedEquipment = enrichEquipmentData(equipment);
-                      const recipeResults = await getRecipesByEquipment(enrichedEquipment, ['Italian', 'Healthy Cooking']);
-                      
-                      const transformedRecipes = recipeResults.possibleRecipes.map(recipe => ({
-                        ...recipe,
-                        id: recipe.id,
-                        title: recipe.title,
-                        description: `Recipe that works perfectly with your ${recipe.requiredEquipment.join(', ')}. Explore this dish to make the most of your kitchen equipment.`,
-                        prepTime: 30,
-                        imageUrl: `https://source.unsplash.com/featured/?food,${encodeURIComponent(recipe.title)}`,
-                        nutritionInfo: {
-                          calories: 250,
-                          protein: 15,
-                          carbs: 30,
-                          fat: 10
-                        },
-                        sustainabilityScore: 50,
-                        instructions: [`Prepare ingredients using your ${recipe.requiredEquipment.join(', ')}`, "Cook according to your preferred method", "Serve and enjoy!"],
-                        ingredients: recipe.requiredEquipment || [],
-                        createdBy: 1,
-                        createdAt: new Date().toISOString(),
-                        postId: undefined
-                      }));
-                      
-                      setRecipes(transformedRecipes);
-                      localStorage.setItem('kitchen-recipes', JSON.stringify(transformedRecipes));
-                      
-                      setNotification({
-                        type: 'success',
-                        message: 'Recipe matches found!'
-                      });
-                    } catch (error) {
-                      console.error('Error finding recipe matches:', error);
-                      setNotification({
-                        type: 'error',
-                        message: 'Failed to find recipe matches. Please try again.'
-                      });
-                    } finally {
-                      setAiLoading(false);
-                    }
-                  }}
-                  disabled={aiLoading}
-                >
-                  {aiLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Finding Matches...
-                    </>
-                  ) : (
-                    'Find Recipe Matches'
-                  )}
-                </Button>
+              <div className="text-center py-12">
+                <div className="rounded-full bg-primary/10 w-12 h-12 mx-auto mb-4 flex items-center justify-center">
+                  <Utensils className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="text-lg font-medium mb-2">No Recipes Found</h3>
+                <p className="text-muted-foreground">
+                  No recipes are available for your current kitchen equipment.
+                </p>
               </div>
             )}
           </div>
         </TabsContent>
+
       </Tabs>
 
       {/* Maintenance Tips Dialog */}
@@ -1040,16 +1133,16 @@ const KitchenEquipmentPage: React.FC = () => {
 
       {/* AI Analysis Dialog */}
       <Dialog open={analysisDialogOpen} onOpenChange={setAnalysisDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-6">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>AI Analysis of Your Kitchen Equipment</DialogTitle>
           </DialogHeader>
-          <ScrollArea className="h-[400px] mt-4">
+          <ScrollArea className="flex-1 mt-4 pr-4 h-full">
             {aiAnalysis && (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div>
                   <h3 className="text-lg font-bold">Maintenance Recommendations</h3>
-                  <ul className="list-disc pl-5 mt-2 space-y-1">
+                  <ul className="list-disc pl-5 mt-2 space-y-2">
                     {aiAnalysis.maintenanceRecommendations && aiAnalysis.maintenanceRecommendations.length > 0 ? (
                       aiAnalysis.maintenanceRecommendations.map((rec: any, index: number) => (
                         <li key={index} className="space-y-1">
@@ -1065,7 +1158,7 @@ const KitchenEquipmentPage: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold">Shopping Recommendations</h3>
-                  <ul className="list-disc pl-5 mt-2 space-y-1">
+                  <ul className="list-disc pl-5 mt-2 space-y-2">
                     {aiAnalysis.shoppingRecommendations && aiAnalysis.shoppingRecommendations.length > 0 ? (
                       aiAnalysis.shoppingRecommendations.map((rec: any, index: number) => (
                         <li key={index} className="space-y-1">
@@ -1081,7 +1174,7 @@ const KitchenEquipmentPage: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-lg font-bold">Recipe Recommendations</h3>
-                  <ul className="list-disc pl-5 mt-2 space-y-1">
+                  <ul className="list-disc pl-5 mt-2 space-y-2">
                     {aiAnalysis.recipeRecommendations && aiAnalysis.recipeRecommendations.length > 0 ? (
                       aiAnalysis.recipeRecommendations.map((rec: any, index: number) => (
                         <li key={index} className="space-y-1">
@@ -1098,7 +1191,7 @@ const KitchenEquipmentPage: React.FC = () => {
               </div>
             )}
           </ScrollArea>
-          <DialogFooter className="mt-4">
+          <DialogFooter className="mt-4 border-t pt-4">
             <Button onClick={() => setAnalysisDialogOpen(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>

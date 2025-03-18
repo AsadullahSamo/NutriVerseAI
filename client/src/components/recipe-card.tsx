@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Recipe } from "@shared/schema";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Clock, Users, GitFork, ListOrdered, Check, Utensils, Loader2, MoreHorizontal, Trash2, Leaf } from "lucide-react";
@@ -43,6 +43,15 @@ export function RecipeCard({ recipe, compact = false, showDelete = false, hideEd
   const [mealType, setMealType] = React.useState<string>("snack");
   const [showNutritionWarning, setShowNutritionWarning] = React.useState(false);
   const [exceededNutrients, setExceededNutrients] = React.useState<any>(null);
+  const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Try to get image URL from localStorage first
+    const storedImageUrl = localStorage.getItem(`recipe-image-${recipe.id}`);
+    if (storedImageUrl) {
+      setLocalImageUrl(storedImageUrl);
+    }
+  }, [recipe.id]);
 
   // Ensure sustainabilityScore always has a value, defaulting to 50 if not set
   const sustainabilityScore = recipe.sustainabilityScore ?? 50;
@@ -167,12 +176,15 @@ export function RecipeCard({ recipe, compact = false, showDelete = false, hideEd
           {/* Main card content */}
           <div className="flex-1 flex flex-col">
             <CardHeader className="p-5">
-              {recipe.imageUrl && !compact && (
+              {(localImageUrl || recipe.imageUrl) && !compact && (
                 <div className="relative aspect-[16/9] -mx-5 -mt-5 mb-5">
                   <img
-                    src={recipe.imageUrl}
+                    src={localImageUrl || recipe.imageUrl}
                     alt={recipe.title}
                     className="object-cover w-full h-full"
+                    onError={(e) => {
+                      e.currentTarget.src = `https://source.unsplash.com/1200x800/?${encodeURIComponent(recipe.title.toLowerCase() + ' food')}`;
+                    }}
                   />
                 </div>
               )}

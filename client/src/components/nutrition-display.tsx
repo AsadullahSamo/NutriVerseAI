@@ -18,6 +18,8 @@ interface NutritionDisplayProps {
 }
 
 export function NutritionDisplay({ nutrition, showGoals = true }: NutritionDisplayProps) {
+  console.log('NutritionDisplay received:', nutrition);
+
   const { data: currentGoal } = useQuery({
     queryKey: ["/api/nutrition-goals/current"],
     queryFn: async () => {
