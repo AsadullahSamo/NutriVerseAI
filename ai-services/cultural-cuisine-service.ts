@@ -33,6 +33,43 @@ export interface TechniqueTip {
   tips: string[];
 }
 
+export interface CulturalContext {
+  history?: string;
+  significance?: string;
+  variations?: string;
+  serving?: string;
+}
+
+export const getCulturalContext = async (recipe: any, cuisine: any): Promise<CulturalContext> => {
+  const prompt = `You are a cultural cuisine expert. Please provide detailed cultural context for the ${recipe.name} recipe from ${cuisine.name} cuisine.
+  Include:
+  1. Historical Background: Origins and development of the dish
+  2. Cultural Significance: Its role in ${cuisine.name} culture, festivals, or occasions
+  3. Regional Variations: How the dish varies across different regions
+
+  Return EXACTLY this JSON structure with no additional text:
+  {
+    "history": "Historical background and origins of the dish",
+    "significance": "Cultural importance and role in society",
+    "variations": "Regional variations and adaptations"
+  }`;
+
+  try {
+    const result = await generateContent(prompt);
+    const response = await result.response.text();
+    const context = await safeJsonParse(response);
+
+    return {
+      history: context.history || '',
+      significance: context.significance || '',
+      variations: context.variations || ''
+    };
+  } catch (error) {
+    console.error('Error getting cultural context:', error);
+    throw new Error('Failed to get cultural context');
+  }
+};
+
 export async function analyzeCulturalCuisine(cuisine: CulturalCuisine): Promise<CulturalInsights> {
   const prompt = `Analyze this cultural cuisine and provide detailed cultural insights:
     ${JSON.stringify(cuisine)}
