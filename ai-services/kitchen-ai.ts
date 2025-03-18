@@ -3,47 +3,78 @@
 export async function getRecipesByEquipment(
   equipment: KitchenEquipment[],
   userPreferences?: string[]
-): Promise<{ possibleRecipes: Recipe[] }> {
+): Promise<{
+  possibleRecipes: { 
+    id: number; 
+    title: string;
+    description: string;
+    ingredients: string[];
+    instructions: string[];
+    prepTime: number;
+    nutritionInfo: {
+      calories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+      sustainabilityScore: number;
+    };
+    requiredEquipment: string[];
+  }[];
+  recommendedPurchases: { 
+    equipment: string; 
+    enabledRecipes: string[];
+    reason: string;
+    priority: 'high' | 'medium' | 'low';
+    estimatedPrice: string;
+  }[];
+}> {
+  const prompt = `You are a JSON API that must return recipe recommendations based on available kitchen equipment.
+  Equipment: ${JSON.stringify(equipment)}
+  ${userPreferences ? `User Preferences: ${userPreferences.join(', ')}` : ''}
+  
+  Return EXACTLY this JSON structure with no additional text:
+  {
+    "possibleRecipes": [
+      {
+        "id": number,
+        "title": "string",
+        "description": "A detailed description of the recipe",
+        "ingredients": ["string"],
+        "instructions": ["string"],
+        "prepTime": number,
+        "nutritionInfo": {
+          "calories": number,
+          "protein": number,
+          "carbs": number,
+          "fat": number,
+          "sustainabilityScore": number
+        },
+        "requiredEquipment": ["string"]
+      }
+    ],
+    "recommendedPurchases": [
+      {
+        "equipment": "string",
+        "enabledRecipes": ["string"],
+        "reason": "string",
+        "priority": "high|medium|low",
+        "estimatedPrice": "string"
+      }
+    ]
+  }`;
+
   try {
-    // Create prompt to generate detailed recipes based on available equipment
-    const prompt = `Given this kitchen equipment and preferences, generate detailed recipes that can be made:
-    Equipment: ${JSON.stringify(equipment.map(e => ({ name: e.name, category: e.category })))}
-    Preferences: ${userPreferences ? JSON.stringify(userPreferences) : 'None'}
-
-    Return a JSON object with an array of 'possibleRecipes'. Each recipe must have:
-    {
-      "id": number,
-      "title": string,
-      "description": string,
-      "ingredients": string[],
-      "instructions": string[],
-      "prepTime": number,
-      "nutritionInfo": {
-        "calories": number,
-        "protein": number,
-        "carbs": number,
-        "fat": number
-      },
-      "sustainabilityScore": number,
-      "requiredEquipment": string[],
-      "imageUrl": string (optional)
-    }
-
-    Focus on recipes that maximize the use of available equipment while considering user preferences.
-    Calculate sustainability scores based on:
-    - Equipment energy efficiency (modern appliances score higher)
-    - Cooking method sustainability
-    - Overall resource usage
-    Score from 0-100.`;
-
     const result = await model.generateContent(prompt);
     const response = await result.response.text();
-    return await safeJsonParse(response);
-
+    const parsedResponse = await safeJsonParse(response);
+    console.log('Raw AI response:', response);
+    console.log('Parsed AI response:', parsedResponse);
+    return parsedResponse;
   } catch (error) {
-    console.error('Error getting recipe matches:', error);
-    // Return mock data as fallback
-    return getMockRecipeMatches(equipment, userPreferences);
+    console.error('Error getting recipes by equipment:', error);
+    const mockData = getMockRecipeMatches(equipment, userPreferences);
+    console.log('Using mock data:', mockData);
+    return mockData;
   }
 }
 
@@ -82,9 +113,9 @@ function getMockRecipeMatches(
         calories: 250,
         protein: 8,
         carbs: 25,
-        fat: 15
+        fat: 15,
+        sustainabilityScore: 85
       },
-      sustainabilityScore: 85,
       requiredEquipment: ['Food Processor'],
       createdBy: 1,
       createdAt: new Date().toISOString(),
@@ -115,9 +146,9 @@ function getMockRecipeMatches(
         calories: 180,
         protein: 5,
         carbs: 20,
-        fat: 10
+        fat: 10,
+        sustainabilityScore: 90
       },
-      sustainabilityScore: 90,
       requiredEquipment: ['Cast Iron Skillet', 'Chef\'s Knife'],
       createdBy: 1,
       createdAt: new Date().toISOString(),
@@ -147,9 +178,9 @@ function getMockRecipeMatches(
         calories: 120,
         protein: 4,
         carbs: 23,
-        fat: 0.5
+        fat: 0.5,
+        sustainabilityScore: 75
       },
-      sustainabilityScore: 75,
       requiredEquipment: ['Stand Mixer', 'Baking Sheet'],
       createdBy: 1,
       createdAt: new Date().toISOString(),

@@ -133,14 +133,40 @@ export async function getRecipesByEquipment(
   equipment: KitchenEquipment[],
   userPreferences?: string[]
 ): Promise<{
-  possibleRecipes: { id: number; title: string; requiredEquipment: string[] }[];
+  possibleRecipes: {
+    id: number;
+    title: string;
+    description: string;
+    requiredEquipment: string[];
+    prepTime: number;
+    nutritionInfo: {
+      calories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+      sustainabilityScore: number;
+    };
+  }[];
   recommendedPurchases: { equipment: string; enabledRecipes: string[] }[];
 }> {
   const prompt = `Suggest recipes possible with this kitchen equipment and recommend equipment purchases to enable more recipes:
     Equipment: ${JSON.stringify(equipment)}
     ${userPreferences ? `User Preferences: ${userPreferences.join(', ')}` : ''}
     
-    Return JSON with possibleRecipes (recipes possible with current equipment) and recommendedPurchases (equipment that would enable new recipes).`;
+    Return JSON with:
+    - possibleRecipes array containing recipes with:
+      - id (number)
+      - title (string)
+      - description (string) 
+      - requiredEquipment (string array)
+      - prepTime (number in minutes)
+      - nutritionInfo object containing:
+        - calories (number)
+        - protein (number in grams)
+        - carbs (number in grams)
+        - fat (number in grams)
+        - sustainabilityScore (number 0-100)
+    - recommendedPurchases array with equipment and enabledRecipes`;
 
   try {
     const result = await model.generateContent(prompt);

@@ -1,42 +1,8 @@
 import type { PantryItem } from "@shared/schema";
 import { CulturalCuisine, CulturalRecipe, CulturalTechnique } from "@shared/schema";
-import { model, safeJsonParse } from "./gemini-client";
+import { generateContent, safeJsonParse } from "./gemini-client";
 
-// Queue management for rate limiting
-let requestQueue: Promise<any>[] = [];
-const MIN_DELAY_BETWEEN_REQUESTS = 1000; // 1 second delay between requests
-let lastRequestTime = 0;
-
-async function enqueueRequest<T>(requestFn: () => Promise<T>): Promise<T> {
-  const now = Date.now();
-  const timeToWait = Math.max(0, MIN_DELAY_BETWEEN_REQUESTS - (now - lastRequestTime));
-  
-  if (timeToWait > 0) {
-    await new Promise(resolve => setTimeout(resolve, timeToWait));
-  }
-
-  // Remove completed requests from the queue
-  requestQueue = requestQueue.filter(p => !isPromiseSettled(p));
-  
-  const request = requestFn();
-  requestQueue.push(request);
-  lastRequestTime = Date.now();
-  
-  try {
-    return await request;
-  } finally {
-    requestQueue = requestQueue.filter(p => p !== request);
-  }
-}
-
-// Helper to check if a promise is settled
-async function isPromiseSettled(p: Promise<any>): Promise<boolean> {
-  const temp = {};
-  return Promise.race([p, temp]).then(
-    result => result === temp,
-    () => true
-  );
-}
+// Remove the old queue management since it's now handled in gemini-client
 
 export interface CulturalInsights {
   historicalContext: string;
@@ -78,7 +44,7 @@ export async function analyzeCulturalCuisine(cuisine: CulturalCuisine): Promise<
     - Modern adaptations
     - Regional variations`;
 
-  const result = await model.generateContent(prompt);
+  const result = await generateContent(prompt);
   const response = await result.response.text();
   return await safeJsonParse(response);
 }
@@ -101,18 +67,9 @@ export async function getRecipeAuthenticityScore(recipe: CulturalRecipe, substit
 export async function getTechniqueTips(technique: CulturalTechnique, cuisine: CulturalCuisine): Promise<TechniqueTip> {
   const prompt = `Provide detailed tips for this cultural cooking technique:
     Technique: ${JSON.stringify(technique)}
-    Cuisine: ${JSON.stringify(cuisine)}
-    
-    Format your response as a JSON object with these fields:
-    {
-      "technique": string,
-      "traditionalMethod": string,
-      "modernAdaptation": string,
-      "commonMistakes": string[],
-      "tips": string[]
-    }`;
+    Cuisine: ${JSON.stringify(cuisine)}`;
 
-  const result = await model.generateContent(prompt);
+  const result = await generateContent(prompt);
   const response = await result.response.text();
   return await safeJsonParse(response);
 }
@@ -132,217 +89,205 @@ export async function generateCulturalDetails(cuisine: CulturalCuisine): Promise
     general: string;
   };
 }> {
-  return enqueueRequest(async () => {
-    const prompt = `You are a JSON API endpoint. Return ONLY valid JSON with no additional text or markdown.
-    Generate detailed cultural context and serving etiquette information for ${cuisine.name} cuisine from ${cuisine.region}.
+  const prompt = `Generate cultural context and serving etiquette information for ${cuisine.name} cuisine from ${cuisine.region}. Base the response on:
+Description: ${cuisine.description}
+Key Ingredients: ${JSON.stringify(cuisine.keyIngredients)}
+Cooking Techniques: ${JSON.stringify(cuisine.cookingTechniques)}
 
-    Base the response on:
-    Description: ${cuisine.description}
-    Key Ingredients: ${JSON.stringify(cuisine.keyIngredients)}
-    Cooking Techniques: ${JSON.stringify(cuisine.cookingTechniques)}
+Respond with this JSON structure:
+{
+  "culturalContext": {
+    "history": "brief historical background",
+    "traditions": "key culinary traditions",
+    "festivals": "celebrations and food significance",
+    "influences": "cultural and historical influences"
+  },
+  "servingEtiquette": {
+    "tableSetting": "table arrangement guidelines as bullet points",
+    "diningCustoms": "dining rules as bullet points",
+    "servingOrder": "course sequence as bullet points",
+    "taboos": "things to avoid as bullet points",
+    "general": "overall dining etiquette summary"
+  }
+}`;
 
-    Return this exact structure:
-    {
-      "culturalContext": {
-        "history": "string describing historical background",
-        "traditions": "string describing key culinary traditions",
-        "festivals": "string describing important celebrations and their food significance",
-        "influences": "string describing cultural and historical influences"
-      },
-      "servingEtiquette": {
-        "tableSetting": "bullet-pointed traditional table arrangement guidelines",
-        "diningCustoms": "bullet-pointed dining rules and customs",
-        "servingOrder": "bullet-pointed traditional course sequence",
-        "taboos": "bullet-pointed things to avoid",
-        "general": "string describing overall dining etiquette"
-      }
-    }`;
+  try {
+    const result = await generateContent(prompt);
+    const response = await result.response.text();
+    console.log('Cultural details response:', response);
+    
+    const parsed = await safeJsonParse(response);
 
-    try {
-      const result = await model.generateContent(prompt);
-      const response = await result.response.text();
-      console.log('Raw AI response:', response); // Add logging to help debug
-      const parsed = await safeJsonParse(response);
-
-      // Validate the response structure
-      if (!parsed?.culturalContext || !parsed?.servingEtiquette) {
-        throw new Error('Invalid response structure - missing required sections');
-      }
-
-      const requiredContextFields = ['history', 'traditions', 'festivals', 'influences'];
-      const requiredEtiquetteFields = ['tableSetting', 'diningCustoms', 'servingOrder', 'taboos', 'general'];
-
-      const missingContextFields = requiredContextFields.filter(field => !parsed.culturalContext[field]);
-      const missingEtiquetteFields = requiredEtiquetteFields.filter(field => !parsed.servingEtiquette[field]);
-
-      if (missingContextFields.length > 0 || missingEtiquetteFields.length > 0) {
-        throw new Error('Invalid response structure - missing required fields: ' + 
-          [...missingContextFields, ...missingEtiquetteFields].join(', '));
-      }
-
-      // Process bullet-pointed sections
-      const bulletSections = ['tableSetting', 'diningCustoms', 'servingOrder', 'taboos'];
-      bulletSections.forEach(section => {
-        if (typeof parsed.servingEtiquette[section] === 'string') {
-          const points = parsed.servingEtiquette[section]
-            .split(/(?:\\n|\n|\.(?=\s|$))/)
-            .map(point => point.trim())
-            .filter(Boolean)
-            .map(point => point.replace(/^[•\-]\s*/, ''));
-
-          parsed.servingEtiquette[section] = points
-            .map(point => `• ${point}`)
-            .join('\n');
-        }
-      });
-
-      return parsed;
-    } catch (err) {
-      const error = err as Error;
-      console.error('Error generating cultural details:', error);
-      throw new Error('Failed to generate cultural details: ' + (error?.message || 'Unknown error'));
+    if (!parsed?.culturalContext || !parsed?.servingEtiquette) {
+      throw new Error('Invalid response structure - missing required sections');
     }
-  });
+
+    const requiredContextFields = ['history', 'traditions', 'festivals', 'influences'];
+    const requiredEtiquetteFields = ['tableSetting', 'diningCustoms', 'servingOrder', 'taboos', 'general'];
+
+    const missingContextFields = requiredContextFields.filter(field => !parsed.culturalContext[field]);
+    const missingEtiquetteFields = requiredEtiquetteFields.filter(field => !parsed.servingEtiquette[field]);
+
+    if (missingContextFields.length > 0 || missingEtiquetteFields.length > 0) {
+      throw new Error('Invalid response structure - missing required fields: ' + 
+        [...missingContextFields, ...missingEtiquetteFields].join(', '));
+    }
+
+    // Process bullet-pointed sections
+    const bulletSections = ['tableSetting', 'diningCustoms', 'servingOrder', 'taboos'];
+    bulletSections.forEach(section => {
+      if (typeof parsed.servingEtiquette[section] === 'string') {
+        const points = parsed.servingEtiquette[section]
+          .split(/(?:\\n|\n|\.(?=\s|$))/)
+          .map(point => point.trim())
+          .filter(Boolean)
+          .map(point => point.replace(/^[•\-\*]\s*/, '')); // Remove any leading bullets
+
+        // Join without adding bullet points
+        parsed.servingEtiquette[section] = points.join('\n');
+      }
+    });
+
+    return parsed;
+  } catch (err) {
+    const error = err as Error;
+    console.error('Error generating cultural details:', error);
+    throw new Error('Failed to generate cultural details: ' + (error?.message || 'Unknown error'));
+  }
 }
 
 export async function getPairings(recipe: CulturalRecipe, cuisine: CulturalCuisine) {
-  return enqueueRequest(async () => {
-    console.log('Fetching pairings for:', { recipeName: recipe.name, cuisine: cuisine.name });
+  console.log('Fetching pairings for:', { recipeName: recipe.name, cuisine: cuisine.name });
 
-    const traditionalPairings = getTraditionalPairings(cuisine.region.toLowerCase());
+  const traditionalPairings = getTraditionalPairings(cuisine.region.toLowerCase());
+  
+  const prompt = `Suggest specific food pairings for this ${cuisine.name} recipe:
+    Recipe: ${JSON.stringify({
+      name: recipe.name,
+      ingredients: recipe.authenticIngredients
+    })}
     
-    const prompt = `Suggest specific food pairings for this ${cuisine.name} recipe:
-      Recipe: ${JSON.stringify({
-        name: recipe.name,
-        ingredients: recipe.authenticIngredients
-      })}
-      
-      Return JSON with these categories:
-      {
-        "mainDishes": string[] (dishes that complement this recipe),
-        "sideDishes": string[] (appropriate side dishes),
-        "desserts": string[] (dessert pairings),
-        "beverages": string[] (drink pairings)
-      }`;
+    Return JSON with these categories:
+    {
+      "mainDishes": string[] (dishes that complement this recipe),
+      "sideDishes": string[] (appropriate side dishes),
+      "desserts": string[] (dessert pairings),
+      "beverages": string[] (drink pairings)
+    }`;
 
-    try {
-      const result = await model.generateContent(prompt);
-      const response = await result.response.text();
-      console.log('Pairings response:', response);
-      
-      const aiPairings = await safeJsonParse(response);
-      
-      return {
-        mainDishes: Array.from(new Set([...traditionalPairings.mainDishes, ...(aiPairings.mainDishes || [])])),
-        sideDishes: Array.from(new Set([...traditionalPairings.sideDishes, ...(aiPairings.sideDishes || [])])),
-        desserts: Array.from(new Set([...traditionalPairings.desserts, ...(aiPairings.desserts || [])])),
-        beverages: Array.from(new Set([...traditionalPairings.beverages, ...(aiPairings.beverages || [])]))
-      };
-    } catch (error) {
-      console.error('Error generating pairings:', error);
-      return traditionalPairings;
-    }
-  });
+  try {
+    const result = await generateContent(prompt);
+    const response = await result.response.text();
+    console.log('Pairings response:', response);
+    
+    const aiPairings = await safeJsonParse(response);
+    
+    return {
+      mainDishes: Array.from(new Set([...traditionalPairings.mainDishes, ...(aiPairings.mainDishes || [])])),
+      sideDishes: Array.from(new Set([...traditionalPairings.sideDishes, ...(aiPairings.sideDishes || [])])),
+      desserts: Array.from(new Set([...traditionalPairings.desserts, ...(aiPairings.desserts || [])])),
+      beverages: Array.from(new Set([...traditionalPairings.beverages, ...(aiPairings.beverages || [])]))
+    };
+  } catch (error) {
+    console.error('Error generating pairings:', error);
+    return traditionalPairings;
+  }
 }
 
 export async function getEtiquette(recipe: CulturalRecipe, cuisine: CulturalCuisine) {
-  return enqueueRequest(async () => {
-    console.log('Fetching etiquette for:', { recipeName: recipe.name, cuisine: cuisine.name });
+  console.log('Fetching etiquette for:', { recipeName: recipe.name, cuisine: cuisine.name });
 
-    const regionalEtiquette = getRegionalEtiquette(cuisine.region.toLowerCase());
+  const regionalEtiquette = getRegionalEtiquette(cuisine.region.toLowerCase());
+  
+  const prompt = `Provide specific serving etiquette for this ${cuisine.name} dish:
+    Recipe: ${JSON.stringify({
+      name: recipe.name,
+      culturalNotes: recipe.culturalNotes,
+      servingSuggestions: recipe.servingSuggestions
+    })}
     
-    const prompt = `Provide specific serving etiquette for this ${cuisine.name} dish:
-      Recipe: ${JSON.stringify({
-        name: recipe.name,
-        culturalNotes: recipe.culturalNotes,
-        servingSuggestions: recipe.servingSuggestions
-      })}
-      
-      Return JSON with these categories:
-      {
-        "presentation": string[] (visual presentation guidelines),
-        "customs": string[] (dining customs to observe),
-        "taboos": string[] (practices to avoid),
-        "servingOrder": string[] (proper serving sequence)
-      }`;
+    Return JSON with these categories:
+    {
+      "presentation": string[] (visual presentation guidelines),
+      "customs": string[] (dining customs to observe),
+      "taboos": string[] (practices to avoid),
+      "servingOrder": string[] (proper serving sequence)
+    }`;
 
-    try {
-      const result = await model.generateContent(prompt);
-      const response = await result.response.text();
-      const aiEtiquette = await safeJsonParse(response);
-      
-      return {
-        presentation: Array.from(new Set([...regionalEtiquette.presentation, ...(aiEtiquette.presentation || [])])),
-        customs: Array.from(new Set([...regionalEtiquette.customs, ...(aiEtiquette.customs || [])])),
-        taboos: Array.from(new Set([...regionalEtiquette.taboos, ...(aiEtiquette.taboos || [])])),
-        servingOrder: Array.from(new Set([...regionalEtiquette.servingOrder, ...(aiEtiquette.servingOrder || [])]))
-      };
-    } catch (error) {
-      console.error('Error generating etiquette:', error);
-      return regionalEtiquette;
-    }
-  });
+  try {
+    const result = await generateContent(prompt);
+    const response = await result.response.text();
+    const aiEtiquette = await safeJsonParse(response);
+    
+    return {
+      presentation: Array.from(new Set([...regionalEtiquette.presentation, ...(aiEtiquette.presentation || [])])),
+      customs: Array.from(new Set([...regionalEtiquette.customs, ...(aiEtiquette.customs || [])])),
+      taboos: Array.from(new Set([...regionalEtiquette.taboos, ...(aiEtiquette.taboos || [])])),
+      servingOrder: Array.from(new Set([...regionalEtiquette.servingOrder, ...(aiEtiquette.servingOrder || [])]))
+    };
+  } catch (error) {
+    console.error('Error generating etiquette:', error);
+    return regionalEtiquette;
+  }
 }
 
 export async function getSubstitutions(recipe: CulturalRecipe, pantryItems: PantryItem[], region: string) {
-  return enqueueRequest(async () => {
-    const ingredients = Array.isArray(recipe.authenticIngredients) 
-      ? recipe.authenticIngredients 
-      : Object.keys(recipe.authenticIngredients as Record<string, unknown> || {});
+  const ingredients = Array.isArray(recipe.authenticIngredients) 
+    ? recipe.authenticIngredients 
+    : Object.keys(recipe.authenticIngredients as Record<string, unknown> || {});
 
-    const substitutionsPrompt = `You are a JSON API that must return a valid JSON array. For these ingredients, provide substitution options:
-      Ingredients: ${JSON.stringify(ingredients)}
-      Available pantry items: ${JSON.stringify(pantryItems)}
-      Region: ${region}
-      
-      Return EXACTLY this JSON structure with no additional text or explanation:
-      [
-        {
-          "original": "ingredient name",
-          "substitute": "best substitute",
-          "notes": "usage notes",
-          "flavorImpact": "minimal/moderate/significant"
-        }
-      ]`;
-
-    try {
-      const result = await model.generateContent(substitutionsPrompt);
-      const response = await result.response.text();
-      
-      let parsedContent = await safeJsonParse(response);
-      if (!Array.isArray(parsedContent)) {
-        parsedContent = [parsedContent];
+  const substitutionsPrompt = `You are a JSON API that must return a valid JSON array. For these ingredients, provide substitution options:
+    Ingredients: ${JSON.stringify(ingredients)}
+    Available pantry items: ${JSON.stringify(pantryItems)}
+    Region: ${region}
+    
+    Return EXACTLY this JSON structure with no additional text or explanation:
+    [
+      {
+        "original": "ingredient name",
+        "substitute": "best substitute",
+        "notes": "usage notes",
+        "flavorImpact": "minimal/moderate/significant"
       }
+    ]`;
 
-      // Merge AI suggestions with predefined rules
-      const substitutions = ingredients.map(ingredient => {
-        const rule = getSubstitutionRules()[ingredient.toLowerCase()];
-        const aiSuggestion = parsedContent.find((s: { original?: string }) => 
-          s.original?.toLowerCase() === ingredient.toLowerCase()
-        );
-        
-        return {
-          original: ingredient,
-          substitute: rule?.substitutes[0] || aiSuggestion?.substitute || 'No direct substitute available',
-          notes: rule?.notes || aiSuggestion?.notes || 'Use with caution as flavor profile may differ',
-          flavorImpact: rule?.flavorImpact || aiSuggestion?.flavorImpact || 'significant'
-        };
-      });
-
-      return {
-        substitutions,
-        authenticityScore: 100 - (substitutions.filter(s => s.flavorImpact === 'significant').length * 20),
-        authenticityFeedback: ['Substitutions may affect the authentic taste of the dish']
-      };
-    } catch (error) {
-      console.error('Error generating substitutions:', error);
-      return {
-        substitutions: [],
-        authenticityScore: 0,
-        authenticityFeedback: ['Error generating substitutions']
-      };
+  try {
+    const result = await generateContent(substitutionsPrompt);
+    const response = await result.response.text();
+    
+    let parsedContent = await safeJsonParse(response);
+    if (!Array.isArray(parsedContent)) {
+      parsedContent = [parsedContent];
     }
-  });
+
+    // Merge AI suggestions with predefined rules
+    const substitutions = ingredients.map(ingredient => {
+      const rule = getSubstitutionRules()[ingredient.toLowerCase()];
+      const aiSuggestion = parsedContent.find((s: { original?: string }) => 
+        s.original?.toLowerCase() === ingredient.toLowerCase()
+      );
+      
+      return {
+        original: ingredient,
+        substitute: rule?.substitutes[0] || aiSuggestion?.substitute || 'No direct substitute available',
+        notes: rule?.notes || aiSuggestion?.notes || 'Use with caution as flavor profile may differ',
+        flavorImpact: rule?.flavorImpact || aiSuggestion?.flavorImpact || 'significant'
+      };
+    });
+
+    return {
+      substitutions,
+      authenticityScore: 100 - (substitutions.filter(s => s.flavorImpact === 'significant').length * 20),
+      authenticityFeedback: ['Substitutions may affect the authentic taste of the dish']
+    };
+  } catch (error) {
+    console.error('Error generating substitutions:', error);
+    return {
+      substitutions: [],
+      authenticityScore: 0,
+      authenticityFeedback: ['Error generating substitutions']
+    };
+  }
 }
 
 export async function getCulturalCuisineInfo(
@@ -361,7 +306,7 @@ export async function getCulturalCuisineInfo(
       "dietaryConsiderations": ["list of dietary considerations"]
     }`;
 
-    const result = await model.generateContent(prompt);
+    const result = await generateContent(prompt);
     const response = await result.response.text();
     return await safeJsonParse(response);
   } catch (error) {
@@ -389,7 +334,7 @@ export async function getAuthenticRecipeAdaptation(
       "culturalNotes": "Cultural context and authenticity notes"
     }`;
 
-    const result = await model.generateContent(prompt);
+    const result = await generateContent(prompt);
     const response = await result.response.text();
     return await safeJsonParse(response);
   } catch (error) {
@@ -420,7 +365,7 @@ export async function getCrossCulturalFusion(
       "culturalNotes": "Notes about the fusion approach"
     }`;
 
-    const result = await model.generateContent(prompt);
+    const result = await generateContent(prompt);
     const response = await result.response.text();
     return await safeJsonParse(response);
   } catch (error) {
@@ -460,7 +405,7 @@ export async function getCuisineInsights(cuisine: string) {
       }
     }`;
 
-    const result = await model.generateContent(prompt);
+    const result = await generateContent(prompt);
     const response = await result.response.text();
     return await safeJsonParse(response);
   } catch (error) {
@@ -504,7 +449,7 @@ export async function getAuthenticRecipe(dish: string, cuisine: string) {
       }
     }`;
 
-    const result = await model.generateContent(prompt);
+    const result = await generateContent(prompt);
     const response = await result.response.text();
     return await safeJsonParse(response);
   } catch (error) {
@@ -543,7 +488,7 @@ export async function getCulturalCookingTips(cuisine: string) {
       "etiquette": ["string"]
     }`;
 
-    const result = await model.generateContent(prompt);
+    const result = await generateContent(prompt);
     const response = await result.response.text();
     return await safeJsonParse(response);
   } catch (error) {

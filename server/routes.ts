@@ -1101,7 +1101,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/cultural-recipes', isAuthenticated, async (req, res) => {
     try {
-      const { name, description, cuisineId, difficulty = 'beginner', authenticIngredients = [], localSubstitutes = {}, instructions = [], culturalNotes = {}, servingSuggestions = [] } = req.body;
+      const { 
+        name, 
+        description, 
+        cuisineId, 
+        difficulty = 'beginner', 
+        authenticIngredients = [], 
+        localSubstitutes = {}, 
+        instructions = [], 
+        culturalNotes = {}, 
+        servingSuggestions = [],
+        imageUrl = '' // Add imageUrl to destructured parameters
+      } = req.body;
 
       if (!name || !description || !cuisineId) {
         return res.status(400).json({ error: 'Missing required fields' });
@@ -1117,6 +1128,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         instructions,
         culturalNotes,
         servingSuggestions,
+        imageUrl, // Add imageUrl to inserted values
+        updatedAt: new Date(),
+        createdAt: new Date()
       }).returning();
 
       res.status(201).json(recipe);
@@ -1258,6 +1272,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error adding substitution:', error);
       res.status(500).json({ error: 'Failed to add substitution' });
+    }
+  });
+
+  app.patch('/api/cultural-recipes/:id', isAuthenticated, async (req, res) => {
+    try {
+      const { imageUrl, ...otherUpdates } = req.body;
+      
+      const [updatedRecipe] = await db.update(culturalRecipes)
+        .set({
+          ...otherUpdates,
+          imageUrl: imageUrl || null,
+          updatedAt: new Date()
+        })
+        .where(eq(culturalRecipes.id, parseInt(req.params.id)))
+        .returning();
+
+      if (!updatedRecipe) {
+        return res.status(404).json({ error: 'Recipe not found' });
+      }
+
+      res.json(updatedRecipe);
+    } catch (error) {
+      console.error('Error updating recipe:', error);
+      res.status(500).json({ error: 'Failed to update recipe' });
     }
   });
 
