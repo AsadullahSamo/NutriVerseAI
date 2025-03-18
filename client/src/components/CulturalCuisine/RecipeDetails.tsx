@@ -18,7 +18,7 @@ import {
   Star, UtensilsCrossed, Map, Scroll, ArrowRight, Info, Globe2, Wine, Palette, ListOrdered, Ban, MapPin, Wrench 
 } from "lucide-react";
 import type { CulturalCuisine } from "@shared/schema";
-import { getRecipeAuthenticityScore, getTechniqueTips, getSubstitutions, getPairings, getEtiquette } from "@ai-services/cultural-cuisine-service";
+import { getRecipeAuthenticityScore, getTechniqueTips, getSubstitutions, getPairings, getEtiquette, getCulturalContext } from "@ai-services/cultural-cuisine-service";
 import type { RecipeAuthenticityAnalysis, TechniqueTip } from "@ai-services/cultural-cuisine-service";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -78,7 +78,6 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isEditingInstructions, setIsEditingInstructions] = useState(false);
   const [isEditingIngredients, setIsEditingIngredients] = useState(false);
-  const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [loading, setLoading] = useState(false);
   const [substitutions, setSubstitutions] = useState<IngredientSubstitution[]>([]);
   const [pairings, setPairings] = useState<Pairings | null>(null);
@@ -87,7 +86,8 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
   const [authenticityScore, setAuthenticityScore] = useState<{ score: number; feedback: string[] } | null>(null);
   const [techniqueTips, setTechniqueTips] = useState<TechniqueTip[]>([]);
   const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
-  
+  const [culturalContext, setCulturalContext] = useState<any>(null);
+
   // Add console logging at the start of component
   console.log('Full recipe details:', {
     ...recipe,
@@ -201,16 +201,32 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
     setLoading(true);
     try {
       console.log('Fetching etiquette for:', recipe.name);
-      const data = await getEtiquette(recipe, cuisine);
-      console.log('Etiquette response:', data);
+      const [etiquetteData, culturalData] = await Promise.all([
+        getEtiquette(recipe, cuisine),
+        getCulturalContext(recipe, cuisine) // New function to get cultural context
+      ]);
       
-      if (data) {
+      console.log('Etiquette response:', etiquetteData);
+      console.log('Cultural context response:', culturalData);
+      
+      if (etiquetteData) {
         setEtiquette({
-          presentation: data.presentation || [],
-          customs: data.customs || [],
-          taboos: data.taboos || [],
-          servingOrder: data.servingOrder || []
+          presentation: etiquetteData.presentation || [],
+          customs: etiquetteData.customs || [],
+          taboos: etiquetteData.taboos || [],
+          servingOrder: etiquetteData.servingOrder || []
         });
+      }
+
+      if (culturalData) {
+        setCulturalContext(culturalData);
+        // Convert CulturalContext to Record<string, string>
+        const formattedCulturalData: Record<string, string> = {
+          history: culturalData.history || '',
+          significance: culturalData.significance || '',
+          variations: culturalData.variations || '',
+        };
+        handleUpdateRecipe({ culturalNotes: formattedCulturalData });
       }
     } catch (error) {
       console.error('Error fetching etiquette:', error);
@@ -219,7 +235,6 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
         description: "Could not load serving etiquette. Please try again.",
         variant: "destructive",
       });
-      // Keep the existing etiquette state instead of setting to null
     } finally {
       setLoading(false);
     }
@@ -450,10 +465,14 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
             {/* Tabs Content */}
             <div className="mt-2">
               <Tabs defaultValue="instructions" className="w-full">
-                <TabsList className="grid grid-cols-3">
+                <TabsList className="grid grid-cols-2">
                   <TabsTrigger value="instructions">Instructions</TabsTrigger>
-                  <TabsTrigger value="ingredients">Ingredients</TabsTrigger>
-                  <TabsTrigger value="cultural-notes">Cultural Notes</TabsTrigger>
+                  <TabsTrigger value="ingredients">
+                    <div className="text-center text-xs space-y-0.5">
+                      <div>Ingredients & Cultural Details</div>
+                      
+                    </div>
+                  </TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="instructions" className="space-y-4">
@@ -946,20 +965,10 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                               Loading...
                             </>
-                          ) : etiquette && (
-                              (etiquette.presentation?.length ?? 0) > 0 || 
-                              (etiquette.customs?.length ?? 0) > 0 || 
-                              (etiquette.taboos?.length ?? 0) > 0 || 
-                              (etiquette.servingOrder?.length ?? 0) > 0
-                          ) ? (
-                            <>
-                              <Edit className="mr-2 h-4 w-4" />
-                              Edit Etiquette
-                            </>
                           ) : (
                             <>
-                              <Plus className="mr-2 h-4 w-4" />
-                              Add Etiquette
+                              <Sparkles className="mr-2 h-4 w-4" />
+                              {etiquette ? 'Generate New Etiquette' : 'Generate Etiquette'}
                             </>
                           )}
                         </Button>
@@ -1047,133 +1056,54 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                             </p>
                           </div>
                         )}
+                        {culturalContext && (
+                          <Card className="mt-6 overflow-hidden">
+                            <CardHeader className="flex flex-row items-center justify-between space-y-0 bg-muted/50 border-b">
+                              <div>
+                                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                                  <Globe2 className="h-4 w-4 text-primary" />
+                                  Cultural Context & History
+                                </CardTitle>
+                                <CardDescription>Traditional background and significance</CardDescription>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="p-6">
+                              <div className="grid gap-6 md:grid-cols-2">
+                                {culturalContext.history && (
+                                  <div className="space-y-3 p-4 rounded-lg border">
+                                    <h4 className="font-medium text-sm flex items-center gap-2">
+                                      <History className="h-4 w-4 text-blue-600" />
+                                      <strong>Historical Background</strong>
+                                    </h4>
+                                    <p className="text-sm text-muted-foreground">{culturalContext.history}</p>
+                                  </div>
+                                )}
+                                
+                                {culturalContext.significance && (
+                                  <div className="space-y-3 p-4 rounded-lg border">
+                                    <h4 className="font-medium text-sm flex items-center gap-2">
+                                      <Star className="h-4 w-4 text-amber-600" />
+                                      <strong>Cultural Significance</strong>
+                                    </h4>
+                                    <p className="text-sm text-muted-foreground">{culturalContext.significance}</p>
+                                  </div>
+                                )}
+                                
+                                {culturalContext.variations && (
+                                  <div className="space-y-3 p-4 rounded-lg border">
+                                    <h4 className="font-medium text-sm flex items-center gap-2">
+                                      <Map className="h-4 w-4 text-purple-600" />
+                                      <strong>Regional Variations</strong>
+                                    </h4>
+                                    <p className="text-sm text-muted-foreground">{culturalContext.variations}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        )}
                       </CardContent>
                     </Card>
-                  </div>
-                </TabsContent>
-                
-                {/* Cultural Notes Tab Content */}
-                <TabsContent value="cultural-notes">
-                  <div className="space-y-4 mt-2">
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-lg font-semibold flex items-center gap-2">
-                        <Globe2 className="h-5 w-5 text-primary" />
-                        Cultural Context
-                      </h3>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => setIsEditingNotes(true)}
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
-                        {recipe.culturalNotes && Object.keys(recipe.culturalNotes).length > 0 
-                          ? 'Edit Cultural Context' 
-                          : 'Add Cultural Context'}
-                      </Button>
-                    </div>
-                    {recipe.culturalNotes && Object.entries(recipe.culturalNotes as Record<string, string>).length > 0 ? (
-                      <div className="grid gap-6">
-                        {Object.entries(recipe.culturalNotes as Record<string, string>).map(([title, note], i) => {
-                          // Determine appropriate icon and styles based on context type
-                          const getIconAndStyles = (type: string) => {
-                            switch(type) {
-                              case 'history':
-                                return {
-                                  icon: <History className="h-5 w-5 text-blue-600" />,
-                                  textClass: "text-blue-700 dark:text-blue-300",
-                                  badge: "Historical Background",
-                                  badgeClass: "bg-blue-100/80 dark:bg-blue-900/80 text-blue-700 dark:text-blue-300"
-                                };
-                              case 'significance': 
-                                return {
-                                  icon: <Star className="h-5 w-5 text-amber-600" />,
-                                  textClass: "text-amber-700 dark:text-amber-300",
-                                  badge: "Cultural Heritage",
-                                  badgeClass: "bg-amber-100/80 dark:bg-amber-900/80 text-amber-700 dark:text-amber-300"
-                                };
-                              case 'serving':
-                                return {
-                                  icon: <UtensilsCrossed className="h-5 w-5 text-emerald-600" />,
-                                  textClass: "text-emerald-700 dark:text-emerald-300",
-                                  badge: "Traditional Method",
-                                  badgeClass: "bg-emerald-100/80 dark:bg-emerald-900/80 text-emerald-700 dark:text-emerald-300"
-                                };
-                              case 'variations':
-                              default:
-                                return {
-                                  icon: <Map className="h-5 w-5 text-purple-600" />,
-                                  textClass: "text-purple-700 dark:text-purple-300",
-                                  badge: "Regional Styles",
-                                  badgeClass: "bg-purple-100/80 dark:bg-purple-900/80 text-purple-700 dark:text-purple-300"
-                                };
-                            }
-                          };
-
-                          const { icon, textClass, badge, badgeClass } = getIconAndStyles(title);
-                          
-                          // Format note into bullet points if it contains periods or commas
-                          const formatNote = (noteText: string) => {
-                            if (noteText.includes('.') && noteText.split('.').length > 2) {
-                              return noteText.split('.').filter(item => item.trim().length > 0);
-                            }
-                            if (noteText.includes(',') && noteText.split(',').length > 3) {
-                              return noteText.split(',').filter(item => item.trim().length > 0);
-                            }
-                            return [];
-                          };
-                          
-                          const bulletPoints = formatNote(note);
-                          const hasBullets = bulletPoints.length > 0;
-                          
-                          return (
-                            <Card key={i} className="relative overflow-hidden group hover:shadow-md transition-all duration-200">
-                              <CardHeader className="border-b">
-                                <CardTitle className="capitalize flex items-center gap-2 text-base">
-                                  {icon}
-                                  <span className={textClass}>
-                                    {title.replace(/_/g, ' ')}
-                                  </span>
-                                  <Badge variant="secondary" className={`ml-auto ${badgeClass}`}>{badge}</Badge>
-                                </CardTitle>
-                              </CardHeader>
-                              <CardContent className="relative p-6">
-                                <div className="relative z-10">
-                                  <div className={`pl-4 border-l-2 border-${title === 'history' ? 'blue' : title === 'significance' ? 'amber' : title === 'serving' ? 'emerald' : 'purple'}-400 dark:border-${title === 'history' ? 'blue' : title === 'significance' ? 'amber' : title === 'serving' ? 'emerald' : 'purple'}-600`}>
-                                    {hasBullets ? (
-                                      <ul className="space-y-2 list-none">
-                                        {bulletPoints.map((point, idx) => (
-                                          <li key={idx} className="flex items-start gap-2">
-                                            <div className={`h-5 w-5 rounded-full flex-shrink-0 flex items-center justify-center bg-${title === 'history' ? 'blue' : title === 'significance' ? 'amber' : title === 'serving' ? 'emerald' : 'purple'}-100 dark:bg-${title === 'history' ? 'blue' : title === 'significance' ? 'amber' : title === 'serving' ? 'emerald' : 'purple'}-900`}>
-                                              <span className={`text-xs font-medium ${textClass}`}>{idx + 1}</span>
-                                            </div>
-                                            <span className={`text-muted-foreground ${textClass}`}>{point}</span>
-                                          </li>
-                                        ))}
-                                      </ul>
-                                    ) : (
-                                      <p className="leading-relaxed text-muted-foreground">{note}</p>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="absolute top-0 right-0 w-40 h-40 opacity-[0.03] pointer-events-none transform translate-x-8 -translate-y-8 transition-transform duration-300 group-hover:translate-x-4 group-hover:-translate-y-4">
-                                  {icon}
-                                </div>
-                              </CardContent>
-                            </Card>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <Card className="bg-muted/50">
-                        <CardContent className="flex flex-col items-center justify-center py-8 text-center">
-                          <div className="rounded-full bg-primary/10 p-4 mb-4">
-                            <Scroll className="h-8 w-8 text-primary opacity-50" />
-                          </div>
-                          <p className="text-sm text-muted-foreground">No cultural notes have been added yet.</p>
-                          <p className="text-xs text-muted-foreground mt-2">Click 'Add Cultural Context' to share cultural context about this recipe.</p>
-                        </CardContent>
-                      </Card>
-                    )}
                   </div>
                 </TabsContent>
               </Tabs>
@@ -1265,76 +1195,6 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
             </ScrollArea>
             <DialogFooter className="mt-2">
               <Button onClick={() => setIsEditingIngredients(false)}>Close</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* Edit Cultural Notes Dialog */}
-        <Dialog open={isEditingNotes} onOpenChange={setIsEditingNotes}>
-          <DialogContent className="max-h-[90vh] flex flex-col">
-            <DialogHeader>
-              <DialogTitle>{hasNotes ? 'Edit Cultural Notes' : 'Add Cultural Notes'}</DialogTitle>
-            </DialogHeader>
-            <ScrollArea className="flex-1">
-              <div className="p-6">
-                <form onSubmit={(e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.currentTarget);
-                  const culturalNotes: CulturalNotes = {};
-                  const sections = ['history', 'significance', 'serving', 'variations'];
-                  
-                  sections.forEach(section => {
-                    const content = formData.get(`note_${section}`) as string;
-                    if (content?.trim()) {
-                      culturalNotes[section] = content.trim();
-                    }
-                  });
-                  
-                  handleUpdateRecipe({ culturalNotes });
-                  setIsEditingNotes(false);
-                }} className="space-y-4">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Historical Context</label>
-                      <Textarea 
-                        name="note_history"
-                        defaultValue={recipeDetails.culturalNotes?.history || ''}
-                        placeholder="Historical background of the dish"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Cultural Significance</label>
-                      <Textarea 
-                        name="note_significance"
-                        defaultValue={recipeDetails.culturalNotes?.significance || ''}
-                        placeholder="Cultural importance and meaning"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Serving Traditions</label>
-                      <Textarea 
-                        name="note_serving"
-                        defaultValue={recipeDetails.culturalNotes?.serving || ''}
-                        placeholder="Traditional serving methods"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Regional Variations</label>
-                      <Textarea 
-                        name="note_variations"
-                        defaultValue={recipeDetails.culturalNotes?.variations || ''}
-                        placeholder="Different variations across regions"
-                      />
-                    </div>
-                  </div>
-                  <Button type="submit" className="w-full">
-                    {hasNotes ? 'Save Cultural Notes' : 'Add Cultural Notes'}
-                  </Button>
-                </form>
-              </div>
-            </ScrollArea>
-            <DialogFooter className="mt-2">
-              <Button onClick={() => setIsEditingNotes(false)}>Close</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

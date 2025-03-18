@@ -412,12 +412,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
         cuisineId,
         authenticIngredients: formData.get('ingredients')?.toString().split(',').map(i => i.trim()).filter(Boolean) || [],
         instructions: formData.get('instructions')?.toString().split('\n').filter(Boolean) || [],
-        culturalNotes: {
-          history: formData.get('note_history')?.toString() || '',
-          significance: formData.get('note_significance')?.toString() || '',
-          serving: formData.get('note_serving')?.toString() || '',
-          variations: formData.get('note_variations')?.toString() || ''
-        },
+        culturalNotes: {},
         servingSuggestions: []
       };
 
@@ -867,28 +862,23 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                               <Textarea name="description" placeholder="Recipe description" required />
                             </div>
                             <div className="space-y-2">
-                              <label className="text-sm font-medium">Difficulty</label>
-                              <Select name="difficulty" defaultValue="beginner">
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select difficulty" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="beginner">Beginner</SelectItem>
-                                  <SelectItem value="intermediate">Intermediate</SelectItem>
-                                  <SelectItem value="advanced">Advanced</SelectItem>
-                                </SelectContent>
-                              </Select>
+                              <label className="text-sm font-medium">Image URL</label>
+                              <Input name="imageUrl" type="url" placeholder="https://..." />
+                              <p className="text-xs text-muted-foreground">
+                                Add an image URL that showcases the dish
+                              </p>
                             </div>
                             <div className="space-y-2">
-                              <label className="text-sm font-medium">Image URL</label>
-                              <Input 
-                                name="imageUrl"
-                                type="url"
-                                placeholder="https://example.com/recipe-image.jpg"
-                              />
-                              <p className="text-xs text-muted-foreground">
-                                Add an image URL to showcase your recipe
-                              </p>
+                              <label className="text-sm font-medium">Difficulty</label>
+                              <select 
+                                name="difficulty" 
+                                className="w-full p-2 rounded-md border bg-background text-foreground" 
+                                required
+                              >
+                                <option value="beginner">Beginner</option>
+                                <option value="intermediate">Intermediate</option>
+                                <option value="advanced">Advanced</option>
+                              </select>
                             </div>
                             <div className="space-y-2">
                               <label className="text-sm font-medium">Ingredients</label>
@@ -910,39 +900,8 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                                 rows={5}
                               />
                               <p className="text-xs text-muted-foreground">
-                                Enter each instruction step on a new line
+                                Enter each step on a new line
                               </p>
-                            </div>
-                            <div className="space-y-4">
-                              <h3 className="text-sm font-medium">Cultural Notes</h3>
-                              <div className="space-y-2">
-                                <label className="text-sm font-medium">Historical Context</label>
-                                <Textarea 
-                                  name="note_history"
-                                  placeholder="Historical background of the dish"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <label className="text-sm font-medium">Cultural Significance</label>
-                                <Textarea 
-                                  name="note_significance"
-                                  placeholder="Cultural importance and meaning"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <label className="text-sm font-medium">Serving Traditions</label>
-                                <Textarea 
-                                  name="note_serving"
-                                  placeholder="Traditional serving methods"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <label className="text-sm font-medium">Regional Variations</label>
-                                <Textarea 
-                                  name="note_variations"
-                                  placeholder="Different variations across regions"
-                                />
-                              </div>
                             </div>
                           </div>
                           <Button type="submit" className="w-full" disabled={isSubmitting}>
