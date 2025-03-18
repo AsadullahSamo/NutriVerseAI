@@ -63,7 +63,6 @@ A smart nutrition and grocery management platform that helps users make healthy 
   - Share recipes and cooking experiences
   - Post food rescue tips
   - Share cooking tips
-  
 
 - 🎯 **Mood & Cooking Experience Tracking**
   - 📝 Track how cooking experiences affect your mood
@@ -74,6 +73,18 @@ A smart nutrition and grocery management platform that helps users make healthy 
   - 💫 Recipe-specific mood trends
   - 🔍 View cooking journey insights
   - ⭐ Identify recipes that bring most joy
+
+- 🌎 **Cultural Cuisine**
+  - 📖 Deep dive into traditional recipes
+  - ✅ Authenticity scoring and analysis
+  - 🏺 Cultural context and history
+  - 🔄 Traditional ingredient substitutions
+  - 🍽️ Serving etiquette and customs
+  - 🗺️ Regional variations insights
+  - 🤝 Traditional food pairings
+  - ⚠️ Cultural taboos awareness
+  - 🎨 Presentation guidelines
+  - 📋 Proper serving order
 
 ## Tech Stack
 
