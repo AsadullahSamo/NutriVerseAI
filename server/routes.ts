@@ -326,11 +326,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
       const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+      const mealType = req.query.mealType as string | undefined;
 
       const history = await storage.getRecipeConsumptionWithDetails(
         req.user.id,
         startDate,
-        endDate
+        endDate,
+        mealType
       );
 
       res.json(history);

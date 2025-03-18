@@ -12,6 +12,27 @@ import { Badge } from "@/components/ui/badge";
 type TimePeriod = "week" | "month";
 type MealType = "all" | "breakfast" | "lunch" | "dinner" | "snack";
 
+interface ConsumptionRecord {
+  consumedAt: string;
+  mealType: MealType;
+  servings: number;
+  recipe?: {
+    nutritionInfo: {
+      calories: number;
+      protein: number;
+      carbs: number;
+      fat: number;
+    };
+  };
+}
+
+interface NutritionTotals {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}
+
 export function NutritionSummary() {
   const [period, setPeriod] = React.useState<TimePeriod>("week");
   const [mealType, setMealType] = React.useState<MealType>("all");
@@ -25,11 +46,12 @@ export function NutritionSummary() {
   });
 
   const { data: consumptionHistory, isLoading: historyLoading } = useQuery({
-    queryKey: ["/api/recipes/consumption-history", period],
+    queryKey: ["/api/recipes/consumption-history", period, mealType], // Add mealType to queryKey
     queryFn: async () => {
       const params = new URLSearchParams({
         startDate: getDateRange().start.toISOString(),
         endDate: getDateRange().end.toISOString(),
+        mealType: mealType, // Add mealType to API request
       });
       const res = await apiRequest("GET", `/api/recipes/consumption-history?${params}`);
       return res.json();
@@ -70,15 +92,14 @@ export function NutritionSummary() {
   // Filter and aggregate data by meal type
   const filteredProgressData = dateRange.map(date => {
     const dateStr = format(date, "yyyy-MM-dd");
-    const dayProgress = currentGoal.progress.find((p: any) => p.date === dateStr);
     
     // Get consumption for this date filtered by meal type
     const dayConsumption = (consumptionHistory || [])
-      .filter(c => {
+      .filter((c: ConsumptionRecord) => {
         const consumed = new Date(c.consumedAt).toDateString() === date.toDateString();
         return mealType === "all" ? consumed : consumed && c.mealType === mealType;
       })
-      .reduce((acc, curr) => {
+      .reduce((acc: NutritionTotals, curr: ConsumptionRecord) => {
         const recipe = curr.recipe?.nutritionInfo || { calories: 0, protein: 0, carbs: 0, fat: 0 };
         return {
           calories: acc.calories + (recipe.calories * curr.servings),
@@ -90,14 +111,14 @@ export function NutritionSummary() {
 
     return {
       date: format(date, "MMM dd"),
-      calories: dayConsumption.calories || dayProgress?.calories || 0,
-      protein: dayConsumption.protein || dayProgress?.protein || 0,
-      carbs: dayConsumption.carbs || dayProgress?.carbs || 0,
-      fat: dayConsumption.fat || dayProgress?.fat || 0,
-      targetCalories: currentGoal.dailyCalories,
-      targetProtein: currentGoal.dailyProtein,
-      targetCarbs: currentGoal.dailyCarbs,
-      targetFat: currentGoal.dailyFat,
+      calories: dayConsumption.calories,
+      protein: dayConsumption.protein,
+      carbs: dayConsumption.carbs,
+      fat: dayConsumption.fat,
+      targetCalories: mealType === "all" ? currentGoal.dailyCalories : Math.round(currentGoal.dailyCalories / 3),
+      targetProtein: mealType === "all" ? currentGoal.dailyProtein : Math.round(currentGoal.dailyProtein / 3),
+      targetCarbs: mealType === "all" ? currentGoal.dailyCarbs : Math.round(currentGoal.dailyCarbs / 3),
+      targetFat: mealType === "all" ? currentGoal.dailyFat : Math.round(currentGoal.dailyFat / 3)
     };
   });
 
@@ -115,7 +136,7 @@ export function NutritionSummary() {
   });
 
   // Calculate meal type distribution
-  const mealDistribution = (consumptionHistory || []).reduce((acc, curr) => {
+  const mealDistribution = (consumptionHistory || []).reduce((acc: Record<string, number>, curr: ConsumptionRecord) => {
     acc[curr.mealType] = (acc[curr.mealType] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);

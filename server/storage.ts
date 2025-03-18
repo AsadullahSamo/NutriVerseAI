@@ -445,43 +445,49 @@ export class DatabaseStorage implements IStorage {
     startDate?: Date,
     endDate?: Date
   ): Promise<RecipeConsumption[]> {
-    let query = db
-      .select()
-      .from(recipeConsumption)
-      .where(eq(recipeConsumption.userId, userId));
+    let conditions = [eq(recipeConsumption.userId, userId)];
 
     if (startDate) {
-      query = query.and(gte(recipeConsumption.consumedAt, startDate));
+      conditions.push(gte(recipeConsumption.consumedAt, startDate));
     }
     if (endDate) {
-      query = query.and(lte(recipeConsumption.consumedAt, endDate));
+      conditions.push(lte(recipeConsumption.consumedAt, endDate));
     }
 
-    return query.orderBy(desc(recipeConsumption.consumedAt));
+    return db
+      .select()
+      .from(recipeConsumption)
+      .where(and(...conditions))
+      .orderBy(desc(recipeConsumption.consumedAt));
   }
 
   async getRecipeConsumptionWithDetails(
     userId: number,
     startDate?: Date,
-    endDate?: Date
+    endDate?: Date,
+    mealType?: string
   ): Promise<any[]> {
-    let query = db
+    let conditions = [eq(recipeConsumption.userId, userId)];
+
+    if (startDate) {
+      conditions.push(gte(recipeConsumption.consumedAt, startDate));
+    }
+    if (endDate) {
+      conditions.push(lte(recipeConsumption.consumedAt, endDate));
+    }
+    if (mealType && mealType !== 'all') {
+      conditions.push(eq(recipeConsumption.mealType, mealType));
+    }
+
+    const results = await db
       .select({
         consumption: recipeConsumption,
         recipe: recipes
       })
       .from(recipeConsumption)
       .leftJoin(recipes, eq(recipeConsumption.recipeId, recipes.id))
-      .where(eq(recipeConsumption.userId, userId));
-
-    if (startDate) {
-      query = query.and(gte(recipeConsumption.consumedAt, startDate));
-    }
-    if (endDate) {
-      query = query.and(lte(recipeConsumption.consumedAt, endDate));
-    }
-
-    const results = await query.orderBy(desc(recipeConsumption.consumedAt));
+      .where(and(...conditions))
+      .orderBy(desc(recipeConsumption.consumedAt));
 
     return results.map(r => ({
       ...r.consumption,
