@@ -87,7 +87,7 @@ export function MoodTracker({ recipeId }: MoodTrackerProps) {
       setEntry("");
       toast({
         title: "Mood tracked!",
-        description: "Your cooking experience has been recorded and analyzed.",
+        description: "Your cooking experience has been recorded and analyzed. Now click on 'View Insights' to see patterns and recommendations.",
       });
       moodEntriesQuery.refetch();
     },
