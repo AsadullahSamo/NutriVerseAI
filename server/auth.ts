@@ -153,11 +153,50 @@ export function setupAuth(app: Express) {
     });
   });
 
+  // User account endpoints
   app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Not authenticated" });
     }
     res.json(req.user);
+  });
+
+  // Add account deletion endpoint
+  app.delete("/api/account", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const { password } = req.body;
+      
+      // Verify password before deletion
+      const user = await storage.getUser(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Check if password is correct
+      if (!(await comparePasswords(password, user.password))) {
+        return res.status(401).json({ message: "Invalid password" });
+      }
+      
+      // Delete the user account
+      await storage.deleteUser(req.user.id);
+      
+      // Logout the user
+      req.logout((err) => {
+        if (err) {
+          console.error("Logout error during account deletion:", err);
+          return res.status(500).json({ message: "Error during logout process" });
+        }
+        
+        res.json({ message: "Account deleted successfully" });
+      });
+    } catch (error) {
+      console.error("Account deletion error:", error);
+      res.status(500).json({ message: "Failed to delete account" });
+    }
   });
 
   return sessionMiddleware;
