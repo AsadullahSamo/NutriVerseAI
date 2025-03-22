@@ -22,6 +22,7 @@ interface UserPreferencesContextType {
   preferences: UserPreferences;
   updatePreference: <K extends keyof UserPreferences>(key: K, value: UserPreferences[K]) => void;
   resetPreferences: () => void;
+  updateAccentColor: (color: string) => void; // Special handler for accent color
 }
 
 const UserPreferencesContext = createContext<UserPreferencesContextType | undefined>(undefined);
@@ -46,6 +47,11 @@ export function UserPreferencesProvider({ children }: { children: React.ReactNod
     
     // Apply accent color
     document.documentElement.style.setProperty('--accent-color', preferences.accentColor);
+
+    // Dispatch custom event for immediate updates
+    window.dispatchEvent(new CustomEvent('preferencesUpdate', {
+      detail: { preferences }
+    }));
   }, [preferences]);
 
   // Listen for system theme changes
@@ -70,13 +76,35 @@ export function UserPreferencesProvider({ children }: { children: React.ReactNod
     setPreferences(prev => ({ ...prev, [key]: value }));
   };
 
+  // Special function for handling accent color updates with immediate feedback
+  const updateAccentColor = (color: string) => {
+    // First update localStorage directly for immediate access by other components
+    const savedPrefs = localStorage.getItem('userPreferences');
+    if (savedPrefs) {
+      const prefs = JSON.parse(savedPrefs);
+      prefs.accentColor = color;
+      localStorage.setItem('userPreferences', JSON.stringify(prefs));
+    }
+    
+    // Apply accent color immediately
+    document.documentElement.style.setProperty('--accent-color', color);
+    
+    // Dispatch an immediate event for all components to listen to
+    window.dispatchEvent(new CustomEvent('accentColorChange', { 
+      detail: { accentColor: color } 
+    }));
+    
+    // Update state (this will trigger the normal effect to run)
+    setPreferences(prev => ({ ...prev, accentColor: color }));
+  };
+
   const resetPreferences = () => {
     setPreferences(defaultPreferences);
   };
 
   return (
     <UserPreferencesContext.Provider
-      value={{ preferences, updatePreference, resetPreferences }}
+      value={{ preferences, updatePreference, resetPreferences, updateAccentColor }}
     >
       {children}
     </UserPreferencesContext.Provider>
