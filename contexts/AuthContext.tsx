@@ -1,39 +1,57 @@
-import { createContext, ReactNode } from 'react';
-import { useUser, useAuth as useClerkAuth, SignIn, SignUp } from '@clerk/nextjs';
-import { SelectUser } from '@shared/schema';
+import { createContext, useContext } from 'react';
+import { useAuth as useClerkAuth, useUser } from "@clerk/nextjs";
+import { useUserPreferences } from './UserPreferencesContext';
 
-type AuthContextType = {
-  user: SelectUser | null;
+interface AuthContextType {
+  user: {
+    id: string;
+    username: string;
+    email?: string;
+    name?: string;
+    profilePicture?: string;
+  } | null;
   isLoading: boolean;
-  signIn: typeof SignIn;
-  signUp: typeof SignUp;
+  isSignedIn: boolean;
   signOut: () => Promise<void>;
-};
+}
 
-export const AuthContext = createContext<AuthContextType | null>(null);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const { user, isLoaded: isUserLoaded } = useUser();
-  const { signOut } = useClerkAuth();
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { isLoaded, isSignedIn, signOut } = useClerkAuth();
+  const { user } = useUser();
+  const { resetPreferences } = useUserPreferences();
 
-  // Map Clerk user to your app's user type
-  const mappedUser: SelectUser | null = user ? {
-    id: parseInt(user.id),
-    clerkId: user.id,
-    preferences: user.publicMetadata.preferences || {},
-  } : null;
+  const enhancedSignOut = async () => {
+    await signOut();
+    resetPreferences();
+    localStorage.removeItem('userPreferences');
+  };
+
+  const value = {
+    user: user ? {
+      id: user.id,
+      username: user.username || user.primaryEmailAddress?.emailAddress || 'User',
+      email: user.primaryEmailAddress?.emailAddress,
+      name: user.fullName,
+      profilePicture: user.imageUrl,
+    } : null,
+    isLoading: !isLoaded,
+    isSignedIn: !!isSignedIn,
+    signOut: enhancedSignOut,
+  };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user: mappedUser,
-        isLoading: !isUserLoaded,
-        signIn: SignIn,
-        signUp: SignUp,
-        signOut,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 }
