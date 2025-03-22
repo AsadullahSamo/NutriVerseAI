@@ -28,20 +28,20 @@ export default function UserSettings() {
   });
 
   const updateProfileMutation = useMutation({
-    mutationFn: async (data: Partial<{ preferences: any }>) => {
+    mutationFn: async (data: Partial<{ email: string; name: string; preferences: any }>) => {
       const response = await apiRequest("PATCH", "/api/user/profile", data);
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["userProfile"] });
       toast({
-        description: "Settings updated successfully",
+        description: "Profile updated successfully",
       });
     },
     onError: () => {
       toast({
         variant: "destructive",
-        description: "Failed to update settings",
+        description: "Failed to update profile",
       });
     },
   });
@@ -82,142 +82,138 @@ export default function UserSettings() {
   };
 
   return (
-    <div className="container py-8 max-w-2xl mx-auto space-y-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Application Settings</CardTitle>
-          <CardDescription>Customize your experience</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="theme">Theme</Label>
-            <Select
-              defaultValue={profile.preferences?.theme || "system"}
-              onValueChange={(value) =>
-                updateProfileMutation.mutate({
-                  preferences: { ...profile.preferences, theme: value }
-                })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select theme" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="light">Light</SelectItem>
-                <SelectItem value="dark">Dark</SelectItem>
-                <SelectItem value="system">System</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+    <div className="container mx-auto py-8 space-y-8">
+      <div className="max-w-2xl mx-auto space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Profile Settings</CardTitle>
+            <CardDescription>Manage your account details and preferences</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input id="username" value={user?.username} disabled />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                defaultValue={profile.name || ""}
+                onChange={(e) =>
+                  updateProfileMutation.mutate({ name: e.target.value })
+                }
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                defaultValue={profile.email || ""}
+                onChange={(e) =>
+                  updateProfileMutation.mutate({ email: e.target.value })
+                }
+              />
+            </div>
+          </CardContent>
+        </Card>
 
-          <div className="space-y-2">
-            <Label htmlFor="units">Measurement Units</Label>
-            <Select
-              defaultValue={profile.preferences?.units || "metric"}
-              onValueChange={(value) =>
-                updateProfileMutation.mutate({
-                  preferences: { ...profile.preferences, units: value }
-                })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select units" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="metric">Metric</SelectItem>
-                <SelectItem value="imperial">Imperial</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Application Settings</CardTitle>
+            <CardDescription>Customize your experience</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="language">Language</Label>
+              <Select
+                defaultValue={profile.preferences?.language || "en"}
+                onValueChange={(value) =>
+                  updateProfileMutation.mutate({
+                    preferences: { ...profile.preferences, language: value }
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select language" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="en">English</SelectItem>
+                  <SelectItem value="es">Spanish</SelectItem>
+                  <SelectItem value="fr">French</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="region">Region</Label>
-            <Input
-              id="region"
-              defaultValue={profile.preferences?.region || ""}
-              onChange={(e) =>
-                updateProfileMutation.mutate({
-                  preferences: { ...profile.preferences, region: e.target.value }
-                })
-              }
-              placeholder="Enter your region"
-            />
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="region">Region</Label>
+              <Input
+                id="region"
+                defaultValue={profile.preferences?.region || ""}
+                onChange={(e) =>
+                  updateProfileMutation.mutate({
+                    preferences: { ...profile.preferences, region: e.target.value }
+                  })
+                }
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="language">Language</Label>
-            <Select
-              defaultValue={profile.preferences?.language || "en"}
-              onValueChange={(value) =>
-                updateProfileMutation.mutate({
-                  preferences: { ...profile.preferences, language: value }
-                })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select language" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="en">English</SelectItem>
-                <SelectItem value="es">Spanish</SelectItem>
-                <SelectItem value="fr">French</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="notifications">Enable Notifications</Label>
+              <Switch
+                id="notifications"
+                checked={profile.preferences?.notifications}
+                onCheckedChange={(checked) =>
+                  updateProfileMutation.mutate({
+                    preferences: { ...profile.preferences, notifications: checked }
+                  })
+                }
+              />
+            </div>
+          </CardContent>
+        </Card>
 
-          <div className="flex items-center justify-between">
-            <Label htmlFor="notifications">Enable Notifications</Label>
-            <Switch
-              id="notifications"
-              checked={profile.preferences?.notifications}
-              onCheckedChange={(checked) =>
-                updateProfileMutation.mutate({
-                  preferences: { ...profile.preferences, notifications: checked }
-                })
-              }
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-destructive">Danger Zone</CardTitle>
-          <CardDescription>Irreversible actions for your account</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive">Delete Account</Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete your account and all associated data.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={handleDeleteAccount}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Deleting...
-                    </>
-                  ) : (
-                    "Delete Account"
-                  )}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </CardContent>
-      </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-destructive">Danger Zone</CardTitle>
+            <CardDescription>Irreversible actions for your account</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive">Delete Account</Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete your account and all associated data.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={handleDeleteAccount}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Deleting...
+                      </>
+                    ) : (
+                      "Delete Account"
+                    )}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

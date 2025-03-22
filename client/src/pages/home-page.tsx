@@ -8,6 +8,7 @@ import { GroceryList } from "@/components/grocery-list";
 import { Link } from "wouter";
 import { RecipeCard } from "@/components/recipe-card";
 import { CreateGroceryListDialog } from "@/components/create-grocery-list-dialog";
+import { useState, useEffect } from "react";
 
 interface GroceryItem {
   id: string;
@@ -24,6 +25,38 @@ interface ExtendedGroceryList extends GroceryListType {
 
 export default function HomePage() {
   const { user } = useAuth();
+  const [displayName, setDisplayName] = useState("");
+
+  // Update display name when profile changes
+  useEffect(() => {
+    const loadDisplayName = () => {
+      // Prioritize profile name over username
+      const savedProfile = localStorage.getItem('userProfile');
+      if (savedProfile) {
+        const profile = JSON.parse(savedProfile);
+        setDisplayName(profile.name || user?.name || user?.username);
+        return;
+      }
+      setDisplayName(user?.name || user?.username || "");
+    };
+
+    // Load initial name
+    loadDisplayName();
+
+    // Listen for profile updates
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'userProfile') {
+        loadDisplayName();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('localProfileUpdate', loadDisplayName);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('localProfileUpdate', loadDisplayName);
+    };
+  }, [user]);
 
   const { data: groceryLists, isLoading: listsLoading } = useQuery<ExtendedGroceryList[]>({
     queryKey: ["/api/grocery-lists"],
@@ -47,7 +80,9 @@ export default function HomePage() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6">
         <header className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">Welcome back, {user?.username}!</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            {displayName ? `Welcome, ${displayName}!` : "Welcome!"}
+          </h1>
           <p className="text-muted-foreground mt-2">Your personalized nutrition dashboard</p>
         </header>
 

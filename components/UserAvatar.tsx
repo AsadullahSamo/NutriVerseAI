@@ -35,145 +35,93 @@ interface UserAvatarProps {
 }
 
 export function UserAvatar({ className = "", size = "md" }: UserAvatarProps) {
-  const { user, logoutMutation } = useAuth();
-  const [, setLocation] = useLocation();
-  const queryClient = useQueryClient();
-
-  // Size mappings
-  const sizeClasses = {
-    sm: "h-8 w-8",
-    md: "h-10 w-10",
-    lg: "h-16 w-16"
-  };
-
-  const [userData, setUserData] = useState({
+  const { user } = useAuth();
+  const { preferences } = useUserPreferences();
+  const [userData, setUserData] = useState(() => ({
     name: user?.name || user?.username,
     profilePicture: user?.profilePicture,
-    preferences: user?.preferences || { accentColor: getAvatarColor(user?.username || '') }
-  });
-
-  // Update user data when it changes
-  useEffect(() => {
-    const savedProfile = localStorage.getItem('userProfile');
-    const savedPrefs = localStorage.getItem('userPreferences');
-    
-    if (savedProfile) {
-      const profile = JSON.parse(savedProfile);
-      setUserData(prev => ({
-        ...prev,
-        name: profile.name || user?.name || user?.username,
-        profilePicture: profile.profilePicture || user?.profilePicture
-      }));
+    preferences: {
+      accentColor: preferences?.accentColor || getAvatarColor(user?.username || '')
     }
+  }));
 
-    if (savedPrefs) {
-      const prefs = JSON.parse(savedPrefs);
-      setUserData(prev => ({
-        ...prev,
-        preferences: { ...prev.preferences, ...prefs }
-      }));
-    }
-  }, [user]);
-
-  // Listen for profile updates
+  // Update immediately when profile picture is removed
   useEffect(() => {
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'userProfile') {
-        const profile = e.newValue ? JSON.parse(e.newValue) : null;
-        if (profile) {
+    const handleProfileUpdate = () => {
+      const savedProfile = localStorage.getItem('userProfile');
+      const savedPrefs = localStorage.getItem('userPreferences');
+      
+      try {
+        if (savedProfile) {
+          const profile = JSON.parse(savedProfile);
           setUserData(prev => ({
             ...prev,
             name: profile.name || user?.name || user?.username,
-            profilePicture: profile.profilePicture || user?.profilePicture
+            profilePicture: profile.profilePicture
           }));
         }
-      }
-      if (e.key === 'userPreferences') {
-        const prefs = e.newValue ? JSON.parse(e.newValue) : null;
-        if (prefs) {
+        if (savedPrefs) {
+          const prefs = JSON.parse(savedPrefs);
           setUserData(prev => ({
             ...prev,
-            preferences: { ...prev.preferences, ...prefs }
+            preferences: {
+              ...prev.preferences,
+              accentColor: prefs.accentColor || prev.preferences.accentColor
+            }
           }));
         }
+      } catch (e) {
+        console.error('Error parsing storage data:', e);
       }
     };
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    handleProfileUpdate();
+    window.addEventListener('storage', handleProfileUpdate);
+    window.addEventListener('localProfileUpdate', handleProfileUpdate);
+    
+    return () => {
+      window.removeEventListener('storage', handleProfileUpdate);
+      window.removeEventListener('localProfileUpdate', handleProfileUpdate);
+    };
   }, [user]);
+
+  // Update when user or preferences change
+  useEffect(() => {
+    setUserData(prev => ({
+      ...prev,
+      preferences: {
+        ...prev.preferences,
+        accentColor: preferences?.accentColor || prev.preferences.accentColor
+      }
+    }));
+  }, [preferences?.accentColor]);
 
   if (!user) return null;
 
   const initials = getInitials(userData.name || user.username);
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger className="focus:outline-none">
-        <Avatar className={`${sizeClasses[size]} ${className} cursor-pointer transition-transform hover:scale-105`}>
-          {userData.profilePicture ? (
-            <AvatarImage src={userData.profilePicture} alt={userData.name || user.username} />
-          ) : (
-            <AvatarFallback
-              style={{
-                backgroundColor: userData.preferences.accentColor,
-                color: '#fff',
-              }}
-              className="font-medium"
-            >
-              {initials}
-            </AvatarFallback>
+    <div className={cn("relative inline-block", className)}>
+      {userData.profilePicture ? (
+        <img
+          src={userData.profilePicture}
+          alt={userData.name || user.username}
+          className={cn(
+            "rounded-full object-cover",
+            size === "sm" ? "h-8 w-8" : "h-10 w-10"
           )}
-        </Avatar>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <div className="flex items-center justify-start gap-2 p-2">
-          <Avatar className="h-8 w-8">
-            {userData.profilePicture ? (
-              <AvatarImage src={userData.profilePicture} alt={userData.name || user.username} />
-            ) : (
-              <AvatarFallback
-                style={{
-                  backgroundColor: userData.preferences.accentColor,
-                  color: '#fff',
-                }}
-                className="font-medium"
-              >
-                {initials}
-              </AvatarFallback>
-            )}
-          </Avatar>
-          <div className="flex flex-col">
-            <p className="text-sm font-medium leading-none">{userData.name || user.username}</p>
-            {user.email && (
-              <p className="text-xs text-muted-foreground">{user.email}</p>
-            )}
-          </div>
+        />
+      ) : (
+        <div
+          className={cn(
+            "flex items-center justify-center rounded-full font-semibold uppercase text-white",
+            size === "sm" ? "h-8 w-8 text-xs" : "h-10 w-10 text-sm"
+          )}
+          style={{ backgroundColor: userData.preferences.accentColor }}
+        >
+          {initials}
         </div>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem 
-          onClick={() => setLocation("/profile")}
-          className="cursor-pointer hover:bg-accent"
-        >
-          <User className="mr-2 h-4 w-4" />
-          Profile
-        </DropdownMenuItem>
-        <DropdownMenuItem 
-          onClick={() => setLocation("/settings")}
-          className="cursor-pointer hover:bg-accent"
-        >
-          <Settings className="mr-2 h-4 w-4" />
-          Settings
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem 
-          onClick={() => logoutMutation.mutate()}
-          className="cursor-pointer text-red-600 focus:text-red-600 hover:bg-accent hover:text-red-600"
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          Logout
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      )}
+    </div>
   );
 }

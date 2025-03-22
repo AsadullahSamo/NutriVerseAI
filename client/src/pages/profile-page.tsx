@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
+import { useUserPreferences } from "@/contexts/UserPreferencesContext";
 import { queryClient } from "@/lib/queryClient";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,7 @@ interface ProfileForm {
 export default function ProfilePage() {
   const { user, updateProfileMutation, changePasswordMutation, logoutMutation } = useAuth();
   const { toast } = useToast();
+  const { preferences, updateAccentColor, updatePreference } = useUserPreferences();
   
   // Profile state with localStorage persistence
   const [profileForm, setProfileForm] = useState<ProfileForm>(() => {
@@ -51,6 +53,9 @@ export default function ProfilePage() {
     };
     return savedProfile ? JSON.parse(savedProfile) : defaultProfile;
   });
+
+  // Force re-render for avatar updates
+  const [avatarKey, setAvatarKey] = useState(0);
 
   // Sync profileForm with user data when it changes
   useEffect(() => {
@@ -64,19 +69,6 @@ export default function ProfilePage() {
   }, [user]);
 
   // User preferences state
-  const [preferences, setPreferences] = useState<UserPreferences>(() => {
-    const savedPrefs = localStorage.getItem('userPreferences');
-    return savedPrefs ? JSON.parse(savedPrefs) : {
-      theme: 'system',
-      accentColor: '#0ea5e9',
-      notifications: true,
-      dietaryPreferences: [],
-      region: '',
-      units: 'metric'
-    };
-  });
-  
-  // Password change state
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
@@ -108,13 +100,25 @@ export default function ProfilePage() {
 
   // Handle preferences change
   const handlePreferencesChange = (key: keyof UserPreferences, value: any) => {
-    setPreferences(prev => ({ ...prev, [key]: value }));
+    // Special case for accent color - use the optimized function
+    if (key === 'accentColor') {
+      updateAccentColor(value);
+    } else {
+      updatePreference(key, value);
+    }
   };
 
   // Handle profile form changes
   const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setProfileForm((prev: ProfileForm) => ({ ...prev, [name]: value }));
+    setProfileForm((prev: ProfileForm) => {
+      // If profile picture is being changed/cleared, force avatar to update
+      if (name === 'profilePicture' && prev.profilePicture !== value) {
+        // Small delay to ensure state updates properly
+        setTimeout(() => setAvatarKey(prevKey => prevKey + 1), 0);
+      }
+      return { ...prev, [name]: value };
+    });
   };
   
   // Handle password form changes
@@ -127,13 +131,19 @@ export default function ProfilePage() {
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await updateProfileMutation.mutate({
+      await updateProfileMutation.mutate({
         name: profileForm.name,
         profilePicture: profileForm.profilePicture
       });
 
-      // Update localStorage
+      // Update localStorage and dispatch update event
       localStorage.setItem('userProfile', JSON.stringify(profileForm));
+      
+      // Force avatar re-render
+      setAvatarKey(prevKey => prevKey + 1);
+      
+      // Dispatch custom event for immediate updates
+      window.dispatchEvent(new Event('localProfileUpdate'));
       
       toast({
         title: "Profile Updated",
@@ -248,7 +258,7 @@ export default function ProfilePage() {
             <CardContent className="space-y-8">
               <div className="flex flex-col sm:flex-row gap-6 items-start">
                 <div className="flex flex-col items-center gap-2">
-                  <Avatar className="h-24 w-24">
+                  <Avatar className="h-24 w-24" key={`avatar-${avatarKey}-${!!profileForm.profilePicture}`}>
                     {profileForm.profilePicture ? (
                       <AvatarImage src={profileForm.profilePicture} alt={user.username} />
                     ) : (
@@ -326,64 +336,42 @@ export default function ProfilePage() {
             
             <CardContent className="space-y-6">
               <div className="space-y-2">
-                <Label>Theme</Label>
-                <div className="flex gap-2">
-                  <Button
-                    variant={preferences.theme === 'light' ? 'default' : 'outline'}
-                    onClick={() => handlePreferencesChange('theme', 'light')}
-                    size="sm"
-                  >
-                    <Sun className="h-4 w-4 mr-1" />
-                    Light
-                  </Button>
-                  <Button
-                    variant={preferences.theme === 'dark' ? 'default' : 'outline'}
-                    onClick={() => handlePreferencesChange('theme', 'dark')}
-                    size="sm"
-                  >
-                    <Moon className="h-4 w-4 mr-1" />
-                    Dark
-                  </Button>
-                  <Button
-                    variant={preferences.theme === 'system' ? 'default' : 'outline'}
-                    onClick={() => handlePreferencesChange('theme', 'system')}
-                    size="sm"
-                  >
-                    System
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
                 <Label>Accent Color</Label>
-                <div className="grid grid-cols-6 gap-2">
-                  {['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'].map(color => (
-                    <button
-                      key={color}
-                      className={`w-8 h-8 rounded-full transition-all ${
-                        preferences.accentColor === color ? 'ring-2 ring-offset-2 ring-black dark:ring-white' : ''
-                      }`}
-                      style={{ backgroundColor: color }}
-                      onClick={() => handlePreferencesChange('accentColor', color)}
+                <div className="space-y-4">
+                  {/* Color presets */}
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', // Row 1
+                      '#06b6d4', '#059669', '#ca8a04', '#dc2626', '#7c3aed', '#be185d', // Row 2
+                      '#0284c7', '#047857', '#b45309', '#991b1b', '#6d28d9', '#9d174d'  // Row 3
+                    ].map(color => (
+                      <button
+                        key={color}
+                        className={`w-8 h-8 rounded-full transition-all ${
+                          preferences.accentColor === color ? 'ring-2 ring-offset-2 ring-black dark:ring-white scale-110' : 'hover:scale-110'
+                        }`}
+                        style={{ backgroundColor: color }}
+                        onClick={() => handlePreferencesChange('accentColor', color)}
+                      />
+                    ))}
+                  </div>
+                  
+                  {/* Custom color picker */}
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="color"
+                      value={preferences.accentColor}
+                      onChange={(e) => handlePreferencesChange('accentColor', e.target.value)}
+                      className="h-10 w-20 rounded-md cursor-pointer"
                     />
-                  ))}
+                    <Input
+                      value={preferences.accentColor}
+                      onChange={(e) => handlePreferencesChange('accentColor', e.target.value)}
+                      placeholder="#000000"
+                      className="font-mono"
+                    />
+                  </div>
                 </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Units</Label>
-                <Select
-                  value={preferences.units}
-                  onValueChange={(value: 'metric' | 'imperial') => handlePreferencesChange('units', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="metric">Metric</SelectItem>
-                    <SelectItem value="imperial">Imperial</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
 
               <div className="space-y-2">

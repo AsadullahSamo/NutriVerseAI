@@ -1,89 +1,147 @@
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
-import { useLocation } from "wouter";
-import { Settings, LogOut } from "lucide-react";
+import { useUserPreferences } from "@/contexts/UserPreferencesContext";
 
-const getInitials = (name: string) => {
+interface UserAvatarProps {
+  className?: string;
+  size?: "sm" | "md" | "lg";
+}
+
+function getInitials(name: string) {
   return name
     .split(" ")
     .map((n) => n[0])
     .join("")
     .toUpperCase();
-};
+}
 
-const getAvatarColor = (name: string) => {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const hue = Math.abs(hash % 360);
-  return `hsl(${hue}, 65%, 45%)`;
-};
+export function UserAvatar({ className = "", size = "md" }: UserAvatarProps) {
+  const { user } = useAuth();
+  const { preferences } = useUserPreferences();
+  const [forceRender, setForceRender] = useState(0);
+  
+  const [userData, setUserData] = useState(() => ({
+    name: user?.name || user?.username,
+    profilePicture: user?.profilePicture
+  }));
 
-export function UserAvatar() {
-  const { user, logoutMutation } = useAuth();
-  const [, setLocation] = useLocation();
+  // Store the current accent color in a ref to detect changes
+  const currentAccentColor = useRef(preferences.accentColor);
+
+  // Listen for profile updates and accent color changes
+  useEffect(() => {
+    const handleProfileUpdate = () => {
+      const savedProfile = localStorage.getItem('userProfile');
+      if (savedProfile) {
+        const profile = JSON.parse(savedProfile);
+        setUserData(prev => ({
+          ...prev,
+          name: profile.name || user?.name || user?.username,
+          profilePicture: profile.profilePicture
+        }));
+      }
+    };
+
+    // Direct localStorage check for accent color changes
+    const checkAccentColor = () => {
+      const savedPrefs = localStorage.getItem('userPreferences');
+      if (savedPrefs) {
+        try {
+          const prefs = JSON.parse(savedPrefs);
+          if (prefs.accentColor !== currentAccentColor.current) {
+            currentAccentColor.current = prefs.accentColor;
+            setForceRender(prev => prev + 1); // Force re-render
+          }
+        } catch (e) {
+          console.error('Error parsing preferences:', e);
+        }
+      }
+    };
+
+    const handleAccentColorChange = (event: CustomEvent<{ accentColor: string }>) => {
+      if (event.detail.accentColor !== currentAccentColor.current) {
+        currentAccentColor.current = event.detail.accentColor;
+        setForceRender(prev => prev + 1); // Force re-render
+      }
+    };
+
+    // Initial checks
+    handleProfileUpdate();
+    checkAccentColor();
+
+    // Listen for updates
+    window.addEventListener('storage', () => {
+      handleProfileUpdate();
+      checkAccentColor();
+    });
+    window.addEventListener('localProfileUpdate', handleProfileUpdate);
+    window.addEventListener('accentColorChange', handleAccentColorChange as EventListener);
+    window.addEventListener('preferencesUpdate', () => checkAccentColor());
+    
+    return () => {
+      window.removeEventListener('storage', () => {
+        handleProfileUpdate();
+        checkAccentColor();
+      });
+      window.removeEventListener('localProfileUpdate', handleProfileUpdate);
+      window.removeEventListener('accentColorChange', handleAccentColorChange as EventListener);
+      window.removeEventListener('preferencesUpdate', () => checkAccentColor());
+    };
+  }, [user]);
+
+  // Create the initials and dimensions as memo values
+  const initials = useMemo(() => 
+    getInitials(userData.name || user?.username || ""),
+    [userData.name, user?.username]
+  );
+  
+  const dimensions = useMemo(() => 
+    size === "sm" ? "h-8 w-8" : "h-10 w-10",
+    [size]
+  );
+
+  // Always use the most up-to-date accent color
+  const accentColor = useMemo(() => {
+    // First check localStorage for the most current value
+    try {
+      const savedPrefs = localStorage.getItem('userPreferences');
+      if (savedPrefs) {
+        const prefs = JSON.parse(savedPrefs);
+        return prefs.accentColor;
+      }
+    } catch (e) {
+      console.error('Error accessing accent color from localStorage:', e);
+    }
+    // Fall back to context value
+    return preferences.accentColor;
+  }, [preferences.accentColor, forceRender]); // Re-compute when forced or preferences change
 
   if (!user) return null;
 
-  const displayName = user.name || user.username;
-  const initials = getInitials(displayName);
-  const backgroundColor = user.preferences?.accentColor || getAvatarColor(displayName);
-
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger className="focus:outline-none">
-        <Avatar className="h-8 w-8 cursor-pointer">
-          {user.avatarUrl ? (
-            <AvatarImage src={user.avatarUrl} alt={displayName} />
-          ) : (
-            <AvatarFallback
-              style={{
-                backgroundColor,
-                color: '#fff',
-              }}
-              className="font-medium"
-            >
-              {initials}
-            </AvatarFallback>
-          )}
-        </Avatar>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <div className="flex items-center justify-start gap-2 p-2">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">{displayName}</p>
-            {user.email && (
-              <p className="text-xs leading-none text-muted-foreground">
-                {user.email}
-              </p>
-            )}
+    <div className={cn("relative inline-block", className)}>
+      <div className={cn(
+        "overflow-hidden rounded-full",
+        dimensions
+      )}>
+        {userData.profilePicture ? (
+          <img
+            src={userData.profilePicture}
+            alt={userData.name || user.username}
+            className="h-full w-full object-cover"
+            style={{ aspectRatio: "1/1" }}
+          />
+        ) : (
+          <div
+            className="flex h-full w-full items-center justify-center font-semibold uppercase text-white"
+            style={{ backgroundColor: accentColor }}
+            key={`avatar-${accentColor}-${forceRender}`} // Force re-render when color changes
+          >
+            {initials}
           </div>
-        </div>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem 
-          onClick={() => setLocation("/settings")}
-          className="cursor-pointer"
-        >
-          <Settings className="mr-2 h-4 w-4" />
-          Settings
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem 
-          onClick={() => logoutMutation.mutate()}
-          className="cursor-pointer text-red-600 focus:text-red-600"
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          Logout
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        )}
+      </div>
+    </div>
   );
 }

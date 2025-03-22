@@ -21,27 +21,36 @@ export function Navbar() {
     };
   }, [isOpen]);
 
-  const menuItems = [
-    { href: "/recipes", icon: Book, label: "Recipes" },
-    { href: "/pantry", icon: ShoppingCart, label: "Pantry" },
-    { href: "/community", icon: Users, label: "Community" },
-    { href: "/meal-plans", icon: Calendar, label: "Meal Plans" },
-    { href: "/nutrition", icon: LineChart, label: "Nutrition Tracking" },
-    { href: "/kitchen-equipment", icon: Wrench, label: "Equipment Management" },
-    { href: "/cultural-cuisine", icon: Globe, label: "Cultural Cuisine" },
-  ];
+  const menuGroups = {
+    main: [
+      { href: "/", icon: Home, label: "Home" },
+      { href: "/community", icon: Users, label: "Community" },
+    ],
+    food: [
+      { href: "/recipes", icon: Book, label: "Recipes" },
+      { href: "/cultural-cuisine", icon: Globe, label: "Cultural Cuisine" },
+    ],
+    kitchen: [
+      { href: "/pantry", icon: ShoppingCart, label: "Pantry" },
+      { href: "/kitchen-equipment", icon: Wrench, label: "Equipment Management" },
+    ],
+    planning: [
+      { href: "/meal-plans", icon: Calendar, label: "Meal Plans" },
+      { href: "/nutrition", icon: LineChart, label: "Nutrition Tracking" },
+    ],
+  };
 
   return (
     <>
       <header className="fixed top-0 left-0 right-0 z-50 border-b bg-background">
-        <div className="container flex h-14 items-center justify-between">
-          <Link href="/" className="flex items-center">
+        <div className="container flex h-14 items-center">
+          <Link href="/" className="flex items-center pl-6">
             <span className="font-bold text-xl">NutriCartAI</span>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-6">
-            {menuItems.map(({ href, icon: Icon, label }) => (
+          <nav className="hidden md:flex justify-center items-center space-x-6 mx-auto">
+            {Object.values(menuGroups).flat().map(({ href, icon: Icon, label }) => (
               <Link key={href} href={href} className="flex items-center gap-2 text-sm font-medium">
                 <Icon className="h-4 w-4" />
                 {label}
@@ -93,7 +102,7 @@ export function Navbar() {
             {/* Menu */}
             <div className="fixed inset-x-0 top-[3.5rem] z-50 border-t bg-background shadow-lg">
               <nav className="container flex flex-col divide-y divide-border">
-                {menuItems.map(({ href, icon: Icon, label }) => (
+                {Object.values(menuGroups).flat().map(({ href, icon: Icon, label }) => (
                   <Link
                     key={href}
                     href={href}
