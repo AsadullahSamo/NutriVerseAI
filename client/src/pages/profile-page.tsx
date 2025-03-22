@@ -196,6 +196,15 @@ export default function ProfilePage() {
   
   // Handle account deletion
   const handleDeleteAccount = async () => {
+    if (!deleteAccountPassword) {
+      toast({
+        title: "Error",
+        description: "Please enter your password to confirm account deletion",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     try {
       const response = await fetch("/api/account", {
         method: "DELETE",
@@ -217,6 +226,13 @@ export default function ProfilePage() {
         title: "Account Deleted",
         description: "Your account has been deleted successfully."
       });
+      
+      // Clear any local data
+      localStorage.removeItem('userProfile');
+      localStorage.removeItem('userPreferences');
+      
+      // Redirect to auth page
+      window.location.href = "/auth";
     } catch (error: any) {
       toast({
         title: "Error",
