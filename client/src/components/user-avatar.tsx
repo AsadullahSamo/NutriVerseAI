@@ -36,13 +36,19 @@ export function UserAvatar() {
   const displayName = user.name || user.username;
   const initials = getInitials(displayName);
   const backgroundColor = user.preferences?.accentColor || getAvatarColor(displayName);
+  
+  // Get profile picture from localStorage first, then fall back to user data
+  const savedProfile = localStorage.getItem('userProfile');
+  const profilePicture = savedProfile 
+    ? JSON.parse(savedProfile).profilePicture 
+    : user.profilePicture;
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="focus:outline-none">
         <Avatar className="h-8 w-8 cursor-pointer transition-transform hover:scale-105">
-          {user.avatarUrl ? (
-            <AvatarImage src={user.avatarUrl} alt={displayName} />
+          {profilePicture ? (
+            <AvatarImage src={profilePicture} alt={displayName} />
           ) : (
             <AvatarFallback
               style={{
@@ -59,8 +65,8 @@ export function UserAvatar() {
       <DropdownMenuContent align="end" className="w-56">
         <div className="flex items-center justify-start gap-2 p-2">
           <Avatar className="h-8 w-8">
-            {user.avatarUrl ? (
-              <AvatarImage src={user.avatarUrl} alt={displayName} />
+            {profilePicture ? (
+              <AvatarImage src={profilePicture} alt={displayName} />
             ) : (
               <AvatarFallback
                 style={{

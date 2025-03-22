@@ -3,6 +3,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/hooks/use-auth";
+import { UserPreferencesProvider } from "@/contexts/UserPreferencesContext";
 import NotFound from "@/pages/not-found";
 import HomePage from "@/pages/home-page";
 import AuthPage from "@/pages/auth-page";
@@ -16,6 +17,8 @@ import NutritionPage from "./pages/nutrition-page";
 import KitchenEquipmentPage from '@/pages/kitchen-equipment-page';
 import CulturalCuisinePage from '@/pages/cultural-cuisine-page';
 import KitchenStoragePage from '@/pages/kitchen-storage-page';
+import ProfilePage from '@/pages/profile-page';
+import UserSettings from '@/pages/user-settings';
 
 function Router() {
   return (
@@ -34,6 +37,8 @@ function Router() {
             <ProtectedRoute path="/kitchen-equipment" component={KitchenEquipmentPage} />
             <ProtectedRoute path="/cultural-cuisine" component={CulturalCuisinePage} />
             <ProtectedRoute path="/kitchen-storage" component={KitchenStoragePage} />
+            <ProtectedRoute path="/profile" component={ProfilePage} />
+            <ProtectedRoute path="/settings" component={UserSettings} />
             <Route component={NotFound} />
           </Switch>
         </Route>
@@ -46,8 +51,10 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Router />
-        <Toaster />
+        <UserPreferencesProvider>
+          <Router />
+          <Toaster />
+        </UserPreferencesProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

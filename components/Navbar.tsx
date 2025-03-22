@@ -1,8 +1,9 @@
 import * as React from "react";
 import { Link } from "wouter";
+import { ThemeToggle } from "./ThemeToggle";
 import { UserButton } from "./UserButton";
-import { useAuth } from "@/hooks/use-auth";
-import { Button } from "@/components/ui/button";
+import { useAuth } from "../client/src/hooks/use-auth";
+import { Button } from "../client/src/components/ui/button";
 import { Home, Book, ShoppingCart, Users, Calendar, LineChart, Wrench, Globe, Menu, X } from "lucide-react";
 
 export function Navbar() {
@@ -21,7 +22,6 @@ export function Navbar() {
   }, [isOpen]);
 
   const menuItems = [
-    { href: "/", icon: Home, label: "Home" },
     { href: "/recipes", icon: Book, label: "Recipes" },
     { href: "/pantry", icon: ShoppingCart, label: "Pantry" },
     { href: "/community", icon: Users, label: "Community" },
@@ -35,14 +35,14 @@ export function Navbar() {
     <>
       <header className="fixed top-0 left-0 right-0 z-50 border-b bg-background">
         <div className="container flex h-14 items-center justify-between">
-          <Link href="/" className="flex items-center px-4">
+          <Link href="/" className="flex items-center">
             <span className="font-bold text-xl">NutriCartAI</span>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex justify-center items-center space-x-8">
+          <nav className="hidden md:flex items-center space-x-6">
             {menuItems.map(({ href, icon: Icon, label }) => (
-              <Link key={href} href={href} className="flex items-center gap-2 text-sm font-medium hover:text-primary">
+              <Link key={href} href={href} className="flex items-center gap-2 text-sm font-medium">
                 <Icon className="h-4 w-4" />
                 {label}
               </Link>
@@ -51,6 +51,7 @@ export function Navbar() {
 
           {/* Right side controls */}
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             {user ? (
               <UserButton />
             ) : (
