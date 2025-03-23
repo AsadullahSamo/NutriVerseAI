@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { Settings, LogOut, User } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useUserPreferences } from "@/contexts/UserPreferencesContext";
 
@@ -129,13 +129,6 @@ export function UserButton() {
         >
           <User className="mr-2 h-4 w-4" />
           Profile
-        </DropdownMenuItem>
-        <DropdownMenuItem 
-          onClick={() => setLocation("/settings")}
-          className="cursor-pointer hover:bg-accent"
-        >
-          <Settings className="mr-2 h-4 w-4" />
-          Settings
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem 
