@@ -29,9 +29,19 @@ export default function AuthPage() {
     try {
       await loginMutation.mutateAsync(data);
     } catch (error: any) {
+      // Properly extract the server error message when login fails
+      let errorMessage = "Invalid username or password";
+      
+      // Try to get the specific error message from different possible response formats
+      if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Login Failed",
-        description: error.response?.data?.message || "Invalid username or password",
+        description: errorMessage,
         variant: "destructive",
       });
     }

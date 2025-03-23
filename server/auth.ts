@@ -54,10 +54,10 @@ export function setupAuth(app: Express) {
       try {
         const user = await storage.getUserByUsername(username);
         if (!user) {
-          return done(null, false, { message: "Invalid username or password" });
+          return done(null, false, { message: "User does not exist. Please register an account." });
         }
         if (!(await comparePasswords(password, user.password))) {
-          return done(null, false, { message: "Invalid username or password" });
+          return done(null, false, { message: "Incorrect password. Please try again." });
         }
         return done(null, user);
       } catch (err) {
@@ -105,6 +105,25 @@ export function setupAuth(app: Express) {
 
   app.post("/api/register", async (req, res) => {
     try {
+      // Validate required fields are present
+      if (!req.body.username || req.body.username.trim() === '') {
+        return res.status(400).json({ message: "Username is required" });
+      }
+      
+      if (!req.body.password || req.body.password.trim() === '') {
+        return res.status(400).json({ message: "Password is required" });
+      }
+      
+      // Validate username length
+      if (req.body.username.length < 3) {
+        return res.status(400).json({ message: "Username must be at least 3 characters long" });
+      }
+      
+      // Validate password length
+      if (req.body.password.length < 6) {
+        return res.status(400).json({ message: "Password must be at least 6 characters long" });
+      }
+
       const existingUser = await storage.getUserByUsername(req.body.username);
       if (existingUser) {
         return res.status(400).json({ message: "Username already exists" });
@@ -123,6 +142,7 @@ export function setupAuth(app: Express) {
         res.status(201).json(user);
       });
     } catch (err) {
+      console.error("Registration error:", err);
       res.status(500).json({ message: "Registration failed" });
     }
   });

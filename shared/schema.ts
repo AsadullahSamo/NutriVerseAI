@@ -206,11 +206,20 @@ export const nutritionProgressSchema = z.object({
 });
 
 // Remove meal prep schema and update exports
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-  preferences: true,
-});
+export const insertUserSchema = createInsertSchema(users)
+  .pick({
+    username: true,
+    password: true,
+    preferences: true,
+  })
+  .extend({
+    username: z.string()
+      .min(3, "Username must be at least 3 characters long")
+      .max(30, "Username cannot exceed 30 characters"),
+    password: z.string()
+      .min(6, "Password must be at least 6 characters long")
+      .max(100, "Password cannot exceed 100 characters"),
+  });
 
 export const insertRecipeSchema = createInsertSchema(recipes)
   .extend({
