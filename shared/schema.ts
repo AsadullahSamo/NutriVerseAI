@@ -10,6 +10,7 @@ export const users = pgTable("users", {
   preferences: jsonb("preferences").default({}).notNull(),
   dnaProfile: jsonb("dna_profile"),
   moodJournal: jsonb("mood_journal").array(),
+  secretKey: text("secret_key").unique(),
 });
 
 // Define recipes table with explicit type annotation

@@ -86,6 +86,18 @@ A smart nutrition and grocery management platform that helps users make healthy 
   - 🎨 Presentation guidelines
   - 📋 Proper serving order
 
+- 🔒 **User Account Management**
+  - 🛡️ Strict authentication with username/password
+  - 🎨 Customizable user profiles with name and avatar
+  - 🌈 Personalized accent color themes
+  - 🔑 Secure password reset using secret key system
+  - 🔄 No email required for password recovery
+  - ⚙️ Comprehensive profile settings
+  - 📱 Mobile-friendly account management
+  - 🚪 Easy login/logout functionality
+  - 🗑️ Account deletion with data cleanup
+  - 🔐 Strong password validation
+
 ## Tech Stack
 
 - **Frontend**:

@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -5,15 +6,24 @@ import { insertUserSchema } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Loader2, Copy, Check } from "lucide-react";
 import { Redirect } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { z } from "zod";
+
+const forgotPasswordSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  secretKey: z.string().min(1, "Secret key is required"),
+  newPassword: z.string().min(6, "Password must be at least 6 characters"),
+});
 
 export default function AuthPage() {
-  const { user, loginMutation, registerMutation } = useAuth();
+  const { user, loginMutation, registerMutation, forgotPasswordMutation } = useAuth();
   const { toast } = useToast();
+  const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false);
 
   const loginForm = useForm({
     resolver: zodResolver(insertUserSchema.pick({ username: true, password: true })),
@@ -25,39 +35,50 @@ export default function AuthPage() {
     defaultValues: { username: "", password: "", preferences: {} },
   });
 
+  const forgotPasswordForm = useForm({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: {
+      username: "",
+      secretKey: "",
+      newPassword: "",
+    },
+  });
+
   const handleLogin = async (data: any) => {
     try {
       await loginMutation.mutateAsync(data);
     } catch (error: any) {
-      // Properly extract the server error message when login fails
-      let errorMessage = "Invalid username or password";
-      
-      // Try to get the specific error message from different possible response formats
-      if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
-      toast({
-        title: "Login Failed",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      // Error is handled by mutation
     }
   };
 
   const handleRegister = async (data: any) => {
     try {
-      await registerMutation.mutateAsync(data);
+      const result = await registerMutation.mutateAsync(data);
+      if (result.secretKey) {
+        toast({
+          title: "Registration successful",
+          description: "Your secret key will be shown next.",
+        });
+        // Redirect to home page with secret key
+        window.location.href = `/?secretKey=${encodeURIComponent(result.secretKey)}`;
+      }
     } catch (error: any) {
-      // Properly extract the error message from the server response
-      const errorMessage = error.response?.data?.message || error.message || "Failed to register";
+      // Error is handled by mutation
+    }
+  };
+
+  const handleForgotPassword = async (data: any) => {
+    try {
+      await forgotPasswordMutation.mutateAsync(data);
+      setForgotPasswordOpen(false);
       toast({
-        title: "Registration Failed",
-        description: errorMessage,
-        variant: "destructive",
+        title: "Success",
+        description: "Password has been reset successfully. You can now login with your new password.",
       });
+      forgotPasswordForm.reset();
+    } catch (error: any) {
+      // Error is handled by mutation
     }
   };
 
@@ -106,12 +127,76 @@ export default function AuthPage() {
                           </FormControl>
                           <FormMessage />
                         </FormItem>
-                      )}
+                      )} 
                     />
-                    <Button type="submit" className="w-full mt-6" disabled={loginMutation.isPending}>
-                      {loginMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Login
-                    </Button>
+                    <div className="flex flex-col gap-2">
+                      <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
+                        {loginMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Login
+                      </Button>
+                      <Dialog open={forgotPasswordOpen} onOpenChange={setForgotPasswordOpen}>
+                        <DialogTrigger asChild>
+                          <Button variant="link" type="button" className="text-sm">
+                            Forgot Password?
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle>Reset Password</DialogTitle>
+                          </DialogHeader>
+                          <Form {...forgotPasswordForm}>
+                            <form onSubmit={forgotPasswordForm.handleSubmit(handleForgotPassword)} className="space-y-4">
+                              <FormField
+                                control={forgotPasswordForm.control}
+                                name="username"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Username</FormLabel>
+                                    <FormControl>
+                                      <Input {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={forgotPasswordForm.control}
+                                name="secretKey"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Secret Key</FormLabel>
+                                    <FormControl>
+                                      <Input type="password" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                    <FormDescription>
+                                      Enter the secret key that was provided during registration
+                                    </FormDescription>
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={forgotPasswordForm.control}
+                                name="newPassword"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>New Password</FormLabel>
+                                    <FormControl>
+                                      <Input type="password" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <Button type="submit" className="w-full" disabled={forgotPasswordMutation.isPending}>
+                                {forgotPasswordMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Reset Password
+                              </Button>
+                            </form>
+                          </Form>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                   </form>
                 </Form>
               </TabsContent>
@@ -145,7 +230,7 @@ export default function AuthPage() {
                         </FormItem>
                       )}
                     />
-                    <Button type="submit" className="w-full mt-6" disabled={registerMutation.isPending}>
+                    <Button type="submit" className="w-full" disabled={registerMutation.isPending}>
                       {registerMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Register
                     </Button>
@@ -156,11 +241,22 @@ export default function AuthPage() {
           </CardContent>
         </Card>
       </div>
-      <div className="hidden lg:flex flex-1 bg-primary">
+
+      <div className="hidden lg:flex flex-1 bg-primary/90 dark:bg-primary/70">
         <div className="max-w-2xl mx-auto px-8 py-12 flex flex-col justify-center text-primary-foreground">
           <h1 className="text-3xl sm:text-4xl font-bold mb-4">Your Smart Nutrition Assistant</h1>
-          <p className="text-base sm:text-lg opacity-90">
-            Join NutriCart to discover personalized recipes, track your nutrition, and make healthy grocery shopping easier than ever.
+          <p className="text-base sm:text-lg opacity-90 space-y-4">
+            Experience the power of AI in your kitchen. Get personalized meal plans, smart recipe recommendations, and real-time nutrition analysis. Our AI helps track your cooking mood, generates cultural cuisine insights, provides kitchen equipment analysis, and even makes smart shopping suggestions.
+          </p>
+          <ul className="mt-6 space-y-2 list-none">
+            <li className="flex items-center gap-2">🤖 AI-powered nutrition analysis & insights</li>
+            <li className="flex items-center gap-2">📊 Smart meal planning & recipe recommendations</li>
+            <li className="flex items-center gap-2">🌎 AI-generated cultural cuisine details</li>
+            <li className="flex items-center gap-2">🔍 Intelligent kitchen equipment analysis</li>
+            <li className="flex items-center gap-2">😊 AI mood tracking for cooking experiences</li>
+          </ul>
+          <p className="mt-6 text-sm opacity-90 italic">
+            And many more exciting features waiting for you to explore! Join now to discover all the ways NutriCart AI can transform your cooking journey.
           </p>
         </div>
       </div>

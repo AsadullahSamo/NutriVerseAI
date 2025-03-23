@@ -9,7 +9,21 @@ import { storage } from "./storage";
 // Define core types
 type UserPreferences = Record<string, any>;
 
-type StorageUser = {
+// Raw user data from storage
+interface RawUserData {
+  id: number;
+  username: string;
+  password: string;
+  email?: string;
+  name?: string;
+  preferences: unknown;
+  dnaProfile?: unknown;
+  moodJournal?: unknown[] | null;
+  secretKey?: string;
+}
+
+// Processed storage user with correct types
+interface StorageUser {
   id: number;
   username: string;
   password: string;
@@ -18,25 +32,33 @@ type StorageUser = {
   preferences: UserPreferences;
   dnaProfile?: unknown;
   moodJournal?: unknown[] | null;
-};
+  secretKey?: string;
+}
 
-type SafeUser = {
+// Safe user type for client
+interface SafeUser {
   id: number;
   username: string;
   email?: string;
   name?: string;
   preferences: UserPreferences;
-};
+}
 
-// Type declarations for Express
+// Type declarations
 declare module 'express-session' {
   interface SessionData {
-    userId?: number;
+    userId: number;
   }
 }
 
 declare module 'express' {
-  interface User extends SafeUser {}
+  interface User {
+    id: number;
+    username: string;
+    email?: string;
+    name?: string;
+    preferences: UserPreferences;
+  }
 }
 
 const scryptAsync = promisify(scrypt);
@@ -54,26 +76,29 @@ async function comparePasswords(supplied: string, stored: string) {
   return timingSafeEqual(hashedBuf, suppliedBuf);
 }
 
-// Helper to cast unknown preferences to proper type
-function normalizePreferences(prefs: unknown): UserPreferences {
-  if (typeof prefs === 'object' && prefs !== null) {
-    return prefs as UserPreferences;
-  }
-  return {};
+// Generate a unique secret key
+function generateSecretKey(): string {
+  // Generate 32 random bytes and convert to hex for a 64-character key
+  return randomBytes(32).toString('hex');
 }
 
-// Helper to remove sensitive data from user object
-function sanitizeUser(user: Partial<StorageUser> & { id: number; username: string }): SafeUser {
-  const { password, dnaProfile, moodJournal, ...safeUser } = user;
+// Convert raw storage data to proper types
+function processStorageUser(raw: RawUserData): StorageUser {
   return {
-    ...safeUser,
-    preferences: typeof user.preferences === 'object' ? user.preferences as UserPreferences : {},
-    id: user.id,
-    username: user.username
+    ...raw,
+    preferences: typeof raw.preferences === 'object' ? raw.preferences as UserPreferences : {}
   };
 }
 
+// Helper to remove sensitive data from user object
+function sanitizeUser(raw: RawUserData): SafeUser {
+  const user = processStorageUser(raw);
+  const { password, dnaProfile, moodJournal, secretKey, ...safeUser } = user;
+  return safeUser;
+}
+
 export function setupAuth(app: Express) {
+  // Session middleware setup
   const sessionMiddleware = session({
     secret: process.env.SESSION_SECRET || 'your_secret_key',
     resave: false,
@@ -111,11 +136,11 @@ export function setupAuth(app: Express) {
     })
   );
 
-  passport.serializeUser<number>((user, done) => {
+  passport.serializeUser((user, done) => {
     done(null, user.id);
   });
 
-  passport.deserializeUser<number>(async (id, done) => {
+  passport.deserializeUser(async (id, done) => {
     try {
       const user = await storage.getUser(id);
       if (!user) {
@@ -127,27 +152,7 @@ export function setupAuth(app: Express) {
     }
   });
 
-  // Update account profile endpoint
-  app.patch("/api/account/profile", async (req, res) => {
-    try {
-      if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-
-      const updates = {
-        ...req.user,
-        ...req.body,
-        id: req.user.id // Ensure ID doesn't change
-      };
-
-      const user = await storage.updateUser(req.user.id, updates);
-      res.json(sanitizeUser(user));
-    } catch (error) {
-      console.error('Profile update error:', error);
-      res.status(500).json({ message: "Failed to update profile" });
-    }
-  });
-
+  // Registration endpoint
   app.post("/api/register", async (req, res) => {
     try {
       // Validate required fields are present
@@ -174,18 +179,28 @@ export function setupAuth(app: Express) {
         return res.status(400).json({ message: "Username already exists" });
       }
 
+      // Generate secret key for the user
+      const secretKey = generateSecretKey();
+
       const hashedPassword = await hashPassword(req.body.password);
       const user = await storage.createUser({
         ...req.body,
         password: hashedPassword,
+        secretKey
       });
 
       const safeUser = sanitizeUser(user);
+
+      // Send the response with both user data and secret key
       req.login(safeUser, (err) => {
         if (err) {
           return res.status(500).json({ message: "Failed to log in after registration" });
         }
-        res.status(201).json(safeUser);
+        res.status(201).json({
+          user: safeUser,
+          secretKey,
+          message: "Please save this secret key in a secure place. You will need it to reset your password if you forget it."
+        });
       });
     } catch (err) {
       console.error("Registration error:", err);
@@ -193,23 +208,122 @@ export function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/login", (req: Request, res: Response, next: NextFunction) => {
-    passport.authenticate("local", (err: any, user: SafeUser | false, info: any) => {
-      if (err) {
-        return res.status(500).json({ message: "Login failed" });
+  // Login endpoint with support for both password and secret key
+  app.post("/api/login", async (req, res, next) => {
+    const { username, password, secretKey } = req.body;
+
+    // If secret key is provided, use it for authentication
+    if (secretKey) {
+      try {
+        const user = await storage.getUserByUsername(username);
+        if (!user) {
+          return res.status(401).json({ message: "User does not exist" });
+        }
+
+        // Verify secret key
+        if (user.secretKey !== secretKey) {
+          return res.status(401).json({ message: "Invalid secret key" });
+        }
+
+        const safeUser = sanitizeUser(user);
+        req.login(safeUser, (err) => {
+          if (err) {
+            return res.status(500).json({ message: "Login failed" });
+          }
+          res.json(safeUser);
+        });
+      } catch (err) {
+        next(err);
       }
-      if (!user) {
-        return res.status(401).json({ message: info?.message || "Invalid credentials" });
-      }
-      req.login(user, (err) => {
+    } else {
+      // Use regular password authentication
+      passport.authenticate("local", (err: any, user: SafeUser | false, info: any) => {
         if (err) {
           return res.status(500).json({ message: "Login failed" });
         }
-        res.json(user);
-      });
-    })(req, res, next);
+        if (!user) {
+          return res.status(401).json({ message: info?.message || "Invalid credentials" });
+        }
+        req.login(user, (err) => {
+          if (err) {
+            return res.status(500).json({ message: "Login failed" });
+          }
+          res.json(user);
+        });
+      })(req, res, next);
+    }
   });
 
+  // Change password endpoint - updated to handle both authenticated and unauthenticated requests
+  app.post("/api/account/change-password", async (req, res) => {
+    try {
+      const { username, currentPassword, newPassword, secretKey } = req.body;
+
+      // Handle unauthenticated password reset using secret key
+      if (!req.isAuthenticated()) {
+        if (!username || !secretKey || !newPassword) {
+          return res.status(400).json({ 
+            message: "Username, secret key, and new password are required for password reset" 
+          });
+        }
+
+        const user = await storage.getUserByUsername(username);
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+
+        // Verify secret key
+        if (user.secretKey !== secretKey) {
+          return res.status(401).json({ message: "Invalid secret key" });
+        }
+
+        if (newPassword.length < 6) {
+          return res.status(400).json({ message: "New password must be at least 6 characters long" });
+        }
+
+        const hashedPassword = await hashPassword(newPassword);
+        await storage.updateUser(user.id, {
+          ...user,
+          password: hashedPassword
+        });
+
+        return res.json({ message: "Password updated successfully" });
+      }
+
+      // Handle authenticated password change
+      const { currentPassword: oldPassword, newPassword: updatedPassword } = req.body;
+      
+      if (!oldPassword || !updatedPassword) {
+        return res.status(400).json({ message: "Current password and new password are required" });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (!(await comparePasswords(oldPassword, user.password))) {
+        return res.status(401).json({ message: "Current password is incorrect" });
+      }
+
+      if (updatedPassword.length < 6) {
+        return res.status(400).json({ message: "New password must be at least 6 characters long" });
+      }
+
+      const hashedPassword = await hashPassword(updatedPassword);
+      await storage.updateUser(user.id, {
+        ...user,
+        password: hashedPassword
+      });
+
+      res.json({ message: "Password updated successfully" });
+    } catch (error) {
+      console.error('Password change error:', error);
+      res.status(500).json({ message: "Failed to change password" });
+    }
+  });
+
+  // Logout endpoint
   app.post("/api/logout", (req, res) => {
     req.logout((err) => {
       if (err) {
@@ -219,12 +333,33 @@ export function setupAuth(app: Express) {
     });
   });
 
-  // User account endpoints
+  // Get user endpoint
   app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Not authenticated" });
     }
     res.json(req.user);
+  });
+
+  // Update account profile endpoint
+  app.patch("/api/account/profile", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const updates = {
+        ...req.user,
+        ...req.body,
+        id: req.user.id // Ensure ID doesn't change
+      };
+
+      const user = await storage.updateUser(req.user.id, updates);
+      res.json(sanitizeUser(user));
+    } catch (error) {
+      console.error('Profile update error:', error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
   });
 
   // Add account deletion endpoint
@@ -262,54 +397,6 @@ export function setupAuth(app: Express) {
     } catch (error) {
       console.error("Account deletion error:", error);
       res.status(500).json({ message: "Failed to delete account" });
-    }
-  });
-
-  // Change password endpoint
-  app.post("/api/account/change-password", async (req, res) => {
-    try {
-      if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: "Not authenticated" });
-      }
-
-      const { currentPassword, newPassword } = req.body;
-      
-      if (!currentPassword || !newPassword) {
-        return res.status(400).json({ message: "Current password and new password are required" });
-      }
-
-      // Verify current password
-      const user = await storage.getUser(req.user.id);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      if (!(await comparePasswords(currentPassword, user.password))) {
-        return res.status(401).json({ message: "Current password is incorrect" });
-      }
-
-      // Prevent reusing the same password
-      if (await comparePasswords(newPassword, user.password)) {
-        return res.status(400).json({ message: "New password must be different from current password" });
-      }
-
-      // Validate new password length and complexity
-      if (newPassword.length < 6) {
-        return res.status(400).json({ message: "New password must be at least 6 characters long" });
-      }
-
-      const hashedPassword = await hashPassword(newPassword);
-
-      // Update user with new password
-      await storage.updateUser(user.id, {
-        ...user,
-        password: hashedPassword
-      });
-
-      res.json({ message: "Password updated successfully" });
-    } catch (error) {
-      console.error('Password change error:', error);
-      res.status(500).json({ message: "Failed to change password" });
     }
   });
 

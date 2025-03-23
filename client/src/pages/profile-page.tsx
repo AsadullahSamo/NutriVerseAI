@@ -16,10 +16,11 @@ import { Switch } from "@/components/ui/switch";
 import { Loader2, Save, User, Moon, Sun, Palette } from "lucide-react";
 
 // Helper function to get initials
-const getInitials = (name: string) => {
+const getInitials = (name: string | undefined) => {
+  if (!name) return "";
   return name
     .split(" ")
-    .map((n) => n[0])
+    .map((n) => n?.[0] || "")
     .join("")
     .toUpperCase();
 };

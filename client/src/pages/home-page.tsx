@@ -3,12 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { GroceryList as GroceryListType, Recipe } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, Plus, ShoppingCart, Utensils, Clock, Users } from "lucide-react";
+import { Loader2, Plus, ShoppingCart, Utensils, Clock, Users, Check, Copy } from "lucide-react";
 import { GroceryList } from "@/components/grocery-list";
 import { Link } from "wouter";
 import { RecipeCard } from "@/components/recipe-card";
 import { CreateGroceryListDialog } from "@/components/create-grocery-list-dialog";
 import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface GroceryItem {
   id: string;
@@ -26,6 +28,67 @@ interface ExtendedGroceryList extends GroceryListType {
 export default function HomePage() {
   const { user } = useAuth();
   const [displayName, setDisplayName] = useState("");
+  const [secretKey, setSecretKey] = useState<string | null>(null);
+  const [secretKeyDialog, setSecretKeyDialog] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
+
+  const handleCopySecretKey = async () => {
+    if (secretKey) {
+      await navigator.clipboard.writeText(secretKey);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+      toast({
+        title: "Secret key copied",
+        description: "Make sure to store it in a secure place",
+      });
+    }
+  };
+
+  // Check for secret key in URL params on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const key = params.get('secretKey');
+    if (key) {
+      setSecretKey(key);
+      setSecretKeyDialog(true);
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  // Prevent closing dialog if secret key hasn't been acknowledged
+  const handleSecretKeyDialogClose = () => {
+    if (secretKey) {
+      toast({
+        title: "⚠️ Important",
+        description: "You must save your secret key before continuing. Click 'I Have Saved My Secret Key' when done.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleConfirmSecretKeySaved = () => {
+    toast({
+      title: "Success",
+      description: "Your secret key has been saved. Keep it in a safe place.",
+    });
+    setSecretKeyDialog(false);
+    setSecretKey(null);
+  };
+
+  // Prevent navigation if secret key hasn't been saved
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (secretKey) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [secretKey]);
 
   // Update display name when profile changes
   useEffect(() => {
@@ -171,6 +234,45 @@ export default function HomePage() {
           </section>
         </div>
       </div>
+
+      {/* Secret Key Dialog */}
+      <Dialog open={secretKeyDialog} onOpenChange={() => handleSecretKeyDialogClose()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-center">Important: Save Your Secret Key</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-center text-muted-foreground">
+              Please save this secret key in a secure place. You will need it to reset your password if you forget it:
+            </p>
+            <div className="relative">
+              <div className="p-3 bg-muted rounded-md font-mono text-sm break-all pr-12">
+                {secretKey}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-3 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
+                onClick={handleCopySecretKey}
+              >
+                {copied ? (
+                  <Check className="h-4 w-4 text-green-500" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+            <div className="bg-yellow-100 dark:bg-yellow-900/30 p-4 rounded-md">
+              <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                ⚠️ Warning: This key will not be shown again. Store it somewhere secure.
+              </p>
+            </div>
+            <Button onClick={handleConfirmSecretKeySaved} className="w-full">
+              I Have Saved My Secret Key
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
