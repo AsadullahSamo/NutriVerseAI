@@ -163,7 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Password change failed");
+        throw new Error(error.message || "Failed to change password");
       }
 
       return await response.json();

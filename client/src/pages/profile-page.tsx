@@ -75,6 +75,13 @@ export default function ProfilePage() {
     confirmPassword: "",
   });
   
+  // Password validation states
+  const [passwordErrors, setPasswordErrors] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  
   // Delete account state
   const [deleteAccountPassword, setDeleteAccountPassword] = useState("");
 
@@ -163,15 +170,48 @@ export default function ProfilePage() {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      toast({
-        title: "Password Mismatch",
-        description: "New password and confirmation password do not match.",
-        variant: "destructive"
-      });
-      return;
+    // Reset previous errors
+    setPasswordErrors({
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
+    });
+    
+    // Validate empty fields
+    let hasError = false;
+    if (!passwordForm.currentPassword) {
+      setPasswordErrors(prev => ({ ...prev, currentPassword: "Current password is required" }));
+      hasError = true;
+    }
+    if (!passwordForm.newPassword) {
+      setPasswordErrors(prev => ({ ...prev, newPassword: "New password is required" }));
+      hasError = true;
+    }
+    if (!passwordForm.confirmPassword) {
+      setPasswordErrors(prev => ({ ...prev, confirmPassword: "Please confirm your new password" }));
+      hasError = true;
     }
     
+    if (hasError) return;
+
+    // Password length validation
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordErrors(prev => ({ ...prev, newPassword: "New password must be at least 6 characters long" }));
+      return;
+    }
+
+    // Validate password match
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordErrors(prev => ({ ...prev, confirmPassword: "Passwords do not match" }));
+      return;
+    }
+
+    // Validate new password is different from current
+    if (passwordForm.newPassword === passwordForm.currentPassword) {
+      setPasswordErrors(prev => ({ ...prev, newPassword: "New password must be different from current password" }));
+      return;
+    }
+
     try {
       await changePasswordMutation.mutateAsync({
         currentPassword: passwordForm.currentPassword,
@@ -179,18 +219,31 @@ export default function ProfilePage() {
       });
       
       toast({
-        title: "Password Changed",
-        description: "Your password has been changed successfully."
+        title: "Success",
+        description: "Your password has been changed successfully"
       });
       
-      // Reset password form
+      // Reset password form and errors
       setPasswordForm({
         currentPassword: "",
         newPassword: "",
         confirmPassword: ""
       });
-    } catch (error) {
-      console.error("Password change error:", error);
+      setPasswordErrors({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: ""
+      });
+    } catch (error: any) {
+      if (error.message === "Current password is incorrect") {
+        setPasswordErrors(prev => ({ ...prev, currentPassword: "Current password is incorrect" }));
+      } else {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to change password. Please try again.",
+          variant: "destructive"
+        });
+      }
     }
   };
   
@@ -435,8 +488,12 @@ export default function ProfilePage() {
                       type="password" 
                       value={passwordForm.currentPassword} 
                       onChange={handlePasswordChange}
-                      placeholder="Enter your current password" 
+                      placeholder="Enter your current password"
+                      className={passwordErrors.currentPassword ? "border-destructive" : ""}
                     />
+                    {passwordErrors.currentPassword && (
+                      <p className="text-sm font-medium text-destructive">{passwordErrors.currentPassword}</p>
+                    )}
                   </div>
                   
                   <div className="space-y-2">
@@ -447,8 +504,12 @@ export default function ProfilePage() {
                       type="password" 
                       value={passwordForm.newPassword} 
                       onChange={handlePasswordChange}
-                      placeholder="Enter your new password" 
+                      placeholder="Enter your new password"
+                      className={passwordErrors.newPassword ? "border-destructive" : ""}
                     />
+                    {passwordErrors.newPassword && (
+                      <p className="text-sm font-medium text-destructive">{passwordErrors.newPassword}</p>
+                    )}
                   </div>
                   
                   <div className="space-y-2">
@@ -459,8 +520,12 @@ export default function ProfilePage() {
                       type="password" 
                       value={passwordForm.confirmPassword} 
                       onChange={handlePasswordChange}
-                      placeholder="Confirm your new password" 
+                      placeholder="Confirm your new password"
+                      className={passwordErrors.confirmPassword ? "border-destructive" : ""}
                     />
+                    {passwordErrors.confirmPassword && (
+                      <p className="text-sm font-medium text-destructive">{passwordErrors.confirmPassword}</p>
+                    )}
                   </div>
                   
                   <Button 

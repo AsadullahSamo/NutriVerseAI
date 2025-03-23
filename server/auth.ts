@@ -5,12 +5,38 @@ import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
-import { User as SelectUser } from "@shared/schema";
 
-declare global {
-  namespace Express {
-    interface User extends Omit<SelectUser, "password"> {}
+// Define core types
+type UserPreferences = Record<string, any>;
+
+type StorageUser = {
+  id: number;
+  username: string;
+  password: string;
+  email?: string;
+  name?: string;
+  preferences: UserPreferences;
+  dnaProfile?: unknown;
+  moodJournal?: unknown[] | null;
+};
+
+type SafeUser = {
+  id: number;
+  username: string;
+  email?: string;
+  name?: string;
+  preferences: UserPreferences;
+};
+
+// Type declarations for Express
+declare module 'express-session' {
+  interface SessionData {
+    userId?: number;
   }
+}
+
+declare module 'express' {
+  interface User extends SafeUser {}
 }
 
 const scryptAsync = promisify(scrypt);
@@ -26,6 +52,25 @@ async function comparePasswords(supplied: string, stored: string) {
   const hashedBuf = Buffer.from(hashed, "hex");
   const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
   return timingSafeEqual(hashedBuf, suppliedBuf);
+}
+
+// Helper to cast unknown preferences to proper type
+function normalizePreferences(prefs: unknown): UserPreferences {
+  if (typeof prefs === 'object' && prefs !== null) {
+    return prefs as UserPreferences;
+  }
+  return {};
+}
+
+// Helper to remove sensitive data from user object
+function sanitizeUser(user: Partial<StorageUser> & { id: number; username: string }): SafeUser {
+  const { password, dnaProfile, moodJournal, ...safeUser } = user;
+  return {
+    ...safeUser,
+    preferences: typeof user.preferences === 'object' ? user.preferences as UserPreferences : {},
+    id: user.id,
+    username: user.username
+  };
 }
 
 export function setupAuth(app: Express) {
@@ -59,24 +104,24 @@ export function setupAuth(app: Express) {
         if (!(await comparePasswords(password, user.password))) {
           return done(null, false, { message: "Incorrect password. Please try again." });
         }
-        return done(null, user);
+        return done(null, sanitizeUser(user));
       } catch (err) {
         return done(err);
       }
     })
   );
 
-  passport.serializeUser((user, done) => {
+  passport.serializeUser<number>((user, done) => {
     done(null, user.id);
   });
 
-  passport.deserializeUser(async (id: number, done) => {
+  passport.deserializeUser<number>(async (id, done) => {
     try {
       const user = await storage.getUser(id);
       if (!user) {
         return done(null, false);
       }
-      done(null, user);
+      done(null, sanitizeUser(user));
     } catch (err) {
       done(err);
     }
@@ -89,14 +134,14 @@ export function setupAuth(app: Express) {
         return res.status(401).json({ message: "Not authenticated" });
       }
 
-      const { name, profilePicture } = req.body;
-      const user = await storage.updateUser(req.user.id, {
+      const updates = {
         ...req.user,
-        name,
-        profilePicture
-      });
+        ...req.body,
+        id: req.user.id // Ensure ID doesn't change
+      };
 
-      res.json(user);
+      const user = await storage.updateUser(req.user.id, updates);
+      res.json(sanitizeUser(user));
     } catch (error) {
       console.error('Profile update error:', error);
       res.status(500).json({ message: "Failed to update profile" });
@@ -135,11 +180,12 @@ export function setupAuth(app: Express) {
         password: hashedPassword,
       });
 
-      req.login(user, (err) => {
+      const safeUser = sanitizeUser(user);
+      req.login(safeUser, (err) => {
         if (err) {
           return res.status(500).json({ message: "Failed to log in after registration" });
         }
-        res.status(201).json(user);
+        res.status(201).json(safeUser);
       });
     } catch (err) {
       console.error("Registration error:", err);
@@ -148,7 +194,7 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req: Request, res: Response, next: NextFunction) => {
-    passport.authenticate("local", (err: any, user: any, info: any) => {
+    passport.authenticate("local", (err: any, user: SafeUser | false, info: any) => {
       if (err) {
         return res.status(500).json({ message: "Login failed" });
       }
@@ -216,6 +262,54 @@ export function setupAuth(app: Express) {
     } catch (error) {
       console.error("Account deletion error:", error);
       res.status(500).json({ message: "Failed to delete account" });
+    }
+  });
+
+  // Change password endpoint
+  app.post("/api/account/change-password", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const { currentPassword, newPassword } = req.body;
+      
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: "Current password and new password are required" });
+      }
+
+      // Verify current password
+      const user = await storage.getUser(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (!(await comparePasswords(currentPassword, user.password))) {
+        return res.status(401).json({ message: "Current password is incorrect" });
+      }
+
+      // Prevent reusing the same password
+      if (await comparePasswords(newPassword, user.password)) {
+        return res.status(400).json({ message: "New password must be different from current password" });
+      }
+
+      // Validate new password length and complexity
+      if (newPassword.length < 6) {
+        return res.status(400).json({ message: "New password must be at least 6 characters long" });
+      }
+
+      const hashedPassword = await hashPassword(newPassword);
+
+      // Update user with new password
+      await storage.updateUser(user.id, {
+        ...user,
+        password: hashedPassword
+      });
+
+      res.json({ message: "Password updated successfully" });
+    } catch (error) {
+      console.error('Password change error:', error);
+      res.status(500).json({ message: "Failed to change password" });
     }
   });
 
