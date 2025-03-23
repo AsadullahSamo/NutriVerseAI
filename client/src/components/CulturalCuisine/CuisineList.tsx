@@ -91,21 +91,21 @@ export function CuisineList({ cuisines, onSelectCuisine }: CuisineListProps) {
     return 'Information not available';
   };
 
-  if (cuisines.length === 0) {
-    return (
-      <div className="text-center p-12">
-        <Globe className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-        <h3 className="text-xl font-medium">No cuisines found</h3>
-        <p className="text-muted-foreground mt-2">
-          Start by adding a new cuisine to explore.
-        </p>
-        <Button onClick={() => setIsAddingCuisine(true)} className="mt-4">
-          <PlusCircle className="h-4 w-4 mr-2" />
-          Add Your First Cuisine
-        </Button>
-      </div>
-    );
-  }
+  // if (cuisines.length === 0) {
+  //   return (
+  //     <div className="text-center p-12">
+  //       <Globe className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+  //       <h3 className="text-xl font-medium">No cuisines found</h3>
+  //       <p className="text-muted-foreground mt-2">
+  //         Start by adding a new cuisine to explore.
+  //       </p>
+  //       <Button onClick={() => setIsAddingCuisine(true)} className="mt-4">
+  //         <PlusCircle className="h-4 w-4 mr-2" />
+  //         Add Your First Cuisine
+  //       </Button>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div>
@@ -113,7 +113,7 @@ export function CuisineList({ cuisines, onSelectCuisine }: CuisineListProps) {
         <h2 className="text-2xl font-bold">Explore World Cuisines</h2>
         <Button onClick={() => setIsAddingCuisine(true)}>
           <PlusCircle className="h-4 w-4 mr-2" />
-          Add New Cuisine
+          {cuisines.length === 0 ? 'Add Your First Cuisine' : 'Add New Cuisine'}
         </Button>
       </div>
 
