@@ -398,7 +398,7 @@ export function CreateRecipeDialog({ trigger }: CreateRecipeDialogProps) {
                   )}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="mt-8 space-y-2">
                 <Alert variant="default">
                   <Info className="h-4 w-4" />
                   <AlertDescription className="text-sm">
@@ -423,45 +423,58 @@ export function CreateRecipeDialog({ trigger }: CreateRecipeDialogProps) {
                     </div>
                   </AlertDescription>
                 </Alert>
-              </div>
-              {currentGoal && (
-                <div className="mt-2">
-                  {(() => {
-                    const validation = validateAgainstGoals(form.getValues("nutritionInfo"));
-                    if (!validation.valid) {
-                      return (
-                        <Alert variant="default">
-                          <AlertCircle className="h-4 w-4" />
-                          <AlertDescription>
-                            <span className="font-medium">High nutritional values:</span>
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              {validation.percentages && Object.entries(validation.percentages).map(([key, value]) => (
-                                validation.exceeds && validation.exceeds[key as keyof typeof validation.exceeds] && (
-                                  <Badge key={key} variant="outline" className="text-yellow-500">
-                                    {key.charAt(0).toUpperCase() + key.slice(1)} {value}% of daily goal
-                                  </Badge>
-                                )
-                              ))}
-                            </div>
-                            <p className="text-sm mt-2">
-                              Consider adjusting portion sizes or ingredients to better align with your daily goals.
-                            </p>
-                          </AlertDescription>
-                        </Alert>
-                      );
-                    }
-                    return (
-                      <div className="flex flex-wrap gap-2">
-                        {validation.percentages && Object.entries(validation.percentages).map(([key, value]) => (
-                          <Badge key={key} variant="outline" className="text-green-500">
-                            {key.charAt(0).toUpperCase() + key.slice(1)} {value}% of daily goal
-                          </Badge>
-                        ))}
+                {!currentGoal && (
+                  <Alert variant="default" className="mt-4">
+                    <Info className="h-4 w-4" />
+                    <AlertDescription>
+                      <div className="flex flex-col gap-1">
+                        <span className="font-medium">Nutrition Goals Not Set</span>
+                        <p className="text-sm text-muted-foreground">
+                          Setting nutrition goals helps you track your daily intake and maintain a balanced diet. You can set your goals in the Nutrition Goals section.
+                        </p>
                       </div>
-                    );
-                  })()}
-                </div>
-              )}
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {currentGoal && (
+                  <div className="mt-2">
+                    {(() => {
+                      const validation = validateAgainstGoals(form.getValues("nutritionInfo"));
+                      if (!validation.valid) {
+                        return (
+                          <Alert variant="default">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertDescription>
+                              <span className="font-medium">High nutritional values:</span>
+                              <div className="flex flex-wrap gap-2 mt-2">
+                                {validation.percentages && Object.entries(validation.percentages).map(([key, value]) => (
+                                  validation.exceeds && validation.exceeds[key as keyof typeof validation.exceeds] && (
+                                    <Badge key={key} variant="outline" className="text-yellow-500">
+                                      {key.charAt(0).toUpperCase() + key.slice(1)} {value}% of daily goal
+                                    </Badge>
+                                  )
+                                ))}
+                              </div>
+                              <p className="text-sm mt-2">
+                                Consider adjusting portion sizes or ingredients to better align with your daily goals.
+                              </p>
+                            </AlertDescription>
+                          </Alert>
+                        );
+                      }
+                      return (
+                        <div className="flex flex-wrap gap-2">
+                          {validation.percentages && Object.entries(validation.percentages).map(([key, value]) => (
+                            <Badge key={key} variant="outline" className="text-green-500">
+                              {key.charAt(0).toUpperCase() + key.slice(1)} {value}% of daily goal
+                            </Badge>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+              </div>
               <Button type="submit" className="w-full" disabled={createRecipeMutation.isPending}>
                 {createRecipeMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Create Recipe

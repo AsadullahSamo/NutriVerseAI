@@ -86,8 +86,6 @@ export const nutritionGoals = pgTable("nutrition_goals", {
   dailyProtein: integer("daily_protein").notNull(),
   dailyCarbs: integer("daily_carbs").notNull(),
   dailyFat: integer("daily_fat").notNull(),
-  startDate: timestamp("start_date").notNull(),
-  endDate: timestamp("end_date"),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   progress: jsonb("progress").default([]).notNull(), // Array of daily progress entries
@@ -266,8 +264,14 @@ export const insertNutritionGoalSchema = createInsertSchema(nutritionGoals)
     dailyProtein: z.number().min(10, "Daily protein must be at least 10g").max(500, "Daily protein cannot exceed 500g"),
     dailyCarbs: z.number().min(0, "Daily carbs must be non-negative").max(500, "Daily carbs cannot exceed 500g"),
     dailyFat: z.number().min(0, "Daily fat must be non-negative").max(200, "Daily fat cannot exceed 200g"),
-    startDate: z.date(),
-    endDate: z.date().optional(),
+    progress: z.array(z.object({
+      date: z.string(),
+      calories: z.number(),
+      protein: z.number(),
+      carbs: z.number(),
+      fat: z.number(),
+      completed: z.boolean()
+    })).default([])
   });
 
 export const insertKitchenEquipmentSchema = createInsertSchema(kitchenEquipment);

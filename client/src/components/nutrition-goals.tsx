@@ -39,13 +39,38 @@ export function NutritionGoals() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/nutrition-goals", {
-        dailyCalories: parseInt(formData.dailyCalories),
-        dailyProtein: parseInt(formData.dailyProtein),
-        dailyCarbs: parseInt(formData.dailyCarbs),
-        dailyFat: parseInt(formData.dailyFat),
-        startDate: new Date().toISOString(),
-      });
+      // Validate inputs before sending
+      const calories = parseInt(formData.dailyCalories);
+      const protein = parseInt(formData.dailyProtein);
+      const carbs = parseInt(formData.dailyCarbs);
+      const fat = parseInt(formData.dailyFat);
+
+      if (isNaN(calories) || calories < 500 || calories > 5000) {
+        throw new Error("Daily calories must be between 500 and 5000");
+      }
+      if (isNaN(protein) || protein < 10 || protein > 500) {
+        throw new Error("Daily protein must be between 10g and 500g");
+      }
+      if (isNaN(carbs) || carbs < 0 || carbs > 500) {
+        throw new Error("Daily carbs must be between 0g and 500g");
+      }
+      if (isNaN(fat) || fat < 0 || fat > 200) {
+        throw new Error("Daily fat must be between 0g and 200g");
+      }
+
+      const data = {
+        dailyCalories: calories,
+        dailyProtein: protein,
+        dailyCarbs: carbs,
+        dailyFat: fat,
+        progress: []
+      };
+
+      const res = await apiRequest("POST", "/api/nutrition-goals", data);
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Failed to set nutrition goals");
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -84,7 +109,8 @@ export function NutritionGoals() {
   }
 
   const today = new Date().toISOString().split('T')[0];
-  const todayProgress = currentGoal?.progress?.find(
+  const progress = Array.isArray(currentGoal?.progress) ? currentGoal.progress : [];
+  const todayProgress = progress.find(
     (p: NutritionProgress) => p.date === today
   );
 
@@ -187,7 +213,7 @@ export function NutritionGoals() {
             </CardHeader>
             <CardContent>
               <LineChart
-                data={currentGoal.progress.slice(-7)}
+                data={progress.slice(-7)}
                 categories={["calories", "protein", "carbs", "fat"]}
                 index="date"
                 colors={["#f97316", "#22c55e", "#3b82f6", "#8b5cf6"]}

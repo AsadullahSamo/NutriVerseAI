@@ -255,7 +255,7 @@ export default function AuthPage() {
             <li className="flex items-center gap-2">🔍 Intelligent kitchen equipment analysis</li>
             <li className="flex items-center gap-2">😊 AI mood tracking for cooking experiences</li>
           </ul>
-          <p className="mt-6 text-sm opacity-90 italic">
+          <p className="mt-6 text-sm italic font-semibold">
             And many more exciting features waiting for you to explore! Join now to discover all the ways NutriCart AI can transform your cooking journey.
           </p>
         </div>

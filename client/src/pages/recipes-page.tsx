@@ -3,18 +3,27 @@ import { Recipe } from "@shared/schema";
 import { RecipeCard } from "@/components/recipe-card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, Loader2, Utensils } from "lucide-react";
+import { Plus, Search, Loader2, Utensils, AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { CreateRecipeDialog } from "@/components/create-recipe-dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RecipeRecommendations } from "@/components/recipe-recommendations";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function RecipesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const { user } = useAuth();
-  const { data: recipes, isLoading } = useQuery<Recipe[]>({
+  const { data: recipes, isLoading } = useQuery<(Recipe & { ingredients: string[]; instructions: string[] })[]>({
     queryKey: ["/api/recipes"],
+  });
+
+  const { data: currentGoal } = useQuery({
+    queryKey: ["/api/nutrition-goals/current"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/nutrition-goals/current");
+      return res.json();
+    },
   });
 
   const filteredRecipes = recipes?.filter((recipe) =>
@@ -43,6 +52,29 @@ export default function RecipesPage() {
             <CreateRecipeDialog />
           </div>
         </header>
+
+        {!currentGoal && (
+          <div className="mb-6 p-4 rounded-lg border bg-muted/50">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <h4 className="font-medium">Set Your Nutrition Goals</h4>
+                <p className="text-sm text-muted-foreground">
+                  To track your nutrition progress and get personalized recipe recommendations, please set up your daily nutrition goals in Nutrition Tracking under Planning.
+                </p>
+                <div className="mt-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => window.location.href = '/nutrition'}
+                  >
+                    Set Nutrition Goals
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <Tabs defaultValue="my-recipes" className="space-y-6">
           <TabsList>

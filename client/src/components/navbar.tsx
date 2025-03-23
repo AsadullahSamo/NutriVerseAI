@@ -97,7 +97,7 @@ export function Navbar() {
                   <DropdownMenuGroup>
                     {group.items.map((item) => (
                       <DropdownMenuItem key={item.href} asChild>
-                        <Link href={item.href} className="flex items-center gap-2 w-full">
+                        <Link href={item.href} className="flex items-center gap-2 w-full hover:cursor-pointer">
                           <item.icon className="h-4 w-4" />
                           <span>{item.label}</span>
                         </Link>

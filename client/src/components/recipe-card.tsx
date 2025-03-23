@@ -212,7 +212,7 @@ export function RecipeCard({ recipe, compact = false, showDelete = false, hideEd
             </CardHeader>
 
             {/* Recipe metadata */}
-            <div className="px-4 py-2.5 border-t bg-muted/5">
+            <div className="px-2 py-2.5 border-t bg-muted/5">
               <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
                 <div className="flex items-center gap-4">
                   <div className="flex items-center gap-1.5">
