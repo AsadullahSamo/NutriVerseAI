@@ -15,7 +15,9 @@ import {
   culturalRecipes,
   culturalTechniques,
   pantryItems,
-  kitchenEquipment
+  kitchenEquipment,
+  recipes,
+  type User as SchemaUser
 } from "@shared/schema";
 import { 
   analyzeMoodSentiment, 
@@ -24,21 +26,21 @@ import {
   getNutritionRecommendations,
 } from "../ai-services/recipe-ai";
 import {
-  analyzeRecipe,
   analyzeCulturalCuisine,
   getRecipeAuthenticityScore,
   getEtiquette,
   getPairings,
   getSubstitutions
 } from "../ai-services/cultural-cuisine-service";
-import type { User } from "@shared/schema";
 import { desc, eq, and, count } from "drizzle-orm";
 import { db } from "./db";
 
 // Add type declaration extension
 declare global {
   namespace Express {
-    interface User extends Omit<User, "password"> {}
+    interface User extends Omit<SchemaUser, "password"> {
+      id: number;
+    }
   }
 }
 
@@ -120,9 +122,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ----------------- Recipes Routes -----------------
   app.get(
     "/api/recipes",
-    asyncHandler(async (_req, res) => {
-      const recipes = await storage.getRecipes();
-      res.json(recipes);
+    isAuthenticated,
+    asyncHandler(async (req, res) => {
+      // Only return recipes created by the current user or shared with them
+      const recipesTable = recipes; // Assign to new variable to avoid naming conflict
+      const userRecipes = await db.select()
+        .from(recipesTable)
+        .where(eq(recipesTable.createdBy, req.user!.id));
+      res.json(userRecipes);
     })
   );
 
@@ -1300,6 +1307,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: 'Failed to update recipe' });
     }
   });
+
+  // ----------------- User Recipes Routes -----------------
+  app.get(
+    "/api/user-recipes",
+    isAuthenticated,
+    asyncHandler(async (req, res) => {
+      try {
+        const userRecipes = await db.select()
+          .from(recipes)
+          .where(eq(recipes.createdBy, req.user!.id))
+          .orderBy(desc(recipes.createdAt));
+
+        const processedRecipes = userRecipes.map(recipe => ({
+          id: recipe.id,
+          title: recipe.title,
+          description: recipe.description,
+          ingredients: recipe.ingredients,
+          instructions: recipe.instructions,
+          nutritionInfo: recipe.nutritionInfo,
+          imageUrl: recipe.imageUrl,
+          prepTime: recipe.prepTime,
+          createdBy: recipe.createdBy,
+          forkedFrom: recipe.forkedFrom,
+          sustainabilityScore: recipe.sustainabilityScore,
+          wastageReduction: recipe.wastageReduction,
+          createdAt: recipe.createdAt
+        }));
+
+        res.json(processedRecipes);
+      } catch (error) {
+        console.error('Error fetching user recipes:', error);
+        res.status(500).json({ error: 'Failed to fetch recipes' });
+      }
+    })
+  );
 
   // ----------------- Error Handling Middleware -----------------
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
