@@ -363,8 +363,18 @@ export class DatabaseStorage implements IStorage {
     await db.delete(pantryItems).where(eq(pantryItems.id, id));
   }
 
-  async getCommunityPosts(): Promise<CommunityPost[]> {
-    return db.select().from(communityPosts);
+  async getCommunityPosts(userId?: number): Promise<CommunityPost[]> {
+    const posts = await db.select().from(communityPosts);
+    
+    // Filter out posts that are hidden for the current user
+    const filteredPosts = userId 
+      ? posts.filter(post => {
+          const hiddenFor = Array.isArray(post.hiddenFor) ? post.hiddenFor : [];
+          return !hiddenFor.includes(userId);
+        })
+      : posts;
+
+    return filteredPosts;
   }
 
   async createCommunityPost(post: Omit<CommunityPost, "id">): Promise<CommunityPost> {
@@ -569,6 +579,24 @@ export class DatabaseStorage implements IStorage {
       ...r.consumption,
       recipe: r.recipe
     }));
+  }
+
+  async hidePostForUser(postId: number, userId: number): Promise<void> {
+    const post = await this.getCommunityPost(postId);
+    if (!post) {
+      throw new Error("Post not found");
+    }
+
+    // Ensure hiddenFor is an array and add the user ID if not already present
+    const hiddenFor = Array.isArray(post.hiddenFor) ? [...post.hiddenFor] : [];
+    if (!hiddenFor.includes(userId)) {
+      hiddenFor.push(userId);
+    }
+
+    // Update the post with the new hiddenFor array
+    await db.update(communityPosts)
+      .set({ hiddenFor: hiddenFor })
+      .where(eq(communityPosts.id, postId));
   }
 }
 

@@ -57,6 +57,7 @@ export const communityPosts = pgTable("community_posts", {
   content: text("content").notNull(),
   type: text("type").notNull(), // 'RECIPE_SHARE', 'FOOD_RESCUE', 'COOKING_TIP'
   location: jsonb("location"),
+  hiddenFor: jsonb("hidden_for").default('[]').notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -133,6 +134,8 @@ export const culturalCuisines = pgTable("cultural_cuisines", {
     textColor: '#1A202C',
     accentColor: '#4A5568'
   }),
+  createdBy: integer("created_by").references(() => users.id),
+  hiddenFor: jsonb("hidden_for").default([]),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -149,6 +152,8 @@ export const culturalRecipes = pgTable("cultural_recipes", {
   culturalNotes: jsonb("cultural_notes").notNull(), // Significance, occasions, history
   servingSuggestions: jsonb("serving_suggestions").notNull(),
   complementaryDishes: jsonb("complementary_dishes"),
+  createdBy: integer("created_by").references(() => users.id),
+  hiddenFor: jsonb("hidden_for").default([]),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

@@ -24,12 +24,22 @@ export function CreateMealPlanDialog({ open, onOpenChange }: CreateMealPlanDialo
   const [preferences, setPreferences] = useState("");
   const [dietaryRestrictions, setDietaryRestrictions] = useState("");
   const [calorieTarget, setCalorieTarget] = useState("");
-  const [days, setDays] = useState("7");
+  const [days, setDays] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!startDate) throw new Error("Start date is required");
+      console.log(startDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset to midnight
+
+      const selectedDate = new Date(startDate!);
+      selectedDate.setHours(0, 0, 0, 0); // Reset to midnight
+
+      if (selectedDate.getTime() < today.getTime()) {
+        throw new Error("Start date cannot be in the past");
+      }
       setErrorMessage("");
       
       // Validate inputs
@@ -197,6 +207,7 @@ export function CreateMealPlanDialog({ open, onOpenChange }: CreateMealPlanDialo
               type="number"
               min="1"
               max="7"
+              placeholder="7"
               value={days}
               onChange={(e) => setDays(e.target.value)}
               required
@@ -256,6 +267,7 @@ export function CreateMealPlanDialog({ open, onOpenChange }: CreateMealPlanDialo
               max="5000"
               value={calorieTarget}
               onChange={(e) => setCalorieTarget(e.target.value)}
+              required
             />
           </div>
 

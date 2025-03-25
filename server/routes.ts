@@ -459,8 +459,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ----------------- Community Posts Routes -----------------
   app.get(
     "/api/community",
-    asyncHandler(async (_req, res) => {
-      const posts = await storage.getCommunityPosts();
+    asyncHandler(async (req, res) => {
+      const userId = req.user?.id;
+      const posts = await storage.getCommunityPosts(userId);
       const postsWithRecipes = await Promise.all(
         posts.map(async (post) => {
           if (post.type === "RECIPE_SHARE" && post.recipeId) {
@@ -501,10 +502,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete(
     "/api/community/:id",
-    isResourceOwner("post"),
+    isAuthenticated,
     asyncHandler(async (req, res) => {
-      await storage.deleteCommunityPost(parseInt(req.params.id));
-      res.sendStatus(204);
+      const postId = parseInt(req.params.id);
+      const userId = req.user!.id;
+
+      // Get the post
+      const post = await storage.getCommunityPost(postId);
+      if (!post) {
+        return res.status(404).json({ type: 'error', message: 'Post not found' });
+      }
+
+      // Check if user is the creator
+      if (post.userId === userId) {
+        // Creator can delete the post for everyone
+        await storage.deleteCommunityPost(postId);
+        return res.json({ type: 'deleted' });
+      } else {
+        // Non-creators can only delete the post for themselves
+        await storage.hidePostForUser(postId, userId);
+        return res.json({ type: 'hidden' });
+      }
     })
   );
 
@@ -945,8 +963,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/cultural-cuisines', async (req, res) => {
+  app.post('/api/cultural-cuisines', isAuthenticated, async (req, res) => {
     try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
       const { name, region, description, imageUrl, bannerUrl, keyIngredients, cookingTechniques, culturalContext, servingEtiquette } = req.body;
 
       const [cuisine] = await db.insert(culturalCuisines).values({
@@ -959,6 +981,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         cookingTechniques,
         culturalContext,
         servingEtiquette,
+        createdBy: req.user.id, // Set creator to current user
         createdAt: new Date()
       }).returning();
 
@@ -1092,24 +1115,145 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.delete('/api/cultural-cuisines/:id', isAuthenticated, async (req, res) => {
     try {
-      // With ON DELETE CASCADE, we only need to delete the cuisine
-      const [deletedCuisine] = await db.delete(culturalCuisines)
-        .where(eq(culturalCuisines.id, parseInt(req.params.id)))
-        .returning();
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
 
-      if (!deletedCuisine) {
+      const cuisineId = parseInt(req.params.id);
+      
+      // First get the cuisine to check ownership
+      const [cuisine] = await db.select()
+        .from(culturalCuisines)
+        .where(eq(culturalCuisines.id, cuisineId));
+
+      if (!cuisine) {
         return res.status(404).json({ error: 'Cuisine not found' });
       }
 
-      res.json(deletedCuisine);
+      if (cuisine.createdBy === req.user.id) {
+        // Creator can delete the cuisine entirely
+        const [deletedCuisine] = await db.delete(culturalCuisines)
+          .where(eq(culturalCuisines.id, cuisineId))
+          .returning();
+
+        return res.json(deletedCuisine);
+      } else {
+        // Non-creator just hides it for themselves
+        const hiddenFor = (cuisine.hiddenFor as number[] || []);
+        if (!hiddenFor.includes(req.user.id)) {
+          hiddenFor.push(req.user.id);
+        }
+
+        const [updatedCuisine] = await db.update(culturalCuisines)
+          .set({ hiddenFor })
+          .where(eq(culturalCuisines.id, cuisineId))
+          .returning();
+
+        return res.json(updatedCuisine);
+      }
     } catch (error) {
       console.error('Error deleting cuisine:', error);
       res.status(500).json({ error: 'Failed to delete cuisine' });
     }
   });
 
+  app.post('/api/cultural-cuisines/:id/hide', isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: 'Unauthorized', type: 'error' });
+      }
+
+      const cuisineId = parseInt(req.params.id);
+      if (isNaN(cuisineId)) {
+        return res.status(400).json({ message: 'Invalid cuisine ID', type: 'error' });
+      }
+
+      console.log('Processing hide request for cuisine ID:', cuisineId, 'by user:', req.user.id);
+
+      // First check if the cuisine exists directly in this route
+      const [cuisine] = await db
+        .select({
+          id: culturalCuisines.id,
+          createdBy: culturalCuisines.createdBy,
+          hiddenFor: culturalCuisines.hiddenFor
+        })
+        .from(culturalCuisines)
+        .where(eq(culturalCuisines.id, cuisineId));
+
+      if (!cuisine) {
+        return res.status(404).json({ 
+          message: 'Cuisine not found', 
+          type: 'error' 
+        });
+      }
+
+      console.log('Found cuisine:', cuisine);
+
+      // Check if already hidden
+      const hiddenFor = Array.isArray(cuisine.hiddenFor) ? cuisine.hiddenFor : [];
+      
+      if (hiddenFor.includes(req.user.id)) {
+        console.log('Content is already hidden for user', req.user.id);
+        return res.status(400).json({ 
+          message: 'Content is already hidden for this user', 
+          type: 'error' 
+        });
+      }
+
+      // If user is creator, do a hard delete
+      if (cuisine.createdBy === req.user.id) {
+        console.log('User is creator - performing hard delete');
+        await db.delete(culturalCuisines)
+          .where(eq(culturalCuisines.id, cuisineId));
+        
+        return res.json({ type: 'deleted' });
+      }
+
+      // For non-creators, update hiddenFor array
+      console.log('User is not creator - updating hiddenFor array');
+      
+      const [updatedCuisine] = await db
+        .update(culturalCuisines)
+        .set({
+          hiddenFor: [...hiddenFor, req.user.id]
+        })
+        .where(eq(culturalCuisines.id, cuisineId))
+        .returning();
+
+      console.log('Successfully added user to hiddenFor array:', updatedCuisine.hiddenFor);
+
+      return res.json({ 
+        type: 'hidden', 
+        cuisine: updatedCuisine 
+      });
+    } catch (error) {
+      console.error('Error processing hide request:', error);
+      
+      if (error instanceof VisibilityError) {
+        const statusCode = error.code === 'NOT_FOUND' ? 404 :
+                          error.code === 'UNAUTHORIZED' ? 401 :
+                          error.code === 'ALREADY_HIDDEN' ? 400 : 500;
+        
+        return res.status(statusCode).json({ 
+          message: error.message,
+          code: error.code,
+          type: 'error'
+        });
+      }
+      
+      return res.status(500).json({ 
+        message: 'Internal server error: ' + (error instanceof Error ? error.message : 'Unknown error'), 
+        type: 'error' 
+      });
+    }
+  });
+
   app.post('/api/cultural-recipes', isAuthenticated, async (req, res) => {
     try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
       const { 
         name, 
         description, 
@@ -1138,6 +1282,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         culturalNotes,
         servingSuggestions,
         imageUrl, // Add imageUrl to inserted values
+        createdBy: req.user.id, // Set creator to current user
         updatedAt: new Date(),
         createdAt: new Date()
       }).returning();
@@ -1231,18 +1376,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Add DELETE endpoint for cultural recipes
   app.delete('/api/cultural-recipes/:id', isAuthenticated, async (req, res) => {
     try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
       const recipeId = parseInt(req.params.id);
       
-      // Delete the recipe
-      const [deletedRecipe] = await db.delete(culturalRecipes)
-        .where(eq(culturalRecipes.id, recipeId))
-        .returning();
+      // First get the recipe to check ownership
+      const [recipe] = await db.select()
+        .from(culturalRecipes)
+        .where(eq(culturalRecipes.id, recipeId));
 
-      if (!deletedRecipe) {
+      if (!recipe) {
         return res.status(404).json({ error: 'Recipe not found' });
       }
 
-      res.json(deletedRecipe);
+      if (recipe.createdBy === req.user.id) {
+        // Creator can delete the recipe entirely
+        const [deletedRecipe] = await db.delete(culturalRecipes)
+          .where(eq(culturalRecipes.id, recipeId))
+          .returning();
+
+        return res.json(deletedRecipe);
+      } else {
+        // Non-creator just hides it for themselves
+        const hiddenFor = (recipe.hiddenFor as number[] || []);
+        if (!hiddenFor.includes(req.user.id)) {
+          hiddenFor.push(req.user.id);
+        }
+
+        const [updatedRecipe] = await db.update(culturalRecipes)
+          .set({ hiddenFor })
+          .where(eq(culturalRecipes.id, recipeId))
+          .returning();
+
+        return res.json(updatedRecipe);
+      }
     } catch (error) {
       console.error('Error deleting recipe:', error);
       res.status(500).json({ error: 'Failed to delete recipe' });

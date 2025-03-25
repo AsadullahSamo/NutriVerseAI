@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Utensils, History, Book, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CuisineList } from "@/components/CulturalCuisine/CuisineList";
@@ -10,24 +10,37 @@ export default function CulturalCuisinePage() {
   const [selectedCuisineId, setSelectedCuisineId] = useState<number | null>(null);
   const [view, setView] = useState<'list' | 'details'>('list');
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
+  const [forceRefresh, setForceRefresh] = useState<number>(Date.now());
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     document.title = "Cultural Cuisine Explorer | NutriCartAI";
   }, []);
 
-  const { data: cuisines, isLoading, error } = useQuery({
-    queryKey: ['/api/cultural-cuisines'],
+  const { data: cuisines, isLoading, error, refetch } = useQuery({
+    queryKey: ['/api/cultural-cuisines', forceRefresh],
     queryFn: async () => {
       try {
-        const response = await fetch('/api/cultural-cuisines');
+        // Add timestamp to prevent caching
+        const timestamp = Date.now();
+        const response = await fetch(`/api/cultural-cuisines?t=${timestamp}`, {
+          credentials: 'include',
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache'
+          }
+        });
+        
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.details || errorData.error || 'Failed to fetch cuisines');
         }
+        
         const data = await response.json();
         if (!Array.isArray(data)) {
           throw new Error('Invalid response format');
         }
+        
         return data;
       } catch (err) {
         if (err instanceof Error) {
@@ -35,7 +48,9 @@ export default function CulturalCuisinePage() {
         }
         throw err;
       }
-    }
+    },
+    staleTime: 0,
+    cacheTime: 0
   });
 
   const handleSelectCuisine = (id: number) => {
@@ -96,52 +111,7 @@ export default function CulturalCuisinePage() {
 
         {view === 'list' && (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Authentic Techniques
-                  </CardTitle>
-                  <Utensils className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{cuisines?.length ? cuisines.reduce((acc, cuisine) => acc + (cuisine.cookingTechniques?.length || 0), 0) : 0}+</div>
-                  <p className="text-xs text-muted-foreground">
-                    Traditional cooking methods
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Cultural Context
-                  </CardTitle>
-                  <History className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{cuisines?.length || 0}</div>
-                  <p className="text-xs text-muted-foreground">
-                    Rich cultural histories
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">
-                    Traditional Recipes
-                  </CardTitle>
-                  <Book className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {cuisines?.length ? cuisines.reduce((acc, cuisine) => acc + 5, 0) : 0}+
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Authentic dishes to explore
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+            
 
             <CuisineList cuisines={cuisines || []} onSelectCuisine={handleSelectCuisine} />
           </>

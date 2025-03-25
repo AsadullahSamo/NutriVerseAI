@@ -26,8 +26,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ message: 'Recipe not found' });
     }
 
-    // If user is logged in, check visibility
-    if (user) {
+    // For DELETE requests, verify creator
+    if (req.method === 'DELETE') {
+      if (!user) {
+        return res.status(401).json({ message: 'Authentication required' });
+      }
+
+      if (recipe.createdBy !== user.id) {
+        return res.status(403).json({ 
+          message: 'Permission denied',
+          details: 'You can only delete recipes that you created'
+        });
+      }
+
+      // Proceed with deletion
+      await db.delete(culturalRecipes)
+        .where(eq(culturalRecipes.id, recipeId));
+      
+      return res.status(200).json({ message: 'Recipe deleted successfully' });
+    }
+
+    // If user is logged in, check visibility for GET requests
+    if (req.method === 'GET' && user) {
       const isVisible = await isContentVisibleForUser(user.id, 'recipe', recipeId);
       if (!isVisible) {
         return res.status(404).json({ message: 'Recipe not found' });
@@ -36,7 +56,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     res.status(200).json(recipe);
   } catch (error) {
-    console.error('Error fetching recipe:', error);
-    res.status(500).json({ message: 'Failed to fetch recipe' });
+    console.error('Error handling recipe:', error);
+    res.status(500).json({ message: 'Failed to process recipe request' });
   }
 }
