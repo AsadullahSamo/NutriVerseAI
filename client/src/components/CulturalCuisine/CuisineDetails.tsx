@@ -468,30 +468,34 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
   const handleAddRecipe = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSubmitting(true);
-
+    
     try {
       const formData = new FormData(event.currentTarget);
-      const imageUrl = formData.get('imageUrl')?.toString();
-
       const newRecipe = {
-        name: formData.get('name'),
-        description: formData.get('description'),
-        difficulty: formData.get('difficulty') || 'beginner',
-        imageUrl, // Will be sent to database but not used for display
-        cuisineId,
+        name: formData.get('name') as string,
+        description: formData.get('description') as string,
+        difficulty: formData.get('difficulty') as 'beginner' | 'intermediate' | 'advanced',
+        image_url: formData.get('imageUrl') as string || null,
+        cuisineId: cuisine.id,
+        createdBy: currentUserId || 0,
+        hiddenFor: [],
+        localName: null,
         authenticIngredients: formData.get('ingredients')?.toString().split(',').map(i => i.trim()).filter(Boolean) || [],
         instructions: formData.get('instructions')?.toString().split('\n').filter(Boolean) || [],
         culturalNotes: {},
-        servingSuggestions: []
+        localSubstitutes: {},
+        servingSuggestions: [],
+        complementaryDishes: [],
+        createdAt: new Date(),
+        updatedAt: new Date()
       };
 
-      const response = await fetch('/api/cultural-recipes', {
+      const response = await fetch(`/api/cultural-cuisines/${cuisine.id}/recipes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(newRecipe),
-        credentials: 'include'
       });
 
       if (!response.ok) {
@@ -499,22 +503,15 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
       }
 
       const addedRecipe = await response.json();
-
-      // Store and force refresh image URL in localStorage using the new recipe's ID
-      if (imageUrl) {
-        localStorage.removeItem(`recipe-image-${addedRecipe.id}`);
-        localStorage.setItem(`recipe-image-${addedRecipe.id}`, imageUrl);
-      }
-
-      toast({
-        title: "Recipe Added",
-        description: "The recipe has been added successfully.",
-      });
-
-      await refetch();
       setIsAddingRecipe(false);
       setSelectedRecipe(addedRecipe);
+
+      toast({
+        title: "Success",
+        description: "Recipe added successfully!",
+      });
     } catch (error) {
+      console.error('Error adding recipe:', error);
       toast({
         title: "Error",
         description: "Failed to add recipe. Please try again.",
@@ -1192,42 +1189,4 @@ const getEtiquetteDisplay = (key: string, value: unknown) => {
       <p className="text-muted-foreground">{String(value)}</p>
     )
   };
-};
-
-// In the handleAddRecipe function, add the new recipe
-const newRecipe = {
-  name: "Risotto alla Milanese",
-  description: "A luxurious Northern Italian dish where saffron-infused Carnaroli rice is slowly cooked to creamy perfection, embodying Milan's refined culinary heritage. The distinctive golden color and rich, yet delicate flavor profile make this dish a cornerstone of Lombardy cuisine.",
-  difficulty: "advanced",
-  imageUrl: "https://source.unsplash.com/featured/?risotto-milanese",
-  authenticIngredients: [
-    "Carnaroli rice",
-    "Saffron threads",
-    "White wine (dry)",
-    "Parmigiano-Reggiano cheese",
-    "White onion",
-    "European-style butter",
-    "Beef or vegetable stock (homemade preferred)",
-    "Extra virgin olive oil",
-    "Sea salt",
-    "Black pepper"
-  ],
-  instructions: [
-    "Toast saffron threads lightly and steep in warm stock",
-    "Finely dice white onion and sweat in butter and olive oil until translucent",
-    "Add Carnaroli rice and toast until grains are hot and slightly translucent",
-    "Deglaze with dry white wine and stir until absorbed",
-    "Begin adding hot saffron-infused stock gradually, stirring constantly",
-    "Continue adding stock and stirring for about 18-20 minutes until rice is al dente",
-    "Remove from heat and vigorously stir in cold butter and Parmigiano-Reggiano",
-    "Let rest for 2 minutes before serving",
-    "Plate and finish with additional Parmigiano-Reggiano if desired"
-  ],
-  culturalNotes: {
-    history: "Risotto alla Milanese originated in Milan during the 16th century, influenced by the city's trade connections and wealth. The use of saffron was inspired by its use in cathedral stained glass artwork.",
-    significance: "This dish represents Milan's refined culinary tradition and its historical prosperity. The golden color from saffron symbolizes wealth and luxury in Milanese culture.",
-    serving: "Traditionally served as 'all'onda' (wave-like consistency) on warm plates. Often accompanies Ossobuco in the complete dish 'Ossobuco alla Milanese'.",
-    variations: "While the authentic recipe remains strict, modern variations might include bone marrow or different rice varieties. However, true Risotto alla Milanese must use Carnaroli or Vialone Nano rice and real saffron."
-  },
-  prepTime: 35
 };

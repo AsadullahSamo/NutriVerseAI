@@ -1512,6 +1512,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
   );
 
+  // Update the cultural recipes endpoint to handle image URLs
+  app.post('/api/cultural-cuisines/:cuisineId/recipes', asyncHandler(async (req, res) => {
+    const { cuisineId } = req.params;
+    const recipeData = req.body;
+    
+    try {
+      const recipe = await storage.addCulturalRecipe({
+        ...recipeData,
+        cuisineId: parseInt(cuisineId),
+        image_url: recipeData.image_url || null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+      
+      res.json(recipe);
+    } catch (error) {
+      console.error('Error adding recipe:', error);
+      res.status(500).json({ error: 'Failed to add recipe' });
+    }
+  }));
+
+  // Update the recipe update endpoint
+  app.patch('/api/cultural-recipes/:id', asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const recipeData = req.body;
+    
+    try {
+      const recipe = await storage.updateCulturalRecipe(parseInt(id), {
+        ...recipeData,
+        image_url: recipeData.image_url || null,
+      });
+      res.json(recipe);
+    } catch (error) {
+      console.error('Error updating recipe:', error);
+      res.status(500).json({ error: 'Failed to update recipe' });
+    }
+  }));
+
   // ----------------- Error Handling Middleware -----------------
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     console.error(err);

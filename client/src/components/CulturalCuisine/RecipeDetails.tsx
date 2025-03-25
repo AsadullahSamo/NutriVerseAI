@@ -54,15 +54,14 @@ interface CulturalRecipe {
   createdAt: Date;
   cuisineId: number;
   createdBy: number;
-  hiddenFor: unknown; // Add missing required property
+  hiddenFor: unknown;
   localName: string | null;
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   authenticIngredients: string[] | Record<string, string>;
   instructions: string[] | Record<string, string>;
   culturalNotes: Record<string, string>;
   localSubstitutes: Record<string, string>;
-  imageUrl?: string;
-  image?: string;
+  image_url: string | null;
   updatedAt: Date;
   servingSuggestions: unknown;
   complementaryDishes: unknown;
@@ -95,7 +94,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
   // Add console logging at the start of component
   console.log('Full recipe details:', {
     ...recipe,
-    hasImageUrl: !!recipe.imageUrl,
+    hasImageUrl: !!recipe.image_url,
     fallbackImageUrl: `https://source.unsplash.com/1200x800/?${encodeURIComponent(recipe.name.toLowerCase() + ' italian food')}`
   });
 
@@ -107,22 +106,14 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
   // Add more detailed logging at component mount
   useEffect(() => {
     console.log('Recipe image details:', {
-      imageUrl: recipe.imageUrl,
+      imageUrl: recipe.image_url,
       image: recipe.image,
       name: recipe.name,
-      hasImageUrl: !!recipe.imageUrl,
+      hasImageUrl: !!recipe.image_url,
       hasImage: !!recipe.image,
       fallbackUrl: getFallbackImageUrl(recipe.name)
     });
   }, [recipe]);
-
-  useEffect(() => {
-    // Try to get image URL from localStorage first
-    const storedImageUrl = localStorage.getItem(`recipe-image-${recipe.id}`);
-    if (storedImageUrl) {
-      setLocalImageUrl(storedImageUrl);
-    }
-  }, [recipe.id]);
 
   const { data: recipeDetails, refetch } = useQuery({
     queryKey: ['recipe', recipe.id],
@@ -306,12 +297,6 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
 
   const handleUpdateRecipe = async (updatedData: Partial<CulturalRecipe>) => {
     try {
-      if (updatedData.imageUrl) {
-        // Store image URL in localStorage
-        localStorage.setItem(`recipe-image-${recipe.id}`, updatedData.imageUrl);
-        setLocalImageUrl(updatedData.imageUrl);
-      }
-
       // Format the data for the API
       const formattedData = {
         ...updatedData,
@@ -334,13 +319,6 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
 
       if (!response.ok) {
         throw new Error('Failed to update recipe');
-      }
-
-      // Force reload the image by clearing and resetting localStorage
-      if (updatedData.imageUrl) {
-        localStorage.removeItem(`recipe-image-${recipe.id}`);
-        localStorage.setItem(`recipe-image-${recipe.id}`, updatedData.imageUrl);
-        setLocalImageUrl(updatedData.imageUrl);
       }
 
       await refetch();
@@ -476,19 +454,19 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                 
                 {/* Recipe Image with enhanced styling */}
                 <div className="relative aspect-[16/6] w-full overflow-hidden rounded-lg">
-                  {localImageUrl || recipe.imageUrl || recipe.image ? (
+                  {recipeDetails.image_url ? (
                     <img
-                      src={localImageUrl || recipe.imageUrl || recipe.image}
-                      alt={recipe.name}
+                      src={recipeDetails.image_url}
+                      alt={recipeDetails.name}
                       className="object-cover w-full h-full"
                       onError={(e) => {
-                        e.currentTarget.src = getFallbackImageUrl(recipe.name);
+                        e.currentTarget.src = getFallbackImageUrl(recipeDetails.name);
                       }}
                     />
                   ) : (
                     <img
-                      src={getFallbackImageUrl(recipe.name)}
-                      alt={recipe.name}
+                      src={getFallbackImageUrl(recipeDetails.name)}
+                      alt={recipeDetails.name}
                       className="object-cover w-full h-full"
                     />
                   )}
@@ -513,7 +491,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                 
                 <TabsContent value="instructions">
                   <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-semibold mt-2">Steps</h3>
+                    <h3 className="text-lg font-semibold mt-2 mb-4">Steps</h3>
                     <Button 
                       variant="outline" 
                       size="sm" 
@@ -523,7 +501,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                       {hasInstructions ? 'Edit Steps' : 'Add Steps'}
                     </Button>
                   </div>
-                  <ol className="space-y-4">
+                  <ol className="space-y-2">
                     {Array.isArray(recipe.instructions) ? (
                       recipe.instructions.map((step: string, i: number) => (
                         <li key={i} className="flex gap-4 items-start">
