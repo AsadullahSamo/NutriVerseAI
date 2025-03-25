@@ -22,12 +22,6 @@ import { getRecipeAuthenticityScore, getTechniqueTips, getSubstitutions, getPair
 import type { RecipeAuthenticityAnalysis, TechniqueTip } from "@ai-services/cultural-cuisine-service";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
-interface RecipeDetailsProps {
-  recipe: CulturalRecipe;
-  cuisine: CulturalCuisine;
-  onBack: () => void;
-}
-
 interface IngredientSubstitution {
   original: string;
   substitute: string;
@@ -59,17 +53,25 @@ interface CulturalRecipe {
   description: string;
   createdAt: Date;
   cuisineId: number;
+  createdBy: number;
+  hiddenFor: unknown; // Add missing required property
   localName: string | null;
   difficulty: 'beginner' | 'intermediate' | 'advanced';
-  authenticIngredients: unknown;
+  authenticIngredients: string[] | Record<string, string>;
   instructions: string[] | Record<string, string>;
-  culturalNotes: Record<string, string>;  // Changed from optional to required
-  localSubstitutes: Record<string, string>;  // Changed from optional to required
+  culturalNotes: Record<string, string>;
+  localSubstitutes: Record<string, string>;
   imageUrl?: string;
   image?: string;
   updatedAt: Date;
   servingSuggestions: unknown;
   complementaryDishes: unknown;
+}
+
+interface RecipeDetailsProps {
+  recipe: CulturalRecipe;
+  cuisine: CulturalCuisine;
+  onBack: () => void;
 }
 
 export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
@@ -85,8 +87,10 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
   const [authenticityAnalysis, setAuthenticityAnalysis] = useState<RecipeAuthenticityAnalysis | null>(null);
   const [authenticityScore, setAuthenticityScore] = useState<{ score: number; feedback: string[] } | null>(null);
   const [techniqueTips, setTechniqueTips] = useState<TechniqueTip[]>([]);
-  const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
   const [culturalContext, setCulturalContext] = useState<any>(null);
+  const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
+
+  const canDeleteRecipe = user?.id === recipe.createdBy;
 
   // Add console logging at the start of component
   console.log('Full recipe details:', {
@@ -354,27 +358,64 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
     }
   };
 
+  const currentUserId = user?.id;
+
   const handleDeleteRecipe = async () => {
     try {
-      const response = await fetch(`/api/cultural-recipes/${recipe.id}`, {
-        method: 'DELETE',
-        credentials: 'include'
+      if (!currentUserId) {
+        throw new Error('You must be logged in to delete recipes');
+      }
+
+      console.log(`[Delete] Attempting to hide/delete recipe ${recipe.id} by user ${currentUserId}`);
+      const response = await fetch(`/api/cultural-recipes/${recipe.id}/hide`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache'
+        }
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete recipe');
+        const errorData = await response.json();
+        console.error('[Delete] Server error:', errorData);
+        throw new Error(errorData.details || errorData.message || 'Failed to process recipe');
+      }
+
+      const result = await response.json();
+      console.log('[Delete] Server response:', result);
+
+      // Update localStorage for non-creators (hide)
+      if (result.type === 'hidden') {
+        const hiddenRecipes = JSON.parse(localStorage.getItem('hiddenRecipes') || '[]');
+        if (!hiddenRecipes.includes(recipe.id)) {
+          hiddenRecipes.push(recipe.id);
+          localStorage.setItem('hiddenRecipes', JSON.stringify(hiddenRecipes));
+          console.log(`[Delete] Updated hidden recipes in localStorage:`, hiddenRecipes);
+        }
       }
 
       toast({
-        title: "Recipe Deleted",
-        description: "The recipe has been deleted successfully.",
+        title: result.type === 'deleted' ? "Recipe Deleted" : "Recipe Hidden",
+        description: result.type === 'deleted' 
+          ? "The recipe has been permanently deleted." 
+          : "The recipe has been hidden from your view.",
       });
 
-      onBack(); // Return to cuisine view after deletion
+      // Clear all related queries to force a fresh fetch
+      queryClient.removeQueries({ queryKey: ['recipe', recipe.id] });
+      queryClient.removeQueries({ queryKey: ['recipes'] });
+      queryClient.removeQueries({ queryKey: ['cuisine', cuisine.id] });
+      
+      // Navigate back to cuisine view
+      onBack();
     } catch (error) {
+      console.error('[Delete] Error:', error);
       toast({
         title: "Error",
-        description: "Failed to delete recipe. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to process recipe. Please try again.",
         variant: "destructive",
       });
     }
@@ -413,11 +454,11 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to {cuisine.name} Cuisine
             </Button>
+            
           </div>
 
-          {/* Main content */}
           <div className="grid gap-2">
-            {/* Recipe Header */}
+            {/* Recipe Header Card */}
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-2xl">{recipe.name}</CardTitle>
@@ -467,15 +508,10 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
               <Tabs defaultValue="instructions" className="w-full">
                 <TabsList className="grid grid-cols-2">
                   <TabsTrigger value="instructions">Instructions</TabsTrigger>
-                  <TabsTrigger value="ingredients">
-                    <div className="text-center text-xs space-y-0.5">
-                      <div>Ingredients & Cultural Details</div>
-                      
-                    </div>
-                  </TabsTrigger>
+                  <TabsTrigger value="ingredients">Ingredients & Cultural</TabsTrigger>
                 </TabsList>
                 
-                <TabsContent value="instructions" className="space-y-4">
+                <TabsContent value="instructions">
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-semibold mt-2">Steps</h3>
                     <Button 

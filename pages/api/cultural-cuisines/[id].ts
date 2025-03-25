@@ -26,8 +26,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(404).json({ message: 'Cuisine not found' });
     }
 
-    // If user is logged in, check visibility
-    if (user) {
+    // If user is logged in, check if cuisine is hidden for them
+    if (user?.id) {
       const isVisible = await isContentVisibleForUser(user.id, 'cuisine', cuisineId);
       if (!isVisible) {
         return res.status(404).json({ message: 'Cuisine not found' });

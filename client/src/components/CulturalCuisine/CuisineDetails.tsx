@@ -21,6 +21,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { analyzeCulturalCuisine, type CulturalInsights, generateCulturalDetails } from "@ai-services/cultural-cuisine-service";
 import type { CulturalCuisine, CulturalRecipe, CulturalTechnique } from "@shared/schema";
 import { RecipeDetails } from "./RecipeDetails";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Add formatHeading utility function
 const formatHeading = (text: string): string => {
@@ -38,11 +39,13 @@ interface CuisineDetailsProps {
   onBack: () => void;
 }
 
-// Add proper typing for recipes
-interface Recipe extends CulturalRecipe {
+// Update the Recipe interface to match CulturalRecipe
+interface Recipe extends Omit<CulturalRecipe, 'instructions' | 'authenticIngredients' | 'culturalNotes' | 'localSubstitutes'> {
   instructions: string[] | Record<string, string>;
   authenticIngredients: string[] | Record<string, string>;
   culturalNotes: Record<string, string>;
+  createdBy: number;
+  localSubstitutes: Record<string, string>;
 }
 
 interface EditImagesDialogProps {
@@ -230,23 +233,78 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
   const [isGeneratingDetails, setIsGeneratingDetails] = useState(false);
   const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Try to get image URL from localStorage first
-    const storedImageUrl = localStorage.getItem(`cuisine-image-${cuisineId}`);
-    if (storedImageUrl) {
-      setLocalImageUrl(storedImageUrl);
-    }
-  }, [cuisineId]);
+  // Add state for user ID
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
 
+  // Add state for visibility
+  const [isHidden, setIsHidden] = useState<boolean>(false);
+
+  // Fetch current user ID on mount
+  useEffect(() => {
+    const fetchUserId = async () => {
+      try {
+        const response = await fetch('/api/user', {
+          credentials: 'include' // Important: include credentials for authentication
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setCurrentUserId(data.id);
+          console.log('[User] Current user ID:', data.id);
+        } else {
+          console.error('[User] Failed to fetch user data:', response.status);
+          // Don't set currentUserId if unauthorized - this is expected for non-logged in users
+          if (response.status !== 401) {
+            toast({
+              title: "Error",
+              description: "Failed to fetch user data. Some features may be limited.",
+              variant: "destructive",
+            });
+          }
+        }
+      } catch (error) {
+        console.error('[User] Failed to fetch user data:', error);
+      }
+    };
+    fetchUserId();
+  }, [toast]);
+
+  // Check visibility from both localStorage and server data
+  useEffect(() => {
+    const hiddenCuisines = JSON.parse(localStorage.getItem('hiddenCuisines') || '[]');
+    const isHiddenLocally = hiddenCuisines.includes(Number(cuisineId));
+    console.log(`[Visibility] Checking local storage - Cuisine ${cuisineId} hidden status:`, isHiddenLocally);
+    
+    if (isHiddenLocally) {
+      console.log(`[Visibility] Cuisine ${cuisineId} is marked as hidden in localStorage`);
+      setIsHidden(true);
+      onBack();
+    }
+  }, [cuisineId, onBack]);
+
+  // Modified query with improved visibility check
   const { data: cuisine, isLoading, error, refetch } = useQuery({
     queryKey: ['cuisine', cuisineId],
     queryFn: async () => {
+      console.log(`[Query] Fetching cuisine ${cuisineId}`);
       const response = await fetch(`/api/cultural-cuisines/${cuisineId}`);
       if (!response.ok) {
-        throw new Error('Failed to fetch cuisine details');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to fetch cuisine details');
       }
-      return response.json();
-    }
+      const data = await response.json();
+      
+      // Before showing error, check if it's hidden
+      if (currentUserId && data.hiddenFor?.includes(currentUserId)) {
+        setIsHidden(true);
+        onBack();
+        return null;
+      }
+      
+      return data;
+    },
+    enabled: !!cuisineId,
+    retry: false,
+    staleTime: 0
   });
 
   const handleUpdateImages = async (data: { bannerUrl: string }) => {
@@ -322,36 +380,47 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
 
   const handleDeleteCuisine = async () => {
     try {
-      const response = await fetch(`/api/cultural-cuisines/${cuisineId}`, {
-        method: 'DELETE',
-        credentials: 'include'
+      console.log(`[Delete] Attempting to hide cuisine ${cuisineId} for user ${currentUserId}`);
+      const response = await fetch(`/api/cultural-cuisines/${cuisineId}/hide`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete cuisine');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to hide cuisine');
       }
 
-      const deletedCuisine = await response.json();
-      
-      if (!deletedCuisine) {
-        throw new Error('Cuisine not found');
+      const result = await response.json();
+      console.log(`[Delete] Server response:`, result);
+
+      // Update localStorage
+      const hiddenCuisines = JSON.parse(localStorage.getItem('hiddenCuisines') || '[]');
+      if (!hiddenCuisines.includes(Number(cuisineId))) {
+        hiddenCuisines.push(Number(cuisineId));
+        localStorage.setItem('hiddenCuisines', JSON.stringify(hiddenCuisines));
+        console.log(`[Delete] Updated hidden cuisines in localStorage:`, hiddenCuisines);
       }
 
-      // Invalidate both cuisine list and detail queries
-      await queryClient.invalidateQueries({ queryKey: ['/api/cultural-cuisines'] });
-      await queryClient.invalidateQueries({ queryKey: ['cuisine', cuisineId] });
+      // Set local state and force navigation
+      setIsHidden(true);
+      queryClient.removeQueries({ queryKey: ['cuisine', cuisineId] });
+      queryClient.removeQueries({ queryKey: ['cuisines'] });
+      onBack();
 
       toast({
-        title: "Cuisine Deleted",
+        title: "Success",
         description: "The cuisine has been deleted successfully.",
       });
-
-      // Use the onBack prop to return to the cuisine list
-      onBack();
     } catch (error) {
+      console.error('[Delete] Error:', error);
       toast({
         title: "Error",
-        description: "Failed to delete cuisine. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to hide cuisine. Please try again.",
         variant: "destructive",
       });
     }
@@ -456,40 +525,77 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
     }
   };
 
-  const handleDeleteSelectedRecipe = async (recipeId: number) => {
+  const handleDeleteSelectedRecipe = async (recipeId: number) => { 
     try {
+      if (!currentUserId) {
+        throw new Error('You must be logged in to delete recipes');
+      }
+
+      console.log(`[Delete] Attempting to delete recipe ${recipeId} for user ${currentUserId}`);
       const response = await fetch(`/api/cultural-recipes/${recipeId}`, {
         method: 'DELETE',
-        credentials: 'include'
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache'
+        }
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete recipe');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('[Delete] Server error:', errorData);
+        throw new Error(errorData.details || errorData.message || 'Failed to delete recipe');
       }
 
+      // Clear all related queries to force a fresh fetch
+      queryClient.removeQueries({ queryKey: ['recipe', recipeId] });
+      queryClient.removeQueries({ queryKey: ['recipes'] });
+      queryClient.removeQueries({ queryKey: ['cuisine', cuisineId] });
+      
       toast({
         title: "Recipe Deleted",
-        description: "The recipe has been deleted successfully.",
+        description: "The recipe has been permanently deleted.",
       });
 
-      // Refetch cuisine details to update the recipes list
-      refetch();
+      // If we were viewing the recipe details, go back to the cuisine view
+      if (selectedRecipe?.id === recipeId) {
+        setSelectedRecipe(null);
+      }
+
+      // Refetch to update the cuisine's recipe list
+      await refetch();
     } catch (error) {
+      console.error('[Delete] Error:', error);
       toast({
         title: "Error",
-        description: "Failed to delete recipe. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to delete recipe. Please try again.",
         variant: "destructive",
       });
     }
   };
+  
 
+  const canDeleteRecipe = (recipe: CulturalRecipe) => {
+    return recipe.createdBy === currentUserId; // Only allow deletion by creator
+  };
+
+  // When setting selected recipe, ensure it has the correct type
   const handleViewRecipe = (recipe: CulturalRecipe) => {
     // Cast the recipe to match our Recipe interface
     const fullRecipe: Recipe = {
       ...recipe,
       instructions: recipe.instructions as string[] | Record<string, string>,
       authenticIngredients: recipe.authenticIngredients as string[] | Record<string, string>,
-      culturalNotes: recipe.culturalNotes as Record<string, string>
+      culturalNotes: recipe.culturalNotes as Record<string, string>,
+      localSubstitutes: recipe.localSubstitutes as Record<string, string>,
+      createdBy: recipe.createdBy || 0, // Ensure createdBy is always a number
+      // Add any missing required fields from CulturalRecipe
+      hiddenFor: recipe.hiddenFor || [],
+      localName: recipe.localName || null,
+      servingSuggestions: recipe.servingSuggestions || [],
+      complementaryDishes: recipe.complementaryDishes || []
     };
     setSelectedRecipe(fullRecipe);
   };
@@ -527,6 +633,14 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
     );
   }
 
+  // Return null if hidden (both from localStorage or server data)
+  if (isHidden) {
+    console.log(`[Render] Cuisine ${cuisineId} is hidden, returning null`);
+    return null;
+  }
+
+  const canEditCuisine = cuisine?.createdBy === currentUserId;
+
   return (
     <div className="container mx-auto px-4 md:px-6 lg:px-8 max-w-7xl">
       <div className="relative space-y-6 pb-12">
@@ -548,13 +662,15 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
               </div>
             </div>
             <div className="absolute top-4 right-4 flex gap-2">
-              <Button
-                size="sm"
-                onClick={() => setIsEditingImages(true)}
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Edit Banner
-              </Button>
+              {canEditCuisine && (
+                <Button
+                  size="sm"
+                  onClick={() => setIsEditingImages(true)}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Banner
+                </Button>
+              )}
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="destructive" size="sm">
@@ -625,7 +741,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                   <UtensilsCrossed className="h-4 w-4 mr-2 hidden sm:inline" /> 
                   Recipes
                 </TabsTrigger>
-              </TabsList>
+                </TabsList>
 
               <TabsContent value="overview" className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -895,7 +1011,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                               <label className="text-sm font-medium">Instructions</label>
                               <Textarea 
                                 name="instructions" 
-                                placeholder="Enter each step on a new line&#13;&#10;Example:&#13;&#10;1. Chop vegetables&#13;&#10;2. Heat oil in pan&#13;&#10;3. Add spices" 
+                                placeholder="Enter each step on a new line&#13;&#10;Example:&#13;&#10;Chop vegetables&#13;&#10;Heat oil in pan&#13;&#10;Add spices" 
                                 required
                                 rows={5}
                               />
@@ -922,10 +1038,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {cuisine.recipes?.map((recipe: CulturalRecipe) => (
                     <Card key={recipe.id} className="relative group">
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-xl">{recipe.name}</CardTitle>
-                          <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 justify-between my-2 mx-4">
                             <Button
                               variant="ghost"
                               size="sm"
@@ -933,31 +1046,58 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                             >
                               View Details
                             </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="destructive" size="sm">
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This action cannot be undone. This will permanently delete this recipe.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDeleteSelectedRecipe(recipe.id)}
-                                    className="bg-destructive text-destructive-foreground"
+                            {recipe.createdBy === currentUserId ? (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button 
+                                    variant="destructive" 
+                                    size="sm"
                                   >
-                                    Delete
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete Recipe
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Delete Recipe?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      This action cannot be undone. This will permanently delete this recipe.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleDeleteSelectedRecipe(recipe.id)}
+                                      className="bg-destructive text-destructive-foreground"
+                                    >
+                                      Delete Recipe
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            ) : (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm"
+                                      className="text-muted-foreground"
+                                    >
+                                      <Info className="h-4 w-4 mr-1" />
+                                      Creator Only
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>Only the creator of this recipe can delete it.</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
                           </div>
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-xl">{recipe.name}</CardTitle>
                         </div>
                       </CardHeader>
                       <CardContent>

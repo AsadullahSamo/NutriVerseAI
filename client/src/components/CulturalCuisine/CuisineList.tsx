@@ -6,8 +6,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from '@tanstack/react-query';
 
 interface CuisineListProps {
   cuisines: CulturalCuisine[];
@@ -27,7 +28,27 @@ export function CuisineList({ cuisines, onSelectCuisine }: CuisineListProps) {
   const [isAddingCuisine, setIsAddingCuisine] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
+  // Filter out hidden cuisines
+  const visibleCuisines = useMemo(() => {
+    const hiddenCuisines = JSON.parse(localStorage.getItem('hiddenCuisines') || '[]');
+    return cuisines.filter(cuisine => !hiddenCuisines.includes(cuisine.id));
+  }, [cuisines]);
+
+  // Format the key ingredients for display
+  const formatKeyIngredients = (ingredients: unknown): string => {
+    if (Array.isArray(ingredients)) {
+      return ingredients.slice(0, 5).join(', ') + (ingredients.length > 5 ? '...' : '');
+    }
+    if (ingredients && typeof ingredients === 'object') {
+      const values = Object.values(ingredients as Record<string, unknown>);
+      return values.slice(0, 5).join(', ') + (values.length > 5 ? '...' : '');
+    }
+    return 'Information not available';
+  };
+
+  // Add cuisine handler with proper cache invalidation
   const handleAddCuisine = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsSubmitting(true);
@@ -54,7 +75,10 @@ export function CuisineList({ cuisines, onSelectCuisine }: CuisineListProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
         },
+        credentials: 'include',
         body: JSON.stringify(newCuisine)
       });
 
@@ -62,13 +86,20 @@ export function CuisineList({ cuisines, onSelectCuisine }: CuisineListProps) {
         throw new Error('Failed to add cuisine');
       }
 
+      // Get the newly added cuisine data
+      const addedCuisine = await response.json();
+      
+      // Force immediate invalidation and refetch
+      await queryClient.invalidateQueries({ queryKey: ['cuisines'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/cultural-cuisines'] });
+      await queryClient.refetchQueries({ queryKey: ['cuisines'] });
+      
       toast({
         title: "Success",
         description: "New cuisine has been added successfully.",
       });
+      
       setIsAddingCuisine(false);
-      // Reload page to show new cuisine
-      window.location.reload();
     } catch (error) {
       toast({
         title: "Error",
@@ -79,33 +110,6 @@ export function CuisineList({ cuisines, onSelectCuisine }: CuisineListProps) {
       setIsSubmitting(false);
     }
   };
-
-  const formatKeyIngredients = (ingredients: unknown): string => {
-    if (Array.isArray(ingredients)) {
-      return ingredients.slice(0, 5).join(', ') + (ingredients.length > 5 ? '...' : '');
-    }
-    if (ingredients && typeof ingredients === 'object') {
-      const values = Object.values(ingredients as Record<string, unknown>);
-      return values.slice(0, 5).join(', ') + (values.length > 5 ? '...' : '');
-    }
-    return 'Information not available';
-  };
-
-  // if (cuisines.length === 0) {
-  //   return (
-  //     <div className="text-center p-12">
-  //       <Globe className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-  //       <h3 className="text-xl font-medium">No cuisines found</h3>
-  //       <p className="text-muted-foreground mt-2">
-  //         Start by adding a new cuisine to explore.
-  //       </p>
-  //       <Button onClick={() => setIsAddingCuisine(true)} className="mt-4">
-  //         <PlusCircle className="h-4 w-4 mr-2" />
-  //         Add Your First Cuisine
-  //       </Button>
-  //     </div>
-  //   );
-  // }
 
   return (
     <div>
@@ -181,8 +185,8 @@ export function CuisineList({ cuisines, onSelectCuisine }: CuisineListProps) {
       </Dialog>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {cuisines.map((cuisine) => (
-          <Card key={cuisine.id} className="flex flex-col">
+        {visibleCuisines.map((cuisine) => (
+          <Card key={cuisine.id} className="flex flex-col opacity-100 transition-opacity duration-200">
             <div 
               className="h-48 bg-cover bg-center relative rounded-t-lg overflow-hidden"
               style={{ 

@@ -3,13 +3,14 @@ import { CommunityPost, Recipe } from "@shared/schema";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RecipeCard } from "@/components/recipe-card";
-import { Users, MapPin, Loader2, Trash2 } from "lucide-react";
+import { Users, MapPin, Loader2, Trash2, Ban } from "lucide-react";
 import { useState } from "react";
 import { CreatePostDialog } from "@/components/create-post-dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { EditPostDialog } from "@/components/edit-post-dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogCancel, AlertDialogAction, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 type PostWithRecipe = CommunityPost & { recipe?: Recipe };
 
@@ -24,20 +25,48 @@ export default function CommunityPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async (postId: number) => {
-      await apiRequest("DELETE", `/api/community/${postId}`);
+      const response = await apiRequest("DELETE", `/api/community/${postId}`);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to process post');
+      }
+      const result = await response.json();
+      
+      // If the post was hidden (not deleted), update localStorage
+      if (result.type === 'hidden') {
+        const hiddenPosts = JSON.parse(localStorage.getItem('hiddenPosts') || '[]');
+        if (!hiddenPosts.includes(postId)) {
+          hiddenPosts.push(postId);
+          localStorage.setItem('hiddenPosts', JSON.stringify(hiddenPosts));
+        }
+      }
+      
+      return result;
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["/api/community"] });
       toast({
-        title: "Post deleted",
-        description: "Your post has been removed successfully.",
+        title: result.type === 'deleted' ? "Post deleted" : "Post hidden",
+        description: "The post has been deleted successfully."
       });
     },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to process post. Please try again.",
+        variant: "destructive",
+      });
+    }
   });
 
+  // Filter out hidden posts from localStorage
+  const hiddenPosts = JSON.parse(localStorage.getItem('hiddenPosts') || '[]');
   const filteredPosts = selectedType 
-    ? posts?.filter(post => post.type === selectedType)
-    : posts;
+    ? posts?.filter(post => 
+        post.type === selectedType && 
+        !hiddenPosts.includes(post.id)
+      )
+    : posts?.filter(post => !hiddenPosts.includes(post.id));
 
   if (isLoading) {
     return (
@@ -100,21 +129,71 @@ export default function CommunityPage() {
                       Posted by {post.userId === user?.id ? "you" : "someone"}
                     </span>
                   </div>
-                  {post.userId === user?.id && (
-                    <div className="flex gap-2">
-                      <EditPostDialog post={post} />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => deleteMutation.mutate(post.id)}
-                        className="text-destructive"
-                        title="Delete post"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Delete Post
-                      </Button>
-                    </div>
-                  )}
+                  <div className="flex gap-2">
+                    {post.userId === user?.id ? (
+                      <>
+                        <EditPostDialog post={post} />
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Post
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete Post?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete this post.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteMutation.mutate(post.id)}
+                                className="bg-destructive text-destructive-foreground"
+                              >
+                                Delete Post
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </>
+                    ) : (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete Post
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Post?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will delete the post.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deleteMutation.mutate(post.id)}
+                            >
+                              Delete Post
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    )}
+                  </div>
                 </div>
 
                 {post.type === "RECIPE_SHARE" && (

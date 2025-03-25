@@ -10,14 +10,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const user = await getAuth(req);
     const userId = user?.id;
 
-    let cuisines = await db.select().from(culturalCuisines).orderBy(culturalCuisines.name);
-    
+    // Get all cuisines first
+    let cuisines = await db
+      .select()
+      .from(culturalCuisines)
+      .orderBy(culturalCuisines.name);
+
     // If user is logged in, filter out hidden cuisines
     if (userId) {
-      cuisines = cuisines.filter(async cuisine => 
-        await isContentVisibleForUser(userId, 'cuisine', cuisine.id)
+      const visibilityChecks = await Promise.all(
+        cuisines.map(async cuisine => {
+          const isVisible = await isContentVisibleForUser(userId, 'cuisine', cuisine.id);
+          return { cuisine, isVisible };
+        })
+      );
+
+      // Only return visible cuisines
+      cuisines = visibilityChecks
+        .filter(({ isVisible }) => isVisible)
+        .map(({ cuisine }) => cuisine);
+
+      // Additional filter to ensure no hidden cuisines slip through
+      cuisines = cuisines.filter(cuisine => 
+        !cuisine.hiddenFor || 
+        !Array.isArray(cuisine.hiddenFor) || 
+        !cuisine.hiddenFor.includes(userId)
       );
     }
+
+    // Set cache control headers
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
 
     res.status(200).json(cuisines);
   } catch (error) {

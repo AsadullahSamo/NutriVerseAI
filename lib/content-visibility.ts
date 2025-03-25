@@ -16,45 +16,47 @@ export async function hideContentForUser(
   contentId: number
 ) {
   const table = contentType === 'cuisine' ? culturalCuisines : culturalRecipes;
-  
-  try {
-    // First check if the user is the creator
-    const content = await db
-      .select({ createdBy: table.createdBy, hiddenFor: table.hiddenFor })
-      .from(table)
-      .where(eq(table.id, contentId))
-      .limit(1);
 
-    if (!content.length) {
+  try {
+    // First check if the content exists and get creator info
+    const [content] = await db
+      .select({
+        createdBy: table.createdBy,
+        hiddenFor: table.hiddenFor
+      })
+      .from(table)
+      .where(eq(table.id, contentId));
+
+    if (!content) {
       throw new VisibilityError('Content not found', 'NOT_FOUND');
     }
 
-    const hiddenFor = content[0].hiddenFor as number[] || [];
-    
-    // Check if already hidden for this user
-    if (hiddenFor.includes(userId)) {
-      throw new VisibilityError('Content is already hidden for this user', 'ALREADY_HIDDEN');
-    }
-
     // If user is creator, do a hard delete
-    if (content[0].createdBy === userId) {
+    if (content.createdBy === userId) {
       await db.delete(table).where(eq(table.id, contentId));
       return { type: 'deleted' };
     }
 
-    // Otherwise, add user to hiddenFor array
-    await db
+    // For non-creators, update hiddenFor array
+    const hiddenFor = Array.isArray(content.hiddenFor) ? content.hiddenFor : [];
+    if (hiddenFor.includes(userId)) {
+      throw new VisibilityError('Content is already hidden for this user', 'ALREADY_HIDDEN');
+    }
+
+    const [updatedContent] = await db
       .update(table)
       .set({
-        hiddenFor: sql`COALESCE(${table.hiddenFor}, '[]'::jsonb) || ${sql.json([userId])}::jsonb`
+        hiddenFor: [...hiddenFor, userId]
       })
-      .where(eq(table.id, contentId));
+      .where(eq(table.id, contentId))
+      .returning();
 
-    return { type: 'hidden' };
+    return { type: 'hidden', updatedContent }; // Ensure a consistent response structure
   } catch (error) {
     if (error instanceof VisibilityError) {
       throw error;
     }
+    console.error('Error in hideContentForUser:', error);
     throw new VisibilityError(
       'Failed to update content visibility',
       'DATABASE_ERROR'

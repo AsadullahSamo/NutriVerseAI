@@ -169,7 +169,7 @@ const KitchenEquipmentPage: React.FC = () => {
       let recipesResult;
       
       // If we have stored data and it's not too old, use it
-      // In a real app, you might want to check the timestamp to refresh after some time
+      
       if (storedRecommendations && storedRecipes && storedMaintenanceSchedule) {
         console.log('Using stored AI analysis data');
         recommendationsResult = JSON.parse(storedRecommendations);
@@ -180,9 +180,9 @@ const KitchenEquipmentPage: React.FC = () => {
         const enrichedEquipment = enrichEquipmentData(equipmentData);
         // Run all AI requests in parallel for better performance
         [recommendationsResult, maintenanceResult, recipesResult] = await Promise.all([
-          getEquipmentRecommendations(enrichedEquipment, ['Italian', 'Healthy Cooking']),
+          getEquipmentRecommendations(enrichedEquipment, []),
           generateMaintenanceSchedule(enrichedEquipment, '2023-01-01', '2023-12-31'),
-          getRecipesByEquipment(enrichedEquipment, ['Italian', 'Healthy Cooking']),
+          getRecipesByEquipment(enrichedEquipment),
         ]);
       }
 
@@ -599,9 +599,9 @@ const KitchenEquipmentPage: React.FC = () => {
         const enrichedEquipment = enrichEquipmentData(updatedEquipment);
         // Run AI analysis on the updated equipment set
         const [recResults, maintResults, recipeResults] = await Promise.all([
-          getEquipmentRecommendations(enrichedEquipment, ['Italian', 'Healthy Cooking']),
+          getEquipmentRecommendations(enrichedEquipment, []),
           generateMaintenanceSchedule(enrichedEquipment, '2023-01-01', '2023-12-31'),
-          getRecipesByEquipment(enrichedEquipment, ['Italian', 'Healthy Cooking']),
+          getRecipesByEquipment(enrichedEquipment),
         ]);
         
         // Update state and local storage
@@ -653,17 +653,22 @@ const KitchenEquipmentPage: React.FC = () => {
     try {
       const enrichedEquipment = enrichEquipmentData(equipment);
       const [equipRecResults, recipeResults] = await Promise.all([
-        getEquipmentRecommendations(enrichedEquipment, ['Italian', 'Healthy Cooking']),
-        getRecipesByEquipment(enrichedEquipment, ['Italian', 'Healthy Cooking'])
+        getEquipmentRecommendations(enrichedEquipment, []),
+        getRecipesByEquipment(enrichedEquipment)
       ]);
 
-      console.log('Recipe Results from AI:', recipeResults);
-      console.log('Recipe data structure:', JSON.stringify(recipeResults.possibleRecipes[0], null, 2));
-      
+      // Update recommendations and recipes
       setRecommendations(equipRecResults);
       setRecipes(recipeResults.possibleRecipes);
 
-      console.log('Recipes after state update:', recipes);
+      // Save to local storage for persistence
+      localStorage.setItem('kitchen-recommendations', JSON.stringify(equipRecResults));
+      localStorage.setItem('kitchen-recipes', JSON.stringify(recipeResults.possibleRecipes));
+
+      setNotification({
+        type: 'success',
+        message: 'Recommendations updated successfully'
+      });
     } catch (error) {
       console.error('Error fetching recommendations:', error);
       setNotification({
@@ -764,7 +769,11 @@ const KitchenEquipmentPage: React.FC = () => {
         </Button>
       </div>
       
-      <Tabs defaultValue="equipment" className="w-full">
+      <Tabs defaultValue="equipment" className="w-full" onValueChange={(value) => {
+        if (value === 'recommendations') {
+          handleGetRecommendations();
+        }
+      }}>
         <TabsList className="grid grid-cols-3 mb-6">
           <TabsTrigger value="equipment">Equipment</TabsTrigger>
           <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
