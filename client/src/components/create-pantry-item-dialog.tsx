@@ -10,10 +10,11 @@ import { useAuth } from "@/hooks/use-auth";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Loader2, Info, Leaf, Recycle, AlertTriangle } from "lucide-react";
+import { Plus, Loader2, Info, Leaf, Recycle, AlertTriangle, Sparkles } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { generatePantryItemDetails } from "@ai-services/recipe-ai";
 
 interface CreatePantryItemDialogProps {
   trigger?: React.ReactNode;
@@ -21,6 +22,7 @@ interface CreatePantryItemDialogProps {
 
 export function CreatePantryItemDialog({ trigger }: CreatePantryItemDialogProps) {
   const [open, setOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -190,6 +192,79 @@ export function CreatePantryItemDialog({ trigger }: CreatePantryItemDialogProps)
     }
   };
 
+  const generateAIDetails = async () => {
+    if (!form.getValues("name")) {
+      toast({
+        title: "Item Name Required",
+        description: "Please enter an item name first to generate details.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const itemName = form.getValues("name");
+      const category = form.getValues("category");
+      const details = await generatePantryItemDetails(itemName, category);
+      
+      // Update form with generated details
+      form.setValue("name", details.name);
+      form.setValue("category", details.category);
+      form.setValue("quantity", details.quantity);
+      
+      // Set expiry date based on the expiryDays value
+      if (details.expiryDays) {
+        const today = new Date();
+        const expiryDate = new Date();
+        expiryDate.setDate(today.getDate() + details.expiryDays);
+        form.setValue("expiryDate", expiryDate as unknown as undefined);
+      }
+      
+      // Update nutrition info
+      form.setValue("nutritionInfo", {
+        calories: details.nutritionInfo.calories,
+        protein: details.nutritionInfo.protein,
+        carbs: details.nutritionInfo.carbs,
+        fat: details.nutritionInfo.fat
+      });
+      
+      // Update sustainability info - explicitly include packaging and carbonFootprint
+      const packaging = details.sustainabilityInfo.packaging || "recyclable";
+      const carbonFootprint = details.sustainabilityInfo.carbonFootprint || "low";
+      
+      form.setValue("sustainabilityInfo", {
+        score: currentSustainabilityScore,
+        packaging: packaging,
+        carbonFootprint: carbonFootprint
+      });
+
+      // Trigger a form validation to update all derived values
+      form.trigger("sustainabilityInfo");
+
+      // Log the sustainability info for debugging
+      console.log("Generated sustainability info:", {
+        packaging,
+        carbonFootprint,
+        score: currentSustainabilityScore
+      });
+      
+      toast({
+        title: "Item Details Generated",
+        description: "AI has generated item details including packaging type and carbon footprint.",
+      });
+    } catch (error) {
+      console.error('Error generating pantry item details:', error);
+      toast({
+        title: "Generation Failed",
+        description: "Failed to generate item details. Please try again or enter manually.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -205,6 +280,14 @@ export function CreatePantryItemDialog({ trigger }: CreatePantryItemDialogProps)
           <DialogTitle>Add Pantry Item</DialogTitle>
         </DialogHeader>
         <div className="px-1 pb-6">
+          <Alert className="mb-6 border-green-500">
+            <Info className="size-4 text-yellow-500" />
+            <AlertDescription className="ml-2">
+              <span>
+                Enter the name of the item and click the <span className="inline-flex mx-2 font-bold"><Sparkles className="size-4 text-green-500 mr-2" /> Generate</span> button to auto-fill item details using AI, including nutrition data, packaging type, and carbon footprint.
+              </span>
+            </AlertDescription>
+          </Alert>
           <Form {...form}>
             <form onSubmit={form.handleSubmit((data) => createMutation.mutate(data))} className="space-y-8">
               {/* Basic Information */}
@@ -217,9 +300,29 @@ export function CreatePantryItemDialog({ trigger }: CreatePantryItemDialogProps)
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Item Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
+                        <div className="flex gap-2">
+                          <FormControl>
+                            <Input {...field} />
+                          </FormControl>
+                          <Button 
+                            type="button" 
+                            variant="outline" 
+                            onClick={generateAIDetails}
+                            disabled={isGenerating}
+                          >
+                            {isGenerating ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin text-green-500" />
+                                <span className="ml-2">Generating...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles className="h-4 w-4 text-green-500" />
+                                <span className="ml-2">Generate</span>
+                              </>
+                            )}
+                          </Button>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}

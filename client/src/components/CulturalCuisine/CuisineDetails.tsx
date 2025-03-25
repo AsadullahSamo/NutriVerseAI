@@ -22,6 +22,7 @@ import { analyzeCulturalCuisine, type CulturalInsights, generateCulturalDetails 
 import type { CulturalCuisine, CulturalRecipe, CulturalTechnique } from "@shared/schema";
 import { RecipeDetails } from "./RecipeDetails";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { generateRecipeDetails } from "@ai-services/recipe-ai";
 
 // Add formatHeading utility function
 const formatHeading = (text: string): string => {
@@ -232,6 +233,7 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
   const { toast } = useToast();
   const [isGeneratingDetails, setIsGeneratingDetails] = useState(false);
   const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // Add state for user ID
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
@@ -462,6 +464,45 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
       });
     } finally {
       setIsGeneratingDetails(false);
+    }
+  };
+
+  const generateAIDetails = async (recipeName: string) => {
+    setIsGenerating(true);
+    try {
+      const details = await generateRecipeDetails(recipeName, cuisine.name);
+      
+      // Convert ingredients to comma-separated list
+      const ingredients = details.ingredients.map(ing => 
+        `${ing.amount} ${ing.item}${ing.notes ? ` (${ing.notes})` : ''}`
+      ).join(', ');
+
+      // Update form fields
+      const form = document.querySelector('form') as HTMLFormElement;
+      if (form) {
+        const ingredientsTextarea = form.querySelector('[name="ingredients"]') as HTMLTextAreaElement;
+        const instructionsTextarea = form.querySelector('[name="instructions"]') as HTMLTextAreaElement;
+        
+        if (ingredientsTextarea) {
+          ingredientsTextarea.value = ingredients;
+        }
+        if (instructionsTextarea) {
+          instructionsTextarea.value = details.instructions.join('\n');
+        }
+      }
+
+      toast({
+        title: "Recipe Details Generated",
+        description: "AI has generated recipe details. Feel free to edit them.",
+      });
+    } catch (error) {
+      toast({
+        title: "Generation Failed",
+        description: "Failed to generate recipe details. Please try again or enter manually.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -968,7 +1009,33 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                           <div className="space-y-4">
                             <div className="space-y-2">
                               <label className="text-sm font-medium">Name</label>
-                              <Input name="name" placeholder="Recipe name" required />
+                              <div className="flex gap-2">
+                                <Input name="name" placeholder="Recipe name" required />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() => {
+                                    const nameInput = document.querySelector('[name="name"]') as HTMLInputElement;
+                                    if (nameInput?.value) {
+                                      generateAIDetails(nameInput.value);
+                                    } else {
+                                      toast({
+                                        title: "Recipe Name Required",
+                                        description: "Please enter a recipe name first to generate details.",
+                                        variant: "destructive",
+                                      });
+                                    }
+                                  }}
+                                  disabled={isGenerating}
+                                >
+                                  {isGenerating ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Sparkles className="h-4 w-4" />
+                                  )}
+                                  <span className="ml-2">Generate</span>
+                                </Button>
+                              </div>
                             </div>
                             <div className="space-y-2">
                               <label className="text-sm font-medium">Description</label>
