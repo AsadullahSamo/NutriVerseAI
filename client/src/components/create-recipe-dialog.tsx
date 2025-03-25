@@ -12,9 +12,10 @@ import { useAuth } from "@/hooks/use-auth";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Loader2, AlertCircle, Info } from "lucide-react";
+import { Plus, Loader2, AlertCircle, Info, Sparkles } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { generateRecipeDetails } from "@ai-services/recipe-ai";
 
 interface CreateRecipeDialogProps {
   trigger?: React.ReactNode;
@@ -22,6 +23,7 @@ interface CreateRecipeDialogProps {
 
 export function CreateRecipeDialog({ trigger }: CreateRecipeDialogProps) {
   const [open, setOpen] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -199,6 +201,45 @@ export function CreateRecipeDialog({ trigger }: CreateRecipeDialogProps) {
     };
   };
 
+  const generateAIDetails = async () => {
+    if (!form.getValues("title")) {
+      toast({
+        title: "Recipe Title Required",
+        description: "Please enter a recipe title first to generate details.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const details = await generateRecipeDetails(form.getValues("title"));
+      
+      // Update form with generated details
+      form.setValue("description", details.description);
+      form.setValue("ingredients", details.ingredients.map((ing: { amount: string; item: string; notes?: string }) => `${ing.amount} ${ing.item}${ing.notes ? ` (${ing.notes})` : ''}`));
+      form.setValue("instructions", details.instructions);
+      form.setValue("nutritionInfo.calories", details.nutritionInfo.calories);
+      form.setValue("nutritionInfo.protein", details.nutritionInfo.protein);
+      form.setValue("nutritionInfo.carbs", details.nutritionInfo.carbs);
+      form.setValue("nutritionInfo.fat", details.nutritionInfo.fat);
+      form.setValue("prepTime", details.prepTime);
+
+      toast({
+        title: "Recipe Details Generated",
+        description: "AI has generated recipe details. Feel free to edit them.",
+      });
+    } catch (error) {
+      toast({
+        title: "Generation Failed",
+        description: "Failed to generate recipe details. Please try again or enter manually.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -214,6 +255,14 @@ export function CreateRecipeDialog({ trigger }: CreateRecipeDialogProps) {
           <DialogTitle>Create New Recipe</DialogTitle>
         </DialogHeader>
         <div className="px-1 pb-6">
+          <Alert className="mb-6 border-green-500">
+            <Info className="size-4 text-yellow-500" />
+            <AlertDescription className="ml-2">
+              <span >
+                Enter the title of the recipe and click the <span className="inline-flex mx-2 font-bold"><Sparkles className="size-4 text-green-500 mr-2" /> Generate</span> button to auto-fill recipe details using AI. You'll need to add an image URL manually as AI generated image urls are not always accurate.
+              </span>
+            </AlertDescription>
+          </Alert>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
@@ -222,9 +271,30 @@ export function CreateRecipeDialog({ trigger }: CreateRecipeDialogProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Title</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
+                    <div className="flex gap-2">
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={generateAIDetails}
+                        disabled={isGenerating}
+                      >
+                        {isGenerating ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin text-green-500" />
+                            <span className="ml-2">Generating...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-4 w-4 text-green-500" />
+                            <span className="ml-2">Generate</span>
+                          </>
+                        )}
+                        
+                      </Button>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

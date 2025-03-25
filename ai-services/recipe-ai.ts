@@ -473,3 +473,82 @@ export async function analyzeRecipe(recipe: any) {
     throw error;
   }
 }
+
+export async function generateRecipeDetails(
+  recipeName: string,
+  cuisine?: string,
+  preferences?: string[]
+) {
+  try {
+    const prompt = `Generate detailed recipe information for "${recipeName}"${cuisine ? ` from ${cuisine} cuisine` : ''}.
+    ${preferences ? `Consider these preferences: ${preferences.join(', ')}` : ''}
+
+    Return EXACTLY this JSON structure with no additional text:
+    {
+      "description": "string (a short description of the recipe maybe 2 - 3 lines)",
+      "ingredients": [
+        {
+          "item": "string",
+          "amount": "string",
+          "notes": "string (optional)"
+        }
+      ],
+      "instructions": ["string"],
+      "nutritionInfo": {
+        "calories": number,
+        "protein": number (in grams),
+        "carbs": number (in grams),
+        "fat": number (in grams)
+      },
+      "prepTime": number (in minutes),
+      "cookingTips": ["string"],
+      "substitutes": [
+        {
+          "ingredient": "string",
+          "alternatives": ["string"]
+        }
+      ]
+    }`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Error generating recipe details:', error);
+    throw error;
+  }
+}
+
+export async function generatePantryItemDetails(
+  itemName: string,
+  category?: string
+) {
+  try {
+    const prompt = `Generate detailed pantry item information for "${itemName}"${category ? ` in the category ${category}` : ''}.
+
+    Return EXACTLY this JSON structure with no additional text:
+    {
+      "name": "string (just the item name)",
+      "category": "string (e.g., Dairy, Produce, Grains, etc.)",
+      "quantity": "string (standard quantity unit e.g., '1 lb', '500g', '1 container')",
+      "expiryDays": number (typical shelf life in days from purchase),
+      "nutritionInfo": {
+        "calories": number,
+        "protein": number (in grams),
+        "carbs": number (in grams),
+        "fat": number (in grams)
+      },
+      "sustainabilityInfo": {
+        "packaging": "string (one of: 'recyclable', 'biodegradable', 'reusable', 'non-recyclable')",
+        "carbonFootprint": "string (one of: 'low', 'medium', 'high')"
+      }
+    }`;
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Error generating pantry item details:', error);
+    throw error;
+  }
+}

@@ -179,4 +179,158 @@ export async function generateAIMealPlan(
   }
 }
 
+export async function generateRecipeDetails(
+  recipeName: string
+): Promise<any> {
+  try {
+    const prompt = `Generate detailed recipe information for "${recipeName}".
+
+    Return EXACTLY this JSON structure with no additional text:
+    {
+      "description": "string (a short description of the recipe)",
+      "ingredients": [
+        {
+          "item": "string",
+          "amount": "string",
+          "notes": "string (optional)"
+        }
+      ],
+      "instructions": ["string"],
+      "nutritionInfo": {
+        "calories": number,
+        "protein": number (in grams),
+        "carbs": number (in grams),
+        "fat": number (in grams)
+      },
+      "prepTime": number (in minutes)
+    }`;
+
+    console.log("Sending recipe generation request to Groq API...");
+    const response = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: "You are a professional chef. Always provide accurate nutritional information and detailed recipes."
+        },
+        { role: "user", content: prompt }
+      ],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.7,
+      max_tokens: 1500,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error('No response from recipe generation');
+    }
+
+    try {
+      // Clean JSON content
+      const jsonStr = content.replace(/```json\n?|\n?```/g, '').trim();
+      const data = JSON.parse(jsonStr);
+      return data;
+    } catch (error) {
+      console.error('Failed to parse recipe details:', error);
+      throw new Error('Invalid recipe format received');
+    }
+  } catch (error) {
+    console.error('Error with Groq API:', error);
+    throw new Error('Failed to generate recipe details');
+  }
+}
+
+export async function generatePantryItemDetails(
+  itemName: string,
+  category?: string
+): Promise<any> {
+  try {
+    const prompt = `Generate detailed pantry item information for "${itemName}"${category ? ` in the category ${category}` : ''}.
+
+    IMPORTANT: Include accurate sustainability information with realistic packaging type and carbon footprint data based on real-world food products.
+
+    Return EXACTLY this JSON structure with no additional text:
+    {
+      "name": "string (just the item name)",
+      "category": "string (e.g., Dairy, Produce, Grains, etc.)",
+      "quantity": "string (standard quantity unit e.g., '1 lb', '500g', '1 container')",
+      "expiryDays": number (typical shelf life in days from purchase),
+      "nutritionInfo": {
+        "calories": number,
+        "protein": number (in grams),
+        "carbs": number (in grams),
+        "fat": number (in grams)
+      },
+      "sustainabilityInfo": {
+        "packaging": "string (MUST be one of these exact values: 'recyclable', 'biodegradable', 'reusable', 'non-recyclable')",
+        "carbonFootprint": "string (MUST be one of these exact values: 'low', 'medium', 'high')"
+      }
+    }
+
+    For packaging type:
+    - 'recyclable': For items packaged in paper, cardboard, glass, or most plastics with recycling symbols
+    - 'biodegradable': For items with minimal packaging or compostable packaging
+    - 'reusable': For items in containers designed to be reused (glass jars, sturdy containers)
+    - 'non-recyclable': For items in multi-layer packaging, certain plastics, or complex packaging
+
+    For carbon footprint:
+    - 'low': Local produce, plant-based items, minimally processed foods
+    - 'medium': Moderately processed foods, dairy products, items with some transportation impact
+    - 'high': Highly processed foods, red meat, imported exotic items, frozen products requiring constant refrigeration
+    `;
+
+    console.log("Sending pantry item generation request to Groq API...");
+    const response = await groq.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: "You are a nutritionist and sustainability expert specializing in food packaging and environmental impact. Always provide accurate nutritional information and detailed sustainability assessments."
+        },
+        { role: "user", content: prompt }
+      ],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.7,
+      max_tokens: 1000,
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      throw new Error('No response from pantry item generation');
+    }
+
+    try {
+      // Clean JSON content
+      const jsonStr = content.replace(/```json\n?|\n?```/g, '').trim();
+      const data = JSON.parse(jsonStr);
+      
+      // Validate sustainability info has correct values
+      if (!data.sustainabilityInfo) {
+        data.sustainabilityInfo = {
+          packaging: 'recyclable',
+          carbonFootprint: 'low'
+        };
+      }
+      
+      // Ensure packaging has a valid value
+      const validPackaging = ['recyclable', 'biodegradable', 'reusable', 'non-recyclable'];
+      if (!validPackaging.includes(data.sustainabilityInfo.packaging)) {
+        data.sustainabilityInfo.packaging = 'recyclable';
+      }
+      
+      // Ensure carbon footprint has a valid value
+      const validFootprint = ['low', 'medium', 'high'];
+      if (!validFootprint.includes(data.sustainabilityInfo.carbonFootprint)) {
+        data.sustainabilityInfo.carbonFootprint = 'low';
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Failed to parse pantry item details:', error);
+      throw new Error('Invalid pantry item format received');
+    }
+  } catch (error) {
+    console.error('Error with Groq API:', error);
+    throw new Error('Failed to generate pantry item details');
+  }
+}
+
 // ...rest of existing functions...

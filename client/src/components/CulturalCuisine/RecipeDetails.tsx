@@ -17,10 +17,12 @@ import {
   ChefHat, Brain, Loader2, Edit, Plus, Trash2, History, 
   Star, UtensilsCrossed, Map, Scroll, ArrowRight, Info, Globe2, Wine, Palette, ListOrdered, Ban, MapPin, Wrench 
 } from "lucide-react";
-import type { CulturalCuisine } from "@shared/schema";
+import type { CulturalCuisine, CulturalRecipe } from "@shared/schema";
 import { getRecipeAuthenticityScore, getTechniqueTips, getSubstitutions, getPairings, getEtiquette, getCulturalContext } from "@ai-services/cultural-cuisine-service";
 import type { RecipeAuthenticityAnalysis, TechniqueTip } from "@ai-services/cultural-cuisine-service";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { generateRecipeDetails } from "@ai-services/recipe-ai";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface IngredientSubstitution {
   original: string;
@@ -47,28 +49,11 @@ interface CulturalNotes {
   [key: string]: string;
 }
 
-interface CulturalRecipe {
-  id: number;
-  name: string;
-  description: string;
-  createdAt: Date;
-  cuisineId: number;
-  createdBy: number;
-  hiddenFor: unknown;
-  localName: string | null;
-  difficulty: 'beginner' | 'intermediate' | 'advanced';
-  authenticIngredients: string[] | Record<string, string>;
-  instructions: string[] | Record<string, string>;
-  culturalNotes: Record<string, string>;
-  localSubstitutes: Record<string, string>;
-  image_url: string | null;
-  updatedAt: Date;
-  servingSuggestions: unknown;
-  complementaryDishes: unknown;
-}
-
 interface RecipeDetailsProps {
-  recipe: CulturalRecipe;
+  recipe: CulturalRecipe & {
+    image?: string;
+    imageUrl?: string;
+  };
   cuisine: CulturalCuisine;
   onBack: () => void;
 }
@@ -88,6 +73,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
   const [techniqueTips, setTechniqueTips] = useState<TechniqueTip[]>([]);
   const [culturalContext, setCulturalContext] = useState<any>(null);
   const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const canDeleteRecipe = user?.id === recipe.createdBy;
 
@@ -421,6 +407,45 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
         </div>
       </div>
     );
+  };
+
+  const generateAIDetails = async () => {
+    setIsGenerating(true);
+    try {
+      const details = await generateRecipeDetails(recipe.name, cuisine.name);
+      
+      // Convert ingredients to comma-separated list
+      const ingredients = details.ingredients.map(ing => 
+        `${ing.amount} ${ing.item}${ing.notes ? ` (${ing.notes})` : ''}`
+      ).join(', ');
+
+      // Update form fields
+      const form = document.querySelector('form') as HTMLFormElement;
+      if (form) {
+        const ingredientsTextarea = form.querySelector('[name="ingredients"]') as HTMLTextAreaElement;
+        const instructionsTextarea = form.querySelector('[name="instructions"]') as HTMLTextAreaElement;
+        
+        if (ingredientsTextarea) {
+          ingredientsTextarea.value = ingredients;
+        }
+        if (instructionsTextarea) {
+          instructionsTextarea.value = details.instructions.join('\n');
+        }
+      }
+
+      toast({
+        title: "Recipe Details Generated",
+        description: "AI has generated recipe details. Feel free to edit them.",
+      });
+    } catch (error) {
+      toast({
+        title: "Generation Failed",
+        description: "Failed to generate recipe details. Please try again or enter manually.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
@@ -1142,7 +1167,23 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                   setIsEditingInstructions(false);
                 }} className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Instructions</label>
+                    <div className="flex justify-between items-center">
+                      <label className="text-sm font-medium">Instructions</label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={generateAIDetails}
+                        disabled={isGenerating}
+                      >
+                        {isGenerating ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-4 w-4" />
+                        )}
+                        <span className="ml-2">Generate</span>
+                      </Button>
+                    </div>
                     <Textarea 
                       name="instructions"
                       defaultValue={Array.isArray(recipeDetails.instructions) ? 
@@ -1174,7 +1215,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
             <DialogHeader>
               <DialogTitle>
                 {hasIngredients ? 'Edit Authentic Ingredients' : 'Add Authentic Ingredients'}
-              </DialogTitle>
+                </DialogTitle>
             </DialogHeader>
             <ScrollArea className="flex-1">
               <div className="p-6">
@@ -1187,7 +1228,23 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                   setIsEditingIngredients(false);
                 }} className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Ingredients</label>
+                    <div className="flex justify-between items-center">
+                      <label className="text-sm font-medium">Ingredients</label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={generateAIDetails}
+                        disabled={isGenerating}
+                      >
+                        {isGenerating ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-4 w-4" />
+                        )}
+                        <span className="ml-2">Generate</span>
+                      </Button>
+                    </div>
                     <Textarea 
                       name="ingredients"
                       defaultValue={Array.isArray(recipeDetails.authenticIngredients) ? 
