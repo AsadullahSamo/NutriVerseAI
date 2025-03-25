@@ -152,6 +152,7 @@ export const culturalRecipes = pgTable("cultural_recipes", {
   culturalNotes: jsonb("cultural_notes").notNull(), // Significance, occasions, history
   servingSuggestions: jsonb("serving_suggestions").notNull(),
   complementaryDishes: jsonb("complementary_dishes"),
+  image_url: text("image_url"),
   createdBy: integer("created_by").references(() => users.id),
   hiddenFor: jsonb("hidden_for").default([]),
   createdAt: timestamp("created_at").defaultNow().notNull(),

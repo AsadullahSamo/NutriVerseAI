@@ -1,5 +1,5 @@
 import { IStorage } from "./types";
-import { User, Recipe, GroceryList, PantryItem, CommunityPost } from "@shared/schema";
+import { User, Recipe, GroceryList, PantryItem, CommunityPost, culturalRecipes } from "@shared/schema";
 import { users, recipes, groceryLists, pantryItems, communityPosts, recipe_likes, mealPlans, nutritionGoals, type NutritionGoal, recipeConsumption, type RecipeConsumption, kitchenEquipment, kitchenStorageLocations } from "@shared/schema";
 import { db, sql, pool } from "./db";
 import { eq, and, gte, lte, desc, count } from "drizzle-orm";
@@ -597,6 +597,20 @@ export class DatabaseStorage implements IStorage {
     await db.update(communityPosts)
       .set({ hiddenFor: hiddenFor })
       .where(eq(communityPosts.id, postId));
+  }
+
+  async addCulturalRecipe(recipe: Omit<typeof culturalRecipes.$inferInsert, "id">): Promise<typeof culturalRecipes.$inferSelect> {
+    const now = new Date();
+    const [newRecipe] = await db
+      .insert(culturalRecipes)
+      .values({
+        ...recipe,
+        createdAt: now,
+        updatedAt: now
+      })
+      .returning();
+
+    return newRecipe;
   }
 }
 
