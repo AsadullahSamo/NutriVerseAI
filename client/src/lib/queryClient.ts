@@ -10,7 +10,19 @@ async function throwIfResNotOk(res: Response) {
     } catch {
       errorMessage = res.statusText;
     }
-    throw new Error(errorMessage || `${res.status}: Request failed`);
+
+    // Handle specific error cases
+    if (res.status === 401) {
+      throw new Error("Please log in to perform this action");
+    } else if (res.status === 403) {
+      throw new Error("You don't have permission to perform this action");
+    } else if (res.status === 404) {
+      throw new Error("The requested resource was not found");
+    } else if (res.status === 429) {
+      throw new Error("Too many requests. Please try again later");
+    } else {
+      throw new Error(errorMessage || `${res.status}: Request failed`);
+    }
   }
 }
 
@@ -27,12 +39,24 @@ export async function apiRequest(
       ...customHeaders,
     },
     body: body ? JSON.stringify(body) : undefined,
-    credentials: "include", // Add this line to include credentials
+    credentials: "include",
   });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.message || response.statusText);
+    
+    // Handle specific error cases
+    if (response.status === 401) {
+      throw new Error("Please log in to perform this action");
+    } else if (response.status === 403) {
+      throw new Error("You don't have permission to perform this action");
+    } else if (response.status === 404) {
+      throw new Error("The requested resource was not found");
+    } else if (response.status === 429) {
+      throw new Error("Too many requests. Please try again later");
+    } else {
+      throw new Error(error.message || response.statusText);
+    }
   }
 
   return response;
