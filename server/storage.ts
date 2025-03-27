@@ -1,6 +1,6 @@
 import { IStorage } from "./types";
 import { User, Recipe, GroceryList, PantryItem, CommunityPost, culturalRecipes } from "@shared/schema";
-import { users, recipes, groceryLists, pantryItems, communityPosts, recipe_likes, mealPlans, nutritionGoals, type NutritionGoal, recipeConsumption, type RecipeConsumption, kitchenEquipment, kitchenStorageLocations } from "@shared/schema";
+import { users, recipes, groceryLists, pantryItems, communityPosts, recipe_likes, mealPlans, nutritionGoals, type NutritionGoal, recipeConsumption, type RecipeConsumption, kitchenEquipment, kitchenStorageLocations, culturalCuisines } from "@shared/schema";
 import { db, sql, pool } from "./db";
 import { eq, and, gte, lte, desc, count } from "drizzle-orm";
 import session from "express-session";
@@ -118,6 +118,12 @@ export class DatabaseStorage implements IStorage {
         console.log("Note: Skip kitchenStorageLocations if table doesn't exist");
       }
       
+      await db.delete(culturalRecipes)
+        .where(eq(culturalRecipes.createdBy, id));
+
+      await db.delete(culturalCuisines)
+        .where(eq(culturalCuisines.createdBy, id));
+
       // 12. Finally, delete the user account
       await db.delete(users)
         .where(eq(users.id, id));

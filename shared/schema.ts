@@ -53,6 +53,7 @@ export const pantryItems = pgTable("pantry_items", {
 export const communityPosts = pgTable("community_posts", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id).notNull(),
+  username: text("username").notNull(),
   recipeId: integer("recipe_id").references(() => recipes.id),
   content: text("content").notNull(),
   type: text("type").notNull(), // 'RECIPE_SHARE', 'FOOD_RESCUE', 'COOKING_TIP'

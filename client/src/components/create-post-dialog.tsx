@@ -31,10 +31,17 @@ export function CreatePostDialog({ trigger }: CreatePostDialogProps) {
   const createPostMutation = useMutation({
     mutationFn: async (data: any) => {
       try {
-        const payload = {
+        const payload: {
+          content: string;
+          type: string;
+          userId: number;
+          username: string;
+          recipeId?: number;
+        } = {
           content: data.content,
           type: data.type,
-          userId: data.userId
+          userId: data.userId,
+          username: user?.username || user?.name || 'Anonymous'
         };
         
         if (data.type === "RECIPE_SHARE" && data.recipeId) {
