@@ -3,7 +3,7 @@ import { CommunityPost, Recipe } from "@shared/schema";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RecipeCard } from "@/components/recipe-card";
-import { Users, MapPin, Loader2, Trash2, Ban } from "lucide-react";
+import { Users, MapPin, Loader2, Trash2, Ban, AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { CreatePostDialog } from "@/components/create-post-dialog";
 import { useAuth } from "@/hooks/use-auth";
@@ -21,6 +21,14 @@ export default function CommunityPage() {
 
   const { data: posts, isLoading } = useQuery<PostWithRecipe[]>({
     queryKey: ["/api/community"],
+  });
+
+  const { data: currentGoal } = useQuery({
+    queryKey: ["/api/nutrition-goals/current"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/nutrition-goals/current");
+      return res.json();
+    },
   });
 
   const deleteMutation = useMutation({
@@ -77,6 +85,7 @@ export default function CommunityPage() {
   }
 
   return (
+    
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6">
         <header className="mb-8">
@@ -89,6 +98,29 @@ export default function CommunityPage() {
             </div>
             <CreatePostDialog />
           </div>
+
+          {!currentGoal && filteredPosts?.some(post => post.type === "RECIPE_SHARE") && (
+            <div className="mb-6 mt-6 p-4 rounded-lg border bg-muted/50">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <h4 className="font-medium">Set Your Nutrition Goals</h4>
+                  <p className="text-sm text-muted-foreground">
+                    To track your nutrition progress and get personalized recipe recommendations for shared recipes, please set up your daily nutrition goals in Nutrition Tracking under Planning.
+                  </p>
+                  <div className="mt-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => window.location.href = '/nutrition'}
+                    >
+                      Set Nutrition Goals
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-2 mt-6">
             <Button
@@ -126,7 +158,7 @@ export default function CommunityPage() {
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">
-                      Posted by {post.userId === user?.id ? "you" : "someone"}
+                      Posted by {post.userId === user?.id ? "you" : post.username}
                     </span>
                   </div>
                   <div className="flex gap-2">

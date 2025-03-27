@@ -1,6 +1,7 @@
 import type { PantryItem } from "@shared/schema";
+
 import { CulturalCuisine, CulturalRecipe, CulturalTechnique } from "@shared/schema";
-import { generateContent, safeJsonParse } from "./gemini-client";
+import { generateContent, model, safeJsonParse } from "./gemini-client";
 
 // Remove the old queue management since it's now handled in gemini-client
 
@@ -38,6 +39,63 @@ export interface CulturalContext {
   significance?: string;
   variations?: string;
   serving?: string;
+}
+
+export interface CuisineDetails {
+  description: string;
+  keyIngredients: string[];
+  cookingTechniques: string[];
+  culturalContext: {
+    history: string;
+    traditions: string;
+    festivals: string;
+    influences: string;
+  };
+  servingEtiquette: {
+    tableSettings: string;
+    diningCustoms: string;
+    servingOrder: string;
+    taboos: string;
+    summary: string;
+  };
+}
+
+export async function generateCuisineDetailsFromName(name: string, region: string): Promise<CuisineDetails> {
+  const prompt = `Generate detailed information about ${name} cuisine from ${region}. Include:
+1. A concise description of the cuisine
+2. Key ingredients commonly used
+3. Common cooking techniques
+4. Cultural context including history, traditions, festivals, and influences
+5. Serving etiquette including table settings, dining customs, serving order, and taboos
+
+Return EXACTLY this JSON structure:
+{
+  "description": "A concise description of the cuisine",
+  "keyIngredients": ["ingredient1", "ingredient2", "ingredient3"],
+  "cookingTechniques": ["technique1", "technique2", "technique3"],
+  "culturalContext": {
+    "history": "Historical background",
+    "traditions": "Culinary traditions",
+    "festivals": "Food-related festivals",
+    "influences": "Cultural influences"
+  },
+  "servingEtiquette": {
+    "tableSettings": "Table arrangement guidelines",
+    "diningCustoms": "Dining rules",
+    "servingOrder": "Course sequence",
+    "taboos": "Things to avoid",
+    "summary": "Overall dining etiquette summary"
+  }
+}`;
+
+  try {
+    const result = await generateContent(prompt);
+    const response = await result.response.text();
+    return await safeJsonParse(response);
+  } catch (error) {
+    console.error('Error generating cuisine details:', error);
+    throw new Error('Failed to generate cuisine details');
+  }
 }
 
 export const getCulturalContext = async (recipe: any, cuisine: any): Promise<CulturalContext> => {
@@ -870,3 +928,61 @@ function getRegionalEtiquette(region: string): {
     servingOrder: []
   };
 }
+
+export async function generateCulturalRecipeDetails(recipeName: string, cuisineName: string) {
+  try {
+    console.log('Generating recipe details for:', { recipeName, cuisineName });
+    
+    const prompt = `Generate detailed cultural recipe information for "${recipeName}" from ${cuisineName} cuisine.
+
+    Return EXACTLY this JSON structure with no additional text:
+    {
+      "description": "string (a short description of the recipe and its cultural significance)",
+      "difficulty": "beginner" | "intermediate" | "advanced",
+      "authenticIngredients": [
+        "2 cups rice",
+        "1 pound chicken",
+        "3 tablespoons oil",
+        "2 cloves garlic",
+        "1 teaspoon salt"
+      ],
+      "instructions": [
+        "Step 1: Prepare ingredients",
+        "Step 2: Cook rice",
+        "Step 3: Cook chicken",
+        "Step 4: Combine and serve"
+      ]
+    }
+
+    Important:
+    - Each ingredient must include both the amount and the ingredient name
+    - Use standard measurements (cups, tablespoons, teaspoons, pounds, ounces, etc.)
+    - Include all essential ingredients for an authentic recipe
+    - Instructions should be clear, numbered steps`;
+
+    console.log('Sending prompt to AI:', prompt);
+    
+    const result = await generateContent(prompt);
+    const response = await result.response.text();
+    console.log('Raw AI response:', response);
+    
+    const data = await safeJsonParse(response);
+    console.log('Parsed AI response:', data);
+
+    // Ensure the response matches our expected format
+    const formattedData = {
+      description: data.description || '',
+      difficulty: data.difficulty || 'intermediate',
+      authenticIngredients: Array.isArray(data.authenticIngredients) ? data.authenticIngredients : [],
+      instructions: Array.isArray(data.instructions) ? data.instructions : []
+    };
+    
+    console.log('Final formatted data:', formattedData);
+    return formattedData;
+  } catch (error) {
+    console.error('Error generating cultural recipe details:', error);
+    throw error;
+  }
+}
+
+

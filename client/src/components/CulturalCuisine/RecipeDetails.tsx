@@ -21,7 +21,7 @@ import type { CulturalCuisine, CulturalRecipe } from "@shared/schema";
 import { getRecipeAuthenticityScore, getTechniqueTips, getSubstitutions, getPairings, getEtiquette, getCulturalContext } from "@ai-services/cultural-cuisine-service";
 import type { RecipeAuthenticityAnalysis, TechniqueTip } from "@ai-services/cultural-cuisine-service";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { generateRecipeDetails } from "@ai-services/recipe-ai";
+import { generateCulturalRecipeDetails } from "@ai-services/cultural-cuisine-service";
 import { useQueryClient } from "@tanstack/react-query";
 
 interface IngredientSubstitution {
@@ -412,7 +412,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
   const generateAIDetails = async () => {
     setIsGenerating(true);
     try {
-      const details = await generateRecipeDetails(recipe.name, cuisine.name);
+      const details = await generateCulturalRecipeDetails(recipe.name, cuisine.name);
       
       // Convert ingredients to comma-separated list
       const ingredients = details.ingredients.map(ing => 
@@ -466,6 +466,9 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
               <CardHeader className="pb-2">
                 <CardTitle className="text-2xl">{recipe.name}</CardTitle>
               </CardHeader>
+
+              
+
               <CardContent className="space-y-4">
                 <p className="text-muted-foreground">{recipe.description}</p>
                 <div className="flex items-center gap-2">
@@ -1177,9 +1180,9 @@ export function RecipeDetails({ recipe, cuisine, onBack }: RecipeDetailsProps) {
                         disabled={isGenerating}
                       >
                         {isGenerating ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <Loader2 className="h-4 w-4 animate-spin text-green-500" />
                         ) : (
-                          <Sparkles className="h-4 w-4" />
+                          <Sparkles className="h-4 w-4 text-green-500" />
                         )}
                         <span className="ml-2">Generate</span>
                       </Button>

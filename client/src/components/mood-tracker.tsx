@@ -87,7 +87,7 @@ export function MoodTracker({ recipeId }: MoodTrackerProps) {
       setEntry("");
       toast({
         title: "Mood tracked!",
-        description: "Your cooking experience has been recorded and analyzed. Now click on 'View Insights' to see patterns and recommendations.",
+        description: "Your cooking experience has been recorded and analyzed. Now click on 'View Insights' to see patterns and recommendations OR add more entries to see how your mood evolves.",
       });
       moodEntriesQuery.refetch();
     },
@@ -197,7 +197,7 @@ export function MoodTracker({ recipeId }: MoodTrackerProps) {
 
       <Card className="overflow-hidden">
         <CardHeader className="bg-muted/30 pb-4">
-          <CardTitle className="text-sm text-muted-foreground">How did cooking make you feel?</CardTitle>
+          <CardTitle className="text-sm text-muted-foreground">How did cooking this recipe make you feel?</CardTitle>
         </CardHeader>
         <CardContent className="p-6 space-y-4">
           <Textarea
