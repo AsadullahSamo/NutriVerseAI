@@ -1,7 +1,7 @@
 import { CulturalCuisine } from "@shared/schema";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MapPin, Globe, PlusCircle } from "lucide-react";
+import { MapPin, Globe, PlusCircle, Loader2, Sparkles, Info } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -9,6 +9,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useState, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from '@tanstack/react-query';
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { generateCuisineDetailsFromName } from "@ai-services/cultural-cuisine-service";
 
 interface CuisineListProps {
   cuisines: CulturalCuisine[];
@@ -27,6 +29,7 @@ interface AddCuisineData {
 export function CuisineList({ cuisines, onSelectCuisine }: CuisineListProps) {
   const [isAddingCuisine, setIsAddingCuisine] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -48,6 +51,56 @@ export function CuisineList({ cuisines, onSelectCuisine }: CuisineListProps) {
     return 'Information not available';
   };
 
+  const generateAIDetails = async (form: HTMLFormElement) => {
+    const formData = new FormData(form);
+    const name = formData.get('name') as string;
+    const region = formData.get('region') as string;
+
+    if (!name && !region) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter either name or region to generate details.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const details = await generateCuisineDetailsFromName(name || region, region || name);
+      
+      // Update form fields with generated details
+      const nameInput = form.querySelector('input[name="name"]') as HTMLInputElement;
+      const regionInput = form.querySelector('input[name="region"]') as HTMLInputElement;
+      const descriptionInput = form.querySelector('textarea[name="description"]') as HTMLTextAreaElement;
+      const keyIngredientsInput = form.querySelector('textarea[name="keyIngredients"]') as HTMLTextAreaElement;
+      const cookingTechniquesInput = form.querySelector('textarea[name="cookingTechniques"]') as HTMLTextAreaElement;
+      const bannerUrlInput = form.querySelector('input[name="bannerUrl"]') as HTMLInputElement;
+
+      // Update name and region if they were empty
+      if (!name && nameInput) nameInput.value = details.culturalContext.history.split(' ')[0] + ' Cuisine';
+      if (!region && regionInput) regionInput.value = details.culturalContext.influences.split(' ')[0] + ' Region';
+
+      if (descriptionInput) descriptionInput.value = details.description;
+      if (keyIngredientsInput) keyIngredientsInput.value = details.keyIngredients.join('\n');
+      if (cookingTechniquesInput) cookingTechniquesInput.value = details.cookingTechniques.join('\n');
+      if (bannerUrlInput) bannerUrlInput.value = `https://source.unsplash.com/800x600/?${encodeURIComponent((name || region).toLowerCase() + ' food')}`;
+
+      toast({
+        title: "Details Generated",
+        description: "AI has generated cultural cuisine details. Please review and manually enter a banner image URL that best represents this cuisine.",
+      });
+    } catch (error) {
+      toast({
+        title: "Generation Failed",
+        description: "Failed to generate details. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   // Add cuisine handler with proper cache invalidation
   const handleAddCuisine = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -60,8 +113,8 @@ export function CuisineList({ cuisines, onSelectCuisine }: CuisineListProps) {
         region: formData.get('region') as string,
         description: formData.get('description') as string,
         bannerUrl: formData.get('bannerUrl') as string,
-        keyIngredients: (formData.get('keyIngredients') as string).split(',').map(i => i.trim()),
-        cookingTechniques: (formData.get('cookingTechniques') as string).split(',').map(t => t.trim()),
+        keyIngredients: (formData.get('keyIngredients') as string).split('\n').map(i => i.trim()).filter(Boolean),
+        cookingTechniques: (formData.get('cookingTechniques') as string).split('\n').map(t => t.trim()).filter(Boolean),
         culturalContext: {
           history: "To be added",
           significance: "To be added"
@@ -124,6 +177,17 @@ export function CuisineList({ cuisines, onSelectCuisine }: CuisineListProps) {
       <Dialog open={isAddingCuisine} onOpenChange={setIsAddingCuisine}>
         <DialogContent className="sm:max-w-[600px]">
           <ScrollArea className="max-h-[80vh] px-6">
+            
+            <Alert className="mb-6 border-green-500">
+              <Info className="size-4 text-yellow-500" />
+              <AlertDescription className="ml-2">
+                <span >
+                  {/* Enter the title of the recipe and click the <span className="inline-flex mx-2 font-bold"><Sparkles className="size-4 text-green-500 mr-2" /> Generate</span> button to auto-fill recipe details using AI. You'll need to add an image URL manually as AI generated image urls are not always accurate. */}
+                  Enter the name or region of the cuisine and click the <span className="inline-flex mx-2 font-bold"><Sparkles className="size-4 text-green-500 mr-2" /> Generate</span> button to auto-fill cuisine details using AI. You'll need to add an image URL manually as AI generated image urls are not always accurate.
+                </span>
+              </AlertDescription>
+            </Alert>
+
             <DialogHeader>
               <DialogTitle>Add New Cuisine</DialogTitle>
             </DialogHeader>
@@ -136,6 +200,29 @@ export function CuisineList({ cuisines, onSelectCuisine }: CuisineListProps) {
                 <div className="space-y-2.5">
                   <label className="text-sm font-medium">Region</label>
                   <Input name="region" placeholder="e.g., Southeast Asia, Latin America" required />
+                </div>
+                <div className="flex justify-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={(e) => {
+                      const form = e.currentTarget.closest('form');
+                      if (form) generateAIDetails(form);
+                    }}
+                    disabled={isGenerating}
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin text-green-500" />
+                        Generating Details...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-2 h-4 w-4 text-green-500" />
+                        Generate
+                      </>
+                    )}
+                  </Button>
                 </div>
                 <div className="space-y-2.5">
                   <label className="text-sm font-medium">Description</label>
@@ -155,24 +242,26 @@ export function CuisineList({ cuisines, onSelectCuisine }: CuisineListProps) {
                 </div>
                 <div className="space-y-2.5">
                   <label className="text-sm font-medium">Key Ingredients</label>
-                  <Input 
+                  <Textarea 
                     name="keyIngredients" 
-                    placeholder="rice, garlic, ginger, soy sauce"
+                    placeholder="Enter each ingredient on a new line&#10;e.g.,&#10;Rice&#10;Garlic&#10;Ginger&#10;Soy Sauce"
                     required 
+                    className="min-h-[100px]"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Comma-separated list of key ingredients
+                    Enter each ingredient on a new line
                   </p>
                 </div>
                 <div className="space-y-2.5">
                   <label className="text-sm font-medium">Cooking Techniques</label>
-                  <Input 
+                  <Textarea 
                     name="cookingTechniques" 
-                    placeholder="stir-frying, steaming, grilling"
+                    placeholder="Enter each technique on a new line&#10;e.g.,&#10;Stir-frying&#10;Steaming&#10;Grilling"
                     required 
+                    className="min-h-[100px]"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Comma-separated list of cooking techniques
+                    Enter each technique on a new line
                   </p>
                 </div>
               </div>
@@ -184,45 +273,33 @@ export function CuisineList({ cuisines, onSelectCuisine }: CuisineListProps) {
         </DialogContent>
       </Dialog>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {visibleCuisines.map((cuisine) => (
-          <Card key={cuisine.id} className="flex flex-col opacity-100 transition-opacity duration-200">
-            <div 
-              className="h-48 bg-cover bg-center relative rounded-t-lg overflow-hidden"
-              style={{ 
-                backgroundImage: `url(${cuisine.bannerUrl || `https://source.unsplash.com/800x600/?${encodeURIComponent(cuisine.name.toLowerCase() + ' food')}`})`
-              }}
+      <ScrollArea className="h-[calc(100vh-12rem)]">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4">
+          {visibleCuisines.map((cuisine) => (
+            <Card
+              key={cuisine.id}
+              className="cursor-pointer hover:shadow-lg transition-shadow"
+              onClick={() => onSelectCuisine(cuisine.id)}
             >
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              <div className="absolute bottom-0 left-0 p-4">
-                <h3 className="text-xl font-bold text-white">{cuisine.name}</h3>
-                <div className="flex items-center text-white/80 text-sm">
-                  <MapPin className="h-3 w-3 mr-1" /> {cuisine.region}
-                </div>
-              </div>
-            </div>
-            <CardContent className="flex-grow pt-4">
-              <p className="text-muted-foreground text-sm line-clamp-2 mb-4">
-                {cuisine.description}
-              </p>
-              <div className="text-sm">
-                <p className="font-medium mb-1">Key ingredients:</p>
-                <p className="text-muted-foreground line-clamp-2">
-                  {formatKeyIngredients(cuisine.keyIngredients)}
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Globe className="h-5 w-5" />
+                  {cuisine.name}
+                </CardTitle>
+                <CardDescription className="flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  {cuisine.region}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground line-clamp-3">
+                  {cuisine.description}
                 </p>
-              </div>
-            </CardContent>
-            <CardFooter className="pt-0">
-              <Button 
-                onClick={() => onSelectCuisine(cuisine.id)} 
-                className="w-full"
-              >
-                Explore {cuisine.name} Cuisine
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </ScrollArea>
     </div>
   );
 }

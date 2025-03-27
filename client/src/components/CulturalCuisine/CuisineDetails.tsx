@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
@@ -15,14 +16,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft, Plus, Trash2, Edit, Brain, ChefHat,
   PlusCircle, Play, Globe2, UtensilsCrossed, MapPin,
-  BookOpen, Scroll, History, Star, Map, Loader2, AlertTriangle, ListOrdered, Palette, Ban, Info, Sparkles, ScrollText
+  BookOpen, Scroll, History, Star, Map, Loader2, AlertTriangle, ListOrdered, Palette, Ban, Info, Sparkles, ScrollText, Wand2
 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { analyzeCulturalCuisine, type CulturalInsights, generateCulturalDetails } from "@ai-services/cultural-cuisine-service";
+import { generateCulturalRecipeDetails } from "@/lib/generateCulturalRecipeDetails";
 import type { CulturalCuisine, CulturalRecipe, CulturalTechnique } from "@shared/schema";
 import { RecipeDetails } from "./RecipeDetails";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { generateRecipeDetails } from "@ai-services/recipe-ai";
 
 // Add formatHeading utility function
 const formatHeading = (text: string): string => {
@@ -467,39 +468,61 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
     }
   };
 
-  const generateAIDetails = async (recipeName: string) => {
+  const generateAIDetails = async (form: HTMLFormElement) => {
+    const nameInput = form.querySelector('input[name="name"]') as HTMLInputElement;
+    const name = nameInput?.value;
+
+    if (!name) {
+      toast({
+        title: "Missing Information",
+        description: "Please enter a recipe name to generate details.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    console.log('[Form] Starting AI generation for recipe:', name);
     setIsGenerating(true);
     try {
-      const details = await generateRecipeDetails(recipeName, cuisine.name);
+      console.log('[Form] Calling generateCulturalRecipeDetails...');
+      const details = await generateCulturalRecipeDetails(name, cuisine?.name || '');
+      console.log('[Form] Received details:', details);
       
-      // Convert ingredients to comma-separated list
-      const ingredients = details.ingredients.map(ing => 
-        `${ing.amount} ${ing.item}${ing.notes ? ` (${ing.notes})` : ''}`
-      ).join(', ');
+      // Update form fields with generated details
+      const descriptionInput = form.querySelector('textarea[name="description"]') as HTMLTextAreaElement;
+      const ingredientsInput = form.querySelector('textarea[name="ingredients"]') as HTMLTextAreaElement;
+      const instructionsInput = form.querySelector('textarea[name="instructions"]') as HTMLTextAreaElement;
+      const difficultySelect = form.querySelector('select[name="difficulty"]') as HTMLSelectElement;
 
-      // Update form fields
-      const form = document.querySelector('form') as HTMLFormElement;
-      if (form) {
-        const ingredientsTextarea = form.querySelector('[name="ingredients"]') as HTMLTextAreaElement;
-        const instructionsTextarea = form.querySelector('[name="instructions"]') as HTMLTextAreaElement;
-        
-        if (ingredientsTextarea) {
-          ingredientsTextarea.value = ingredients;
+      console.log('[Form] Updating form fields...');
+      if (descriptionInput) descriptionInput.value = details.description || '';
+      
+      // Handle ingredients
+      if (ingredientsInput) {
+        let ingredientsText = '';
+        console.log('[Form] Processing ingredients:', details.authenticIngredients);
+        if (Array.isArray(details.authenticIngredients)) {
+          ingredientsText = details.authenticIngredients.join('\n');
         }
-        if (instructionsTextarea) {
-          instructionsTextarea.value = details.instructions.join('\n');
-        }
+        console.log('[Form] Setting ingredients text:', ingredientsText);
+        ingredientsInput.value = ingredientsText;
       }
 
+      if (instructionsInput) instructionsInput.value = Array.isArray(details.instructions)
+        ? details.instructions.join('\n')
+        : '';
+      if (difficultySelect) difficultySelect.value = details.difficulty || 'intermediate';
+
       toast({
-        title: "Recipe Details Generated",
-        description: "AI has generated recipe details. Feel free to edit them.",
+        title: "Details Generated",
+        description: "AI has generated recipe details. Please review and manually enter an image URL that best represents this dish.",
       });
     } catch (error) {
+      console.error('[Form] Error generating details:', error);
       toast({
         title: "Generation Failed",
-        description: "Failed to generate recipe details. Please try again or enter manually.",
-        variant: "destructive",
+        description: "Failed to generate details. Please try again.",
+        variant: "destructive"
       });
     } finally {
       setIsGenerating(false);
@@ -521,8 +544,8 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
         createdBy: currentUserId || 0,
         hiddenFor: [],
         localName: null,
-        authenticIngredients: formData.get('ingredients')?.toString().split(',').map(i => i.trim()).filter(Boolean) || [],
-        instructions: formData.get('instructions')?.toString().split('\n').filter(Boolean) || [],
+        authenticIngredients: (formData.get('ingredients') as string)?.split('\n').map(i => i.trim()).filter(Boolean) || [],
+        instructions: (formData.get('instructions') as string)?.split('\n').filter(Boolean) || [],
         culturalNotes: {},
         localSubstitutes: {},
         servingSuggestions: [],
@@ -1002,9 +1025,21 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                     </DialogTrigger>
                     <DialogContent className="max-h-[90vh]">
                       <ScrollArea className="max-h-[80vh] pr-4">
+                        
+                      <Alert className="mb-6 border-green-500">
+                              <Info className="size-4 text-yellow-500" />
+                              <AlertDescription className="ml-2">
+                                <span >
+                                  Enter the name of the recipe and click the <span className="inline-flex mx-2 font-bold"><Sparkles className="size-4 text-green-500 mr-2" /> Generate</span> button to auto-fill recipe details using AI. You'll need to add an image URL manually.
+                                </span>
+                              </AlertDescription>
+                            </Alert>
+              
+
                         <DialogHeader>
                           <DialogTitle>Add New Recipe</DialogTitle>
                         </DialogHeader>
+                            
                         <form onSubmit={handleAddRecipe} className="space-y-6 py-4">
                           <div className="space-y-4">
                             <div className="space-y-2">
@@ -1014,26 +1049,23 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                                 <Button
                                   type="button"
                                   variant="outline"
-                                  onClick={() => {
-                                    const nameInput = document.querySelector('[name="name"]') as HTMLInputElement;
-                                    if (nameInput?.value) {
-                                      generateAIDetails(nameInput.value);
-                                    } else {
-                                      toast({
-                                        title: "Recipe Name Required",
-                                        description: "Please enter a recipe name first to generate details.",
-                                        variant: "destructive",
-                                      });
-                                    }
+                                  onClick={(e) => {
+                                    const form = (e.currentTarget as HTMLElement).closest('form');
+                                    if (form) generateAIDetails(form);
                                   }}
                                   disabled={isGenerating}
                                 >
                                   {isGenerating ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    <>
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      Generating...
+                                    </>
                                   ) : (
-                                    <Sparkles className="h-4 w-4" />
+                                    <>
+                                      <Sparkles className="mr-2 h-4 w-4 text-green-500" />
+                                      Generate
+                                    </>
                                   )}
-                                  <span className="ml-2">Generate</span>
                                 </Button>
                               </div>
                             </div>
@@ -1064,19 +1096,19 @@ export function CuisineDetails({ cuisineId, onBack }: CuisineDetailsProps) {
                               <label className="text-sm font-medium">Ingredients</label>
                               <Textarea 
                                 name="ingredients" 
-                                placeholder="Enter ingredients separated by commas&#13;&#10;Example: rice, ginger, soy sauce, sesame oil" 
+                                placeholder="Enter each ingredient on a new line&#10;Example:&#10;2 cups rice&#10;1 onion&#10;3 cloves garlic" 
                                 required 
                               />
                               <p className="text-xs text-muted-foreground">
-                                Enter ingredients separated by commas
+                                Enter each ingredient on a new line
                               </p>
                             </div>
                             <div className="space-y-2">
                               <label className="text-sm font-medium">Instructions</label>
                               <Textarea 
                                 name="instructions" 
-                                placeholder="Enter each step on a new line&#13;&#10;Example:&#13;&#10;Chop vegetables&#13;&#10;Heat oil in pan&#13;&#10;Add spices" 
-                                required
+                                placeholder="Enter each step on a new line&#10;Example:&#10;1. Chop vegetables&#10;2. Heat oil in pan&#10;3. Add spices" 
+                                required 
                                 rows={5}
                               />
                               <p className="text-xs text-muted-foreground">

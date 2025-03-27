@@ -285,7 +285,7 @@ export function RecipeCard({ recipe, compact = false, showDelete = false, hideEd
             </div>
 
             {/* Additional sections for non-compact view */}
-            {!compact && (
+            {!compact && !hideEditDelete && (
               <>
                 <div className="p-4 border-t bg-card">
                   <MoodTracker recipeId={recipe.id} />

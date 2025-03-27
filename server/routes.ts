@@ -30,7 +30,8 @@ import {
   getRecipeAuthenticityScore,
   getEtiquette,
   getPairings,
-  getSubstitutions
+  getSubstitutions,
+  generateCulturalRecipeDetails
 } from "../ai-services/cultural-cuisine-service";
 import { desc, eq, and, count } from "drizzle-orm";
 import { db } from "./db";
@@ -1549,6 +1550,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: 'Failed to update recipe' });
     }
   }));
+
+  // Add the generate-cultural-recipe endpoint
+  app.post('/api/ai/generate-cultural-recipe', async (req, res) => {
+    try {
+      const { recipeName, cuisineName } = req.body;
+      console.log('[Server] Received request for:', { recipeName, cuisineName });
+
+      if (!recipeName || !cuisineName) {
+        console.error('[Server] Missing required fields:', { recipeName, cuisineName });
+        return res.status(400).json({ error: 'Missing required fields' });
+      }
+
+      console.log('[Server] Calling generateCulturalRecipeDetails...');
+      const details = await generateCulturalRecipeDetails(recipeName, cuisineName);
+      console.log('[Server] Generated details:', details);
+      
+      res.json(details);
+    } catch (error) {
+      console.error('[Server] Error generating recipe details:', error);
+      res.status(500).json({ error: 'Failed to generate recipe details' });
+    }
+  });
 
   // ----------------- Error Handling Middleware -----------------
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
