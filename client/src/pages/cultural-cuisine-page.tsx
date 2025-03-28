@@ -14,7 +14,7 @@ export default function CulturalCuisinePage() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    document.title = "Cultural Cuisine Explorer | NutriCartAI";
+    document.title = "Cultural Cuisine Explorer | NutriVerseAI";
   }, []);
 
   const { data: cuisines, isLoading, error, refetch } = useQuery({

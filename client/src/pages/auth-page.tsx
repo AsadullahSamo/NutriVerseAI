@@ -91,7 +91,7 @@ export default function AuthPage() {
       <div className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8">
         <Card className="w-full max-w-md mx-auto">
           <CardHeader className="text-center sm:text-left">
-            <CardTitle className="text-xl sm:text-2xl font-bold">Welcome to NutriCart AI</CardTitle>
+            <CardTitle className="text-xl sm:text-2xl font-bold">Welcome to NutriVerse AI</CardTitle>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="login">
@@ -242,21 +242,23 @@ export default function AuthPage() {
         </Card>
       </div>
 
-      <div className="hidden lg:flex flex-1 bg-primary/90 dark:bg-primary/70">
-        <div className="max-w-2xl mx-auto px-8 py-12 flex flex-col justify-center text-primary-foreground">
+      <div className="overflow-hidden hidden lg:flex flex-1 bg-primary/90 dark:bg-primary/70">
+        <div className="max-w-2xl mx-auto px-8 pt-7 pb-12 flex flex-col justify-center text-primary-foreground">
           <h1 className="text-3xl sm:text-4xl font-bold mb-4">Your Smart Nutrition Assistant</h1>
           <p className="text-base sm:text-lg opacity-90 space-y-4">
             Experience the power of AI in your kitchen. Get personalized meal plans, smart recipe recommendations, and real-time nutrition analysis. Our AI helps track your cooking mood, generates cultural cuisine insights, provides kitchen equipment analysis, and even makes smart shopping suggestions.
           </p>
           <ul className="mt-6 space-y-2 list-none">
-            <li className="flex items-center gap-2">🤖 AI-powered nutrition analysis & insights</li>
+            <li className="flex items-center gap-2">🤖 Advanced AI-powered nutrition analysis, tracking & insights</li>
             <li className="flex items-center gap-2">📊 Smart meal planning & recipe recommendations</li>
+            <li className="flex items-center gap-2">🏠 Smart pantry management, analysis & expiry tracking</li>
             <li className="flex items-center gap-2">🌎 AI-generated cultural cuisine details</li>
-            <li className="flex items-center gap-2">🔍 Intelligent kitchen equipment analysis</li>
+            <li className="flex items-center gap-2">🔍 Intelligent kitchen equipment analysis, recommendations & recipe suggestions</li>
+            <li className="flex items-center gap-2">👥 Community features for recipe sharing, cooking tips & food rescue</li>
             <li className="flex items-center gap-2">😊 AI mood tracking for cooking experiences</li>
           </ul>
           <p className="mt-6 text-sm italic font-semibold">
-            And many more exciting features waiting for you to explore! Join now to discover all the ways NutriCart AI can transform your cooking journey.
+            And many more exciting features waiting for you to explore! Join now to discover all the way NutriVerse AI can transform your cooking journey.
           </p>
         </div>
       </div>

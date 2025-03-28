@@ -118,13 +118,14 @@ export class DatabaseStorage implements IStorage {
         console.log("Note: Skip kitchenStorageLocations if table doesn't exist");
       }
       
+      // 12. Delete cultural recipes and cuisines
       await db.delete(culturalRecipes)
         .where(eq(culturalRecipes.createdBy, id));
 
       await db.delete(culturalCuisines)
         .where(eq(culturalCuisines.createdBy, id));
 
-      // 12. Finally, delete the user account
+      // 13. Finally, delete the user account
       await db.delete(users)
         .where(eq(users.id, id));
     } catch (error) {

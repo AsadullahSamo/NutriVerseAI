@@ -66,7 +66,7 @@ export function Navbar() {
         <div className="container flex h-14 items-center">
           {/* Logo - aligned to the left with proper spacing */}
           <Link href="/" className="flex items-center pl-4">
-            <span className="font-bold text-xl">NutriCartAI</span>
+            <span className="font-bold text-xl">NutriVerseAI</span>
           </Link>
 
           {/* Desktop Navigation */}
