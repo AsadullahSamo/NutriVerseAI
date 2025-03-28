@@ -45,7 +45,7 @@ export function Navbar() {
       <header className="fixed top-0 left-0 right-0 z-50 border-b bg-background">
         <div className="container flex h-14 items-center">
           <Link href="/" className="flex items-center pl-6">
-            <span className="font-bold text-xl">NutriCartAI</span>
+            <span className="font-bold text-xl">NutriVerseAI</span>
           </Link>
 
           {/* Desktop Navigation */}

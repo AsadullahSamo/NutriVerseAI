@@ -1,4 +1,4 @@
-# NutriCartAI
+# NutriVerseAI
 
 A smart nutrition and grocery management platform that helps users make healthy eating choices, reduce food waste, and maintain a sustainable kitchen. Features a responsive design that works seamlessly across all devices.
 

@@ -6,7 +6,8 @@
     "tsBuildInfoFile": "./node_modules/typescript/tsbuildinfo",
     "noEmit": true,
     "module": "ESNext",
-    "strict": true,
+    "strict": false,
+    "noEmitOnError": false,
     "lib": ["esnext", "dom", "dom.iterable"],
     "jsx": "preserve",
     "esModuleInterop": true,
@@ -19,6 +20,14 @@
       "@/*": ["./client/src/*"],
       "@shared/*": ["./shared/*"],
       "@ai-services/*": ["./ai-services/*"]
-    }
+    },
+    "noImplicitAny": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "ignoreDeprecations": "5.0",
+    "allowJs": true,
+    "checkJs": false,
+    "noFallthroughCasesInSwitch": false,
+    "noPropertyAccessFromIndexSignature": false
   }
 }

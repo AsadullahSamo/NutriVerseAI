@@ -120,6 +120,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication middleware and routes first
   setupAuth(app);
 
+  // Add health check endpoint
+  app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
   // ----------------- Recipes Routes -----------------
   app.get(
     "/api/recipes",
