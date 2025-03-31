@@ -6,8 +6,10 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load environment variables from .env file in the root directory
-config({ path: resolve(__dirname, '..', '.env') });
+// Load environment variables from .env file in the root directory only in development
+if (process.env.NODE_ENV !== 'production') {
+  config({ path: resolve(__dirname, '..', '.env') });
+}
 
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
