@@ -3,7 +3,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { neon, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from 'drizzle-orm/neon-http';
-import * as schema from "@shared/schema";
+import * as schema from "../shared/schema";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -18,7 +18,7 @@ if (!process.env.DATABASE_URL) {
 // Configure neon with retries and logging
 neonConfig.fetchConnectionCache = true;
 neonConfig.webSocketConstructor = undefined; // Disable WebSocket for serverless
-neonConfig.useSecure = true; // Ensure SSL is used
+// neonConfig.useSecure = true; // Ensure SSL is used
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
