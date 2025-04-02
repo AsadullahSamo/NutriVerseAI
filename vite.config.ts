@@ -8,6 +8,10 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Ensure paths are normalized
+const clientRoot = path.resolve(__dirname, "client");
+const clientEntry = path.resolve(clientRoot, "index.html");
+
 export default defineConfig({
   plugins: [
     react(),
@@ -32,19 +36,23 @@ export default defineConfig({
       "@ai-services": path.resolve(__dirname, "ai-services"),
     }
   },
-  root: path.resolve(__dirname, "client"),
+  root: clientRoot,
+  publicDir: path.resolve(clientRoot, "public"),
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
+    manifest: true,
     rollupOptions: {
-      input: {
-        main: path.resolve(__dirname, "client/index.html")
-      }
+      input: clientEntry
     }
   },
   server: {
     hmr: {
       overlay: false,
+    },
+    fs: {
+      strict: true,
+      allow: [clientRoot]
     },
     proxy: {
       '/api': {

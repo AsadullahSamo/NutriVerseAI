@@ -11,6 +11,10 @@ import { nanoid } from "nanoid";
 
 const viteLogger = createLogger();
 
+// Ensure paths are normalized
+const clientRoot = path.resolve(__dirname, "..", "client");
+const clientEntry = path.resolve(clientRoot, "index.html");
+
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
     hour: "numeric",
@@ -26,7 +30,11 @@ export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
-    allowedHosts: true,
+    allowedHosts: ['localhost'],
+    fs: {
+      strict: true,
+      allow: [clientRoot]
+    }
   };
 
   const vite = await createViteServer({
@@ -39,6 +47,7 @@ export async function setupVite(app: Express, server: Server) {
         process.exit(1);
       },
     },
+    root: clientRoot,
     server: serverOptions,
     appType: "custom",
   });
@@ -48,15 +57,8 @@ export async function setupVite(app: Express, server: Server) {
     const url = req.originalUrl;
 
     try {
-      const clientTemplate = path.resolve(
-        __dirname,
-        "..",
-        "client",
-        "index.html",
-      );
-
       // always reload the index.html file from disk incase it changes
-      let template = await fs.promises.readFile(clientTemplate, "utf-8");
+      let template = await fs.promises.readFile(clientEntry, "utf-8");
       template = template.replace(
         `src="/src/main.tsx"`,
         `src="/src/main.tsx?v=${nanoid()}"`,
@@ -71,7 +73,7 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(__dirname, "public");
+  const distPath = path.resolve(__dirname, "..", "dist", "public");
 
   if (!fs.existsSync(distPath)) {
     throw new Error(
