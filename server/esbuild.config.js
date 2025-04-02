@@ -13,7 +13,8 @@ await esbuild.build({
   format: 'esm',
   outdir: 'dist/server',
   external: [
-    // Node.js built-in modules
+    // Node.js built-in modules - must be external
+    'node:*',  // All node: protocol imports
     'path',
     'url',
     'fs',
@@ -28,6 +29,21 @@ await esbuild.build({
     'zlib',
     'os',
     'buffer',
+    'querystring',
+    'string_decoder',
+    'worker_threads',
+    'child_process',
+    'cluster',
+    'dgram',
+    'dns',
+    'module',
+    'process',
+    'readline',
+    'repl',
+    'timers',
+    'tty',
+    'v8',
+    'vm',
     // External dependencies that should not be bundled
     'express',
     'cors',
@@ -60,6 +76,7 @@ await esbuild.build({
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'production')
   },
+  inject: ['./server/shims.js'],
   minify: false,
   sourcemap: true,
   outExtension: { '.js': '.js' },
