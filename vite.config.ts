@@ -30,12 +30,17 @@ export default defineConfig({
       "@": path.resolve(__dirname, "client", "src"),
       "@shared": path.resolve(__dirname, "shared"),
       "@ai-services": path.resolve(__dirname, "ai-services"),
-    },
+    }
   },
   root: path.resolve(__dirname, "client"),
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, "client/index.html")
+      }
+    }
   },
   server: {
     hmr: {
@@ -54,5 +59,5 @@ export default defineConfig({
         }
       }
     }
-  },
+  }
 });
