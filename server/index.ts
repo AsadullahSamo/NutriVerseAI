@@ -2,7 +2,7 @@ import { config } from 'dotenv';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
-// ES Module compatible __dirname
+// ES Module compatible __dirname (must be in each file that needs it)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
