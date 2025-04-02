@@ -13,7 +13,7 @@ const viteLogger = createLogger();
 
 // Ensure paths are normalized
 const clientRoot = path.resolve(__dirname, "..", "client");
-const clientEntry = path.resolve(clientRoot, "index.html");
+const clientSrc = path.resolve(clientRoot, "src");
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -30,10 +30,13 @@ export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
-    allowedHosts: ['localhost'],
     fs: {
-      strict: true,
-      allow: [clientRoot]
+      strict: false,
+      allow: [
+        clientRoot,
+        path.resolve(__dirname, "..", "shared"),
+        path.resolve(__dirname, "..", "ai-services")
+      ]
     }
   };
 
@@ -44,10 +47,14 @@ export async function setupVite(app: Express, server: Server) {
       ...viteLogger,
       error: (msg, options) => {
         viteLogger.error(msg, options);
-        process.exit(1);
+        // Don't exit on error in development
+        if (process.env.NODE_ENV === 'production') {
+          process.exit(1);
+        }
       },
     },
     root: clientRoot,
+    base: '/',
     server: serverOptions,
     appType: "custom",
   });
@@ -58,13 +65,18 @@ export async function setupVite(app: Express, server: Server) {
 
     try {
       // always reload the index.html file from disk incase it changes
-      let template = await fs.promises.readFile(clientEntry, "utf-8");
-      template = template.replace(
-        `src="/src/main.tsx"`,
-        `src="/src/main.tsx?v=${nanoid()}"`,
+      const template = await fs.promises.readFile(
+        path.resolve(clientRoot, "index.html"),
+        "utf-8"
       );
-      const page = await vite.transformIndexHtml(url, template);
-      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+      
+      const transformedTemplate = template.replace(
+        'src="/src/main.tsx"',
+        `src="/src/main.tsx?v=${nanoid()}"`
+      );
+      
+      const html = await vite.transformIndexHtml(url, transformedTemplate);
+      res.status(200).set({ "Content-Type": "text/html" }).end(html);
     } catch (e) {
       vite.ssrFixStacktrace(e as Error);
       next(e);
@@ -81,9 +93,11 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  app.use(express.static(distPath, {
+    index: false // Don't serve index.html automatically
+  }));
 
-  // fall through to index.html if the file doesn't exist
+  // Serve index.html for all routes
   app.use("*", (_req, res) => {
     res.sendFile(path.resolve(distPath, "index.html"));
   });

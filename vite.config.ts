@@ -10,7 +10,7 @@ const __dirname = dirname(__filename);
 
 // Ensure paths are normalized
 const clientRoot = path.resolve(__dirname, "client");
-const clientEntry = path.resolve(clientRoot, "index.html");
+const clientSrc = path.resolve(clientRoot, "src");
 
 export default defineConfig({
   plugins: [
@@ -31,7 +31,7 @@ export default defineConfig({
   envPrefix: ['VITE_'],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "client", "src"),
+      "@": clientSrc,
       "@shared": path.resolve(__dirname, "shared"),
       "@ai-services": path.resolve(__dirname, "ai-services"),
     }
@@ -43,7 +43,12 @@ export default defineConfig({
     emptyOutDir: true,
     manifest: true,
     rollupOptions: {
-      input: clientEntry
+      input: path.resolve(clientRoot, "index.html")
+    },
+    assetsDir: "assets",
+    cssCodeSplit: true,
+    modulePreload: {
+      polyfill: true
     }
   },
   server: {
@@ -51,8 +56,12 @@ export default defineConfig({
       overlay: false,
     },
     fs: {
-      strict: true,
-      allow: [clientRoot]
+      strict: false,
+      allow: [
+        clientRoot,
+        path.resolve(__dirname, "shared"),
+        path.resolve(__dirname, "ai-services")
+      ]
     },
     proxy: {
       '/api': {
@@ -67,5 +76,8 @@ export default defineConfig({
         }
       }
     }
+  },
+  optimizeDeps: {
+    include: ['react', 'react-dom']
   }
 });
