@@ -39,7 +39,7 @@ export default defineConfig({
   root: clientRoot,
   publicDir: path.resolve(clientRoot, "public"),
   build: {
-    outDir: path.resolve(__dirname, "dist/public"),
+    outDir: path.resolve(__dirname, "dist/client"),
     emptyOutDir: true,
     manifest: true,
     rollupOptions: {
