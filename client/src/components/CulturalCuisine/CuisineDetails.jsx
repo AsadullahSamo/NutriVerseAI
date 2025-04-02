@@ -163,11 +163,25 @@ export function CuisineDetails({ cuisineId, onBack }) {
     const [currentUserId, setCurrentUserId] = useState(null);
     // Add state for visibility
     const [isHidden, setIsHidden] = useState(false);
+    // Import config for API URLs
+    const [config, setConfig] = useState(null);
+
+    // Load the config on mount
+    useEffect(() => {
+        const loadConfig = async () => {
+            const configModule = await import("@/lib/config");
+            setConfig(configModule.default);
+        };
+        loadConfig();
+    }, []);
+    
     // Fetch current user ID on mount
     useEffect(() => {
+        if (!config) return; // Wait for config to be loaded
+        
         const fetchUserId = async () => {
             try {
-                const response = await fetch('/api/user', {
+                const response = await fetch(`${config.apiBaseUrl}/api/user`, {
                     credentials: 'include' // Important: include credentials for authentication
                 });
                 if (response.ok) {
@@ -192,7 +206,8 @@ export function CuisineDetails({ cuisineId, onBack }) {
             }
         };
         fetchUserId();
-    }, [toast]);
+    }, [toast, config]);
+    
     // Check visibility from both localStorage and server data
     useEffect(() => {
         const hiddenCuisines = JSON.parse(localStorage.getItem('hiddenCuisines') || '[]');
@@ -209,8 +224,10 @@ export function CuisineDetails({ cuisineId, onBack }) {
         queryKey: ['cuisine', cuisineId],
         queryFn: async () => {
             var _a;
+            if (!config) throw new Error('Configuration not loaded');
+            
             console.log(`[Query] Fetching cuisine ${cuisineId}`);
-            const response = await fetch(`/api/cultural-cuisines/${cuisineId}`);
+            const response = await fetch(`${config.apiBaseUrl}/api/cultural-cuisines/${cuisineId}`);
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
                 throw new Error(errorData.message || 'Failed to fetch cuisine details');
@@ -224,16 +241,17 @@ export function CuisineDetails({ cuisineId, onBack }) {
             }
             return data;
         },
-        enabled: !!cuisineId,
+        enabled: !!cuisineId && !!config,
         retry: false,
         staleTime: 0
     });
     const handleUpdateImages = async (data) => {
+        if (!config) return;
         try {
             // Store banner URL in localStorage
             localStorage.setItem(`cuisine-image-${cuisineId}`, data.bannerUrl);
             setLocalImageUrl(data.bannerUrl);
-            const response = await fetch(`/api/cultural-cuisines/${cuisineId}`, {
+            const response = await fetch(`${config.apiBaseUrl}/api/cultural-cuisines/${cuisineId}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -261,7 +279,7 @@ export function CuisineDetails({ cuisineId, onBack }) {
     };
     const handleUpdateCulturalDetails = async (data) => {
         try {
-            const response = await fetch(`/api/cultural-cuisines/${cuisineId}`, {
+            const response = await fetch(`${config.apiBaseUrl}/api/cultural-cuisines/${cuisineId}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -293,7 +311,7 @@ export function CuisineDetails({ cuisineId, onBack }) {
     const handleDeleteCuisine = async () => {
         try {
             console.log(`[Delete] Attempting to hide cuisine ${cuisineId} for user ${currentUserId}`);
-            const response = await fetch(`/api/cultural-cuisines/${cuisineId}/hide`, {
+            const response = await fetch(`${config.apiBaseUrl}/api/cultural-cuisines/${cuisineId}/hide`, {
                 method: 'POST',
                 credentials: 'include',
                 headers: {
@@ -338,7 +356,7 @@ export function CuisineDetails({ cuisineId, onBack }) {
         try {
             const details = await generateCulturalDetails(cuisine);
             // Update the cuisine with new cultural details
-            const response = await fetch(`/api/cultural-cuisines/${cuisineId}`, {
+            const response = await fetch(`${config.apiBaseUrl}/api/cultural-cuisines/${cuisineId}`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -451,7 +469,7 @@ export function CuisineDetails({ cuisineId, onBack }) {
                 createdAt: new Date(),
                 updatedAt: new Date()
             };
-            const response = await fetch(`/api/cultural-cuisines/${cuisine.id}/recipes`, {
+            const response = await fetch(`${config.apiBaseUrl}/api/cultural-cuisines/${cuisine.id}/recipes`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -487,7 +505,7 @@ export function CuisineDetails({ cuisineId, onBack }) {
                 throw new Error('You must be logged in to delete recipes');
             }
             console.log(`[Delete] Attempting to delete recipe ${recipeId} for user ${currentUserId}`);
-            const response = await fetch(`/api/cultural-recipes/${recipeId}`, {
+            const response = await fetch(`${config.apiBaseUrl}/api/cultural-recipes/${recipeId}`, {
                 method: 'DELETE',
                 credentials: 'include',
                 headers: {

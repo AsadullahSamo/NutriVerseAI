@@ -1,7 +1,17 @@
-import { model, safeJsonParse } from "./gemini-client";
-export async function getRecipeRecommendations(ingredients, dietaryPreferences) {
-    const prompt = `You are a professional chef creating recipes. Please create 3 recipes using some or all of these ingredients: ${ingredients.join(', ')}
-${dietaryPreferences ? `Consider these dietary preferences: ${dietaryPreferences.join(', ')}\n` : ''}
+import { model, safeJsonParse } from "./gemini-client"
+
+export async function getRecipeRecommendations(
+  ingredients,
+  dietaryPreferences
+) {
+  const prompt = `You are a professional chef creating recipes. Please create 3 recipes using some or all of these ingredients: ${ingredients.join(
+    ", "
+  )}
+${
+  dietaryPreferences
+    ? `Consider these dietary preferences: ${dietaryPreferences.join(", ")}\n`
+    : ""
+}
 
 IMPORTANT: Your response must be a valid JSON array containing EXACTLY 3 recipes. Each recipe must follow this format exactly:
 {
@@ -9,20 +19,23 @@ IMPORTANT: Your response must be a valid JSON array containing EXACTLY 3 recipes
   "ingredients": ["ingredient 1", "ingredient 2", ...],
   "instructions": ["step 1", "step 2", ...],
   "nutritionalValue": "Calories: X, Protein: Xg, Carbs: Xg, Fat: Xg"
-}`;
-    try {
-        console.log('Sending request to Gemini API with ingredients:', ingredients);
-        const result = await model.generateContent(prompt);
-        const response = await result.response.text();
-        return await safeJsonParse(response);
-    }
-    catch (error) {
-        console.error('Gemini API Error:', error);
-        throw error;
-    }
+}`
+
+  try {
+    console.log("Sending request to Gemini API with ingredients:", ingredients)
+    const result = await model.generateContent(prompt)
+    const response = await result.response.text()
+    return await safeJsonParse(response)
+  } catch (error) {
+    console.error("Gemini API Error:", error)
+    throw error
+  }
 }
+
 export async function analyzeNutritionalValue(ingredients, portions = 1) {
-    const prompt = `Analyze the nutritional value of these ingredients for ${portions} portion(s): ${ingredients.join(', ')}
+  const prompt = `Analyze the nutritional value of these ingredients for ${portions} portion(s): ${ingredients.join(
+    ", "
+  )}
 
 Return the analysis in this JSON format:
 {
@@ -31,22 +44,37 @@ Return the analysis in this JSON format:
   "carbs": number (in grams),
   "fat": number (in grams),
   "recommendations": ["recommendation 1", "recommendation 2", ...]
-}`;
-    const result = await model.generateContent(prompt);
-    const response = await result.response.text();
-    return await safeJsonParse(response);
+}`
+
+  const result = await model.generateContent(prompt)
+  const response = await result.response.text()
+  return await safeJsonParse(response)
 }
+
 export async function getMealPlanSuggestions(preferences, days = 7) {
-    const prompt = `Create a ${days}-day meal plan considering these preferences: ${preferences.join(', ')}
-Focus on balanced nutrition and variety. Include breakfast, lunch, dinner, and snacks for each day.`;
-    const result = await model.generateContent(prompt);
-    return result.response.text();
+  const prompt = `Create a ${days}-day meal plan considering these preferences: ${preferences.join(
+    ", "
+  )}
+Focus on balanced nutrition and variety. Include breakfast, lunch, dinner, and snacks for each day.`
+
+  const result = await model.generateContent(prompt)
+  return result.response.text()
 }
-export async function generateAIMealPlan(preferences, days = 7, dietaryRestrictions, calorieTarget) {
-    const prompt = `Create a detailed ${days}-day meal plan with these specifications:
-Preferences: ${preferences.join(', ')}
-${dietaryRestrictions ? `Dietary Restrictions: ${dietaryRestrictions.join(', ')}` : ''}
-${calorieTarget ? `Daily Calorie Target: ${calorieTarget} calories` : ''}
+
+export async function generateAIMealPlan(
+  preferences,
+  days = 7,
+  dietaryRestrictions,
+  calorieTarget
+) {
+  const prompt = `Create a detailed ${days}-day meal plan with these specifications:
+Preferences: ${preferences.join(", ")}
+${
+  dietaryRestrictions
+    ? `Dietary Restrictions: ${dietaryRestrictions.join(", ")}`
+    : ""
+}
+${calorieTarget ? `Daily Calorie Target: ${calorieTarget} calories` : ""}
 
 Return the meal plan as a JSON array where each day object has this structure:
 {
@@ -68,25 +96,31 @@ Return the meal plan as a JSON array where each day object has this structure:
   },
   "totalCalories": number,
   "nutritionSummary": string
-}`;
-    const result = await model.generateContent(prompt);
-    const response = await result.response.text();
-    return await safeJsonParse(response);
+}`
+
+  const result = await model.generateContent(prompt)
+  const response = await result.response.text()
+  return await safeJsonParse(response)
 }
+
 export async function analyzeMoodSentiment(entry) {
-    const prompt = `Analyze the mood and sentiment in this cooking experience entry: "${entry}". 
-Return a JSON object with 'sentiment' (positive/negative/neutral) and 'emotions' (array of specific emotions detected) fields.`;
-    const result = await model.generateContent(prompt);
-    const response = await result.response.text();
-    const parsedResult = await safeJsonParse(response);
-    return {
-        sentiment: parsedResult.sentiment,
-        emotions: parsedResult.emotions || []
-    };
+  const prompt = `Analyze the mood and sentiment in this cooking experience entry: "${entry}". 
+Return a JSON object with 'sentiment' (positive/negative/neutral) and 'emotions' (array of specific emotions detected) fields.`
+
+  const result = await model.generateContent(prompt)
+  const response = await result.response.text()
+  const parsedResult = await safeJsonParse(response)
+
+  return {
+    sentiment: parsedResult.sentiment,
+    emotions: parsedResult.emotions || []
+  }
 }
+
 export async function generateMoodInsights(entries) {
-    const entriesText = entries.map(e => `${e.timestamp}: ${e.entry}`).join('\n');
-    const prompt = `Analyze these cooking experience entries and provide detailed insights about mood patterns, focusing on cooking-related patterns, skill development, and emotional growth in the kitchen. 
+  const entriesText = entries.map(e => `${e.timestamp}: ${e.entry}`).join("\n")
+
+  const prompt = `Analyze these cooking experience entries and provide detailed insights about mood patterns, focusing on cooking-related patterns, skill development, and emotional growth in the kitchen. 
   
 Ensure your response is in this EXACT JSON format without any additional text:
 {
@@ -167,25 +201,34 @@ Ensure your response is in this EXACT JSON format without any additional text:
 }
 
 Entries to analyze:
-${entriesText}`;
-    const result = await model.generateContent(prompt);
-    const response = await result.response.text();
-    const parsedData = await safeJsonParse(response);
-    // Ensure the response has the correct structure
-    return {
-        summary: parsedData.summary || "No insights available yet.",
-        patterns: parsedData.patterns || [],
-        recommendations: parsedData.recommendations || {
-            title: "Getting Started",
-            items: [{
-                    focus: "Begin Your Journey",
-                    suggestion: "Start by recording your cooking experiences regularly."
-                }]
+${entriesText}`
+
+  const result = await model.generateContent(prompt)
+  const response = await result.response.text()
+  const parsedData = await safeJsonParse(response)
+
+  // Ensure the response has the correct structure
+  return {
+    summary: parsedData.summary || "No insights available yet.",
+    patterns: parsedData.patterns || [],
+    recommendations: parsedData.recommendations || {
+      title: "Getting Started",
+      items: [
+        {
+          focus: "Begin Your Journey",
+          suggestion: "Start by recording your cooking experiences regularly."
         }
-    };
+      ]
+    }
+  }
 }
-export async function getNutritionRecommendations(currentGoals, progress, preferences) {
-    const prompt = `Based on these nutrition goals and progress, provide personalized recommendations:
+
+export async function getNutritionRecommendations(
+  currentGoals,
+  progress,
+  preferences
+) {
+  const prompt = `Based on these nutrition goals and progress, provide personalized recommendations:
 
 Current Goals:
 ${JSON.stringify(currentGoals, null, 2)}
@@ -193,7 +236,7 @@ ${JSON.stringify(currentGoals, null, 2)}
 Progress:
 ${JSON.stringify(progress, null, 2)}
 
-${preferences ? `Preferences: ${preferences.join(', ')}` : ''}
+${preferences ? `Preferences: ${preferences.join(", ")}` : ""}
 
 Return recommendations in this JSON format:
 {
@@ -202,14 +245,20 @@ Return recommendations in this JSON format:
   "reasoning": string (explanation for suggested goals),
   "mealSuggestions": [{"type": string, "suggestions": [string]}],
   "improvements": [string] (specific areas to improve)
-}`;
-    const result = await model.generateContent(prompt);
-    const response = await result.response.text();
-    return await safeJsonParse(response);
+}`
+
+  const result = await model.generateContent(prompt)
+  const response = await result.response.text()
+  return await safeJsonParse(response)
 }
-export async function generateRecipe(ingredients, preferences = [], dietaryRestrictions = []) {
-    try {
-        const prompt = `Create a recipe using these ingredients and constraints:
+
+export async function generateRecipe(
+  ingredients,
+  preferences = [],
+  dietaryRestrictions = []
+) {
+  try {
+    const prompt = `Create a recipe using these ingredients and constraints:
     Ingredients: ${JSON.stringify(ingredients)}
     Preferences: ${JSON.stringify(preferences)}
     Dietary Restrictions: ${JSON.stringify(dietaryRestrictions)}
@@ -231,50 +280,53 @@ export async function generateRecipe(ingredients, preferences = [], dietaryRestr
         "fat": "string"
       },
       "tips": ["string"]
-    }`;
-        const result = await model.generateContent(prompt);
-        const response = await result.response.text();
-        return await safeJsonParse(response);
-    }
-    catch (error) {
-        console.error('Error generating recipe:', error);
-        throw error;
-    }
+    }`
+
+    const result = await model.generateContent(prompt)
+    const response = await result.response.text()
+    return await safeJsonParse(response)
+  } catch (error) {
+    console.error("Error generating recipe:", error)
+    throw error
+  }
 }
+
 export async function modifyRecipe(recipe, modifications) {
-    try {
-        const prompt = `Modify this recipe according to these requirements:
+  try {
+    const prompt = `Modify this recipe according to these requirements:
     Original Recipe: ${JSON.stringify(recipe)}
     Modifications: ${JSON.stringify(modifications)}
     
-    Return the modified recipe in the same JSON structure as the original recipe.`;
-        const result = await model.generateContent(prompt);
-        const response = await result.response.text();
-        return await safeJsonParse(response);
-    }
-    catch (error) {
-        console.error('Error modifying recipe:', error);
-        throw error;
-    }
+    Return the modified recipe in the same JSON structure as the original recipe.`
+
+    const result = await model.generateContent(prompt)
+    const response = await result.response.text()
+    return await safeJsonParse(response)
+  } catch (error) {
+    console.error("Error modifying recipe:", error)
+    throw error
+  }
 }
+
 export async function getRecipeVariations(recipe, variationType) {
-    try {
-        const prompt = `Create a ${variationType} variation of this recipe:
+  try {
+    const prompt = `Create a ${variationType} variation of this recipe:
     Original Recipe: ${JSON.stringify(recipe)}
     
-    Return the variation in the same JSON structure as the original recipe.`;
-        const result = await model.generateContent(prompt);
-        const response = await result.response.text();
-        return await safeJsonParse(response);
-    }
-    catch (error) {
-        console.error('Error generating recipe variation:', error);
-        throw error;
-    }
+    Return the variation in the same JSON structure as the original recipe.`
+
+    const result = await model.generateContent(prompt)
+    const response = await result.response.text()
+    return await safeJsonParse(response)
+  } catch (error) {
+    console.error("Error generating recipe variation:", error)
+    throw error
+  }
 }
+
 export async function getMealPlan(preferences, dietaryRestrictions, days) {
-    try {
-        const prompt = `Create a ${days}-day meal plan considering:
+  try {
+    const prompt = `Create a ${days}-day meal plan considering:
     Preferences: ${JSON.stringify(preferences)}
     Dietary Restrictions: ${JSON.stringify(dietaryRestrictions)}
     
@@ -298,19 +350,20 @@ export async function getMealPlan(preferences, dietaryRestrictions, days) {
         "macroBalance": "string",
         "notes": ["string"]
       }
-    }`;
-        const result = await model.generateContent(prompt);
-        const response = await result.response.text();
-        return await safeJsonParse(response);
-    }
-    catch (error) {
-        console.error('Error generating meal plan:', error);
-        throw error;
-    }
+    }`
+
+    const result = await model.generateContent(prompt)
+    const response = await result.response.text()
+    return await safeJsonParse(response)
+  } catch (error) {
+    console.error("Error generating meal plan:", error)
+    throw error
+  }
 }
+
 export async function analyzeRecipe(recipe) {
-    try {
-        const prompt = `Analyze this recipe and provide insights:
+  try {
+    const prompt = `Analyze this recipe and provide insights:
     Recipe: ${JSON.stringify(recipe)}
     
     Return EXACTLY this JSON structure with no additional text:
@@ -332,20 +385,25 @@ export async function analyzeRecipe(recipe) {
       ],
       "cookingTips": ["string"],
       "commonMistakes": ["string"]
-    }`;
-        const result = await model.generateContent(prompt);
-        const response = await result.response.text();
-        return await safeJsonParse(response);
-    }
-    catch (error) {
-        console.error('Error analyzing recipe:', error);
-        throw error;
-    }
+    }`
+
+    const result = await model.generateContent(prompt)
+    const response = await result.response.text()
+    return await safeJsonParse(response)
+  } catch (error) {
+    console.error("Error analyzing recipe:", error)
+    throw error
+  }
 }
+
 export async function generateRecipeDetails(recipeName, cuisine, preferences) {
-    try {
-        const prompt = `Generate detailed recipe information for "${recipeName}"${cuisine ? ` from ${cuisine} cuisine` : ''}.
-    ${preferences ? `Consider these preferences: ${preferences.join(', ')}` : ''}
+  try {
+    const prompt = `Generate detailed recipe information for "${recipeName}"${
+      cuisine ? ` from ${cuisine} cuisine` : ""
+    }.
+    ${
+      preferences ? `Consider these preferences: ${preferences.join(", ")}` : ""
+    }
 
     Return EXACTLY this JSON structure with no additional text:
     {
@@ -372,19 +430,22 @@ export async function generateRecipeDetails(recipeName, cuisine, preferences) {
           "alternatives": ["string"]
         }
       ]
-    }`;
-        const result = await model.generateContent(prompt);
-        const response = await result.response.text();
-        return await safeJsonParse(response);
-    }
-    catch (error) {
-        console.error('Error generating recipe details:', error);
-        throw error;
-    }
+    }`
+
+    const result = await model.generateContent(prompt)
+    const response = await result.response.text()
+    return await safeJsonParse(response)
+  } catch (error) {
+    console.error("Error generating recipe details:", error)
+    throw error
+  }
 }
+
 export async function generatePantryItemDetails(itemName, category) {
-    try {
-        const prompt = `Generate detailed pantry item information for "${itemName}"${category ? ` in the category ${category}` : ''}.
+  try {
+    const prompt = `Generate detailed pantry item information for "${itemName}"${
+      category ? ` in the category ${category}` : ""
+    }.
 
     Return EXACTLY this JSON structure with no additional text:
     {
@@ -402,13 +463,33 @@ export async function generatePantryItemDetails(itemName, category) {
         "packaging": "string (one of: 'recyclable', 'biodegradable', 'reusable', 'non-recyclable')",
         "carbonFootprint": "string (one of: 'low', 'medium', 'high')"
       }
-    }`;
-        const result = await model.generateContent(prompt);
-        const response = await result.response.text();
-        return await safeJsonParse(response);
-    }
-    catch (error) {
-        console.error('Error generating pantry item details:', error);
-        throw error;
-    }
+    }`
+
+    const result = await model.generateContent(prompt)
+    const response = await result.response.text()
+    return await safeJsonParse(response)
+  } catch (error) {
+    console.error("Error generating pantry item details:", error)
+    throw error
+  }
 }
+
+// Create a service object with all the functions
+const recipeAI = {
+  getRecipeRecommendations,
+  analyzeNutritionalValue,
+  getMealPlanSuggestions,
+  generateAIMealPlan,
+  analyzeMoodSentiment,
+  generateMoodInsights,
+  getNutritionRecommendations,
+  generateRecipe,
+  modifyRecipe,
+  getRecipeVariations,
+  getMealPlan,
+  analyzeRecipe,
+  generateRecipeDetails,
+  generatePantryItemDetails
+};
+
+export default recipeAI;

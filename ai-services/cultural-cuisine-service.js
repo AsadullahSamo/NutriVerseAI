@@ -1,22 +1,63 @@
-import { generateContent, safeJsonParse } from "./gemini-client";
+import { generateContent, safeJsonParse } from "./gemini-client"
+
 export async function generateCuisineDetailsFromName(name, region) {
-    const prompt = `Generate detailed information about ${name} cuisine from ${region}. Include:
-1. A concise description of the cuisine
-2. Key ingredients commonly used
-3. Common cooking techniques
+  try {
+    // Check if we're running in browser
+    const isClient = typeof window !== 'undefined';
+    
+    if (isClient) {
+      // Client-side implementation - use the API endpoint
+      const clientConfig = await import("../client/src/lib/config").then(module => module.default);
+      console.log("[AI Service] Using API base URL:", clientConfig.apiBaseUrl);
+      
+      console.log("[AI Service] Using client-side implementation");
+      const apiUrl = `${clientConfig.apiBaseUrl}/api/ai/generate-cultural-recipe`;
+      
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify({ 
+          recipeName: name, 
+          cuisineName: region
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.error || "Failed to generate cuisine details");
+      }
+      
+      const data = await response.json();
+      console.log("[Client] Received cuisine details:", data);
+      return data;
+    } else {
+      // Server-side implementation - use Gemini directly
+      console.log(`[Server] Generating cuisine details for ${name} cuisine from ${region} using Gemini`);
+      const prompt = `Generate detailed information about ${name} cuisine from ${region}.
+
+For key ingredients and cooking techniques, put each item on a separate line WITHOUT any numbering, bullets, or other markers.
+
+Include:
+1. A detailed description (2-3 paragraphs) of ${name} cuisine
+2. List of at least 6 key ingredients used in ${name} cuisine
+3. List of at least 4 common cooking techniques used in ${name} cuisine
 4. Cultural context including history, traditions, festivals, and influences
 5. Serving etiquette including table settings, dining customs, serving order, and taboos
 
-Return EXACTLY this JSON structure:
+Your response MUST be structured exactly like this JSON:
 {
-  "description": "A concise description of the cuisine",
-  "keyIngredients": ["ingredient1", "ingredient2", "ingredient3"],
-  "cookingTechniques": ["technique1", "technique2", "technique3"],
+  "description": "Comprehensive description of the cuisine covering its characteristics, flavors, and significance",
+  "keyIngredients": "Ingredient 1\\nIngredient 2\\nIngredient 3\\nIngredient 4\\nIngredient 5\\nIngredient 6",
+  "cookingTechniques": "Technique 1\\nTechnique 2\\nTechnique 3\\nTechnique 4",
   "culturalContext": {
-    "history": "Historical background",
-    "traditions": "Culinary traditions",
-    "festivals": "Food-related festivals",
-    "influences": "Cultural influences"
+    "history": "Detailed historical background",
+    "traditions": "Main culinary traditions",
+    "festivals": "Important food-related festivals",
+    "influences": "Major cultural influences"
   },
   "servingEtiquette": {
     "tableSettings": "Table arrangement guidelines",
@@ -25,19 +66,53 @@ Return EXACTLY this JSON structure:
     "taboos": "Things to avoid",
     "summary": "Overall dining etiquette summary"
   }
-}`;
-    try {
-        const result = await generateContent(prompt);
-        const response = await result.response.text();
-        return await safeJsonParse(response);
-    }
-    catch (error) {
-        console.error('Error generating cuisine details:', error);
-        throw new Error('Failed to generate cuisine details');
-    }
 }
+
+For keyIngredients and cookingTechniques, make sure they are plain strings with ONLY newline (\\n) separators between items, not arrays.
+Do NOT use bullet points, numbers or any prefixes for the ingredients or techniques.
+STRICTLY FOLLOW THE EXACT FORMAT SHOWN ABOVE for keyIngredients and cookingTechniques.`;
+
+      console.log("[Server] Sending prompt to Gemini:", prompt);
+      const result = await generateContent(prompt)
+      const response = await result.response.text()
+      console.log("[Server] Raw Gemini response:", response);
+      
+      const parsedResponse = await safeJsonParse(response)
+      console.log("[Server] Parsed Gemini response:", parsedResponse);
+      
+      // Validate the response structure and ensure formatting
+      if (!parsedResponse || !parsedResponse.description) {
+        console.error("[Server] Invalid Gemini response structure:", parsedResponse);
+        throw new Error("Invalid response from AI service - missing required fields");
+      }
+      
+      // Make sure keyIngredients and cookingTechniques are formatted as newline-separated strings
+      const formattedResponse = {
+        ...parsedResponse,
+        keyIngredients: typeof parsedResponse.keyIngredients === 'string' 
+          ? parsedResponse.keyIngredients.replace(/^\d+\.\s+|^-\s+|^\*\s+/gm, '') // Remove bullets/numbers
+          : Array.isArray(parsedResponse.keyIngredients)
+            ? parsedResponse.keyIngredients.join('\n')
+            : "Ingredient 1\nIngredient 2\nIngredient 3\nIngredient 4\nIngredient 5",
+            
+        cookingTechniques: typeof parsedResponse.cookingTechniques === 'string'
+          ? parsedResponse.cookingTechniques.replace(/^\d+\.\s+|^-\s+|^\*\s+/gm, '') // Remove bullets/numbers
+          : Array.isArray(parsedResponse.cookingTechniques)
+            ? parsedResponse.cookingTechniques.join('\n')
+            : "Technique 1\nTechnique 2\nTechnique 3"
+      };
+      
+      console.log("[Server] Final formatted response:", formattedResponse);
+      return formattedResponse;
+    }
+  } catch (error) {
+    console.error("[Error] Failed to generate cuisine details:", error);
+    throw new Error("Failed to generate cuisine details: " + (error.message || "Unknown error"));
+  }
+}
+
 export const getCulturalContext = async (recipe, cuisine) => {
-    const prompt = `You are a cultural cuisine expert. Please provide detailed cultural context for the ${recipe.name} recipe from ${cuisine.name} cuisine.
+  const prompt = `You are a cultural cuisine expert. Please provide detailed cultural context for the ${recipe.name} recipe from ${cuisine.name} cuisine.
   Include:
   1. Historical Background: Origins and development of the dish
   2. Cultural Significance: Its role in ${cuisine.name} culture, festivals, or occasions
@@ -48,24 +123,26 @@ export const getCulturalContext = async (recipe, cuisine) => {
     "history": "Historical background and origins of the dish",
     "significance": "Cultural importance and role in society",
     "variations": "Regional variations and adaptations"
-  }`;
-    try {
-        const result = await generateContent(prompt);
-        const response = await result.response.text();
-        const context = await safeJsonParse(response);
-        return {
-            history: context.history || '',
-            significance: context.significance || '',
-            variations: context.variations || ''
-        };
+  }`
+
+  try {
+    const result = await generateContent(prompt)
+    const response = await result.response.text()
+    const context = await safeJsonParse(response)
+
+    return {
+      history: context.history || "",
+      significance: context.significance || "",
+      variations: context.variations || ""
     }
-    catch (error) {
-        console.error('Error getting cultural context:', error);
-        throw new Error('Failed to get cultural context');
-    }
-};
+  } catch (error) {
+    console.error("Error getting cultural context:", error)
+    throw new Error("Failed to get cultural context")
+  }
+}
+
 export async function analyzeCulturalCuisine(cuisine) {
-    const prompt = `Analyze this cultural cuisine and provide detailed cultural insights:
+  const prompt = `Analyze this cultural cuisine and provide detailed cultural insights:
     ${JSON.stringify(cuisine)}
     
     Provide a comprehensive analysis in JSON format including:
@@ -73,34 +150,75 @@ export async function analyzeCulturalCuisine(cuisine) {
     - Cultural significance
     - Traditional occasions
     - Modern adaptations
-    - Regional variations`;
-    const result = await generateContent(prompt);
-    const response = await result.response.text();
-    return await safeJsonParse(response);
+    - Regional variations`
+
+  const result = await generateContent(prompt)
+  const response = await result.response.text()
+  return await safeJsonParse(response)
 }
+
 export async function getRecipeAuthenticityScore(recipe, substitutions) {
-    const ingredients = Array.isArray(recipe.authenticIngredients)
-        ? recipe.authenticIngredients
-        : [];
-    return {
-        authenticityScore: 100 - (substitutions.filter(s => s.flavorImpact === 'significant').length * 20),
-        feedback: ['Based on ingredient substitutions'],
-        traditionalElements: ingredients,
-        modernAdaptations: substitutions.map(s => s.substitute),
-        culturalAccuracy: 'moderate',
-        suggestions: ['Consider using traditional ingredients when possible']
-    };
+  const ingredients = Array.isArray(recipe.authenticIngredients)
+    ? recipe.authenticIngredients
+    : []
+
+  return {
+    authenticityScore:
+      100 -
+      substitutions.filter(s => s.flavorImpact === "significant").length * 20,
+    feedback: ["Based on ingredient substitutions"],
+    traditionalElements: ingredients,
+    modernAdaptations: substitutions.map(s => s.substitute),
+    culturalAccuracy: "moderate",
+    suggestions: ["Consider using traditional ingredients when possible"]
+  }
 }
+
 export async function getTechniqueTips(technique, cuisine) {
-    const prompt = `Provide detailed tips for this cultural cooking technique:
+  const prompt = `Provide detailed tips for this cultural cooking technique:
     Technique: ${JSON.stringify(technique)}
-    Cuisine: ${JSON.stringify(cuisine)}`;
-    const result = await generateContent(prompt);
-    const response = await result.response.text();
-    return await safeJsonParse(response);
+    Cuisine: ${JSON.stringify(cuisine)}`
+
+  const result = await generateContent(prompt)
+  const response = await result.response.text()
+  return await safeJsonParse(response)
 }
+
 export async function generateCulturalDetails(cuisine) {
-    const prompt = `Generate cultural context and serving etiquette information for ${cuisine.name} cuisine from ${cuisine.region}. Base the response on:
+  try {
+    // Check if we're running in browser
+    const isClient = typeof window !== 'undefined';
+    
+    if (isClient) {
+      // Import config to get the API base URL
+      const clientConfig = await import("../client/src/lib/config").then(module => module.default);
+      console.log("[AI Service] Using API base URL:", clientConfig.apiBaseUrl);
+      
+      // Client-side implementation - use the API endpoint
+      console.log("[AI Service] Using client-side implementation for cultural details");
+      const apiUrl = `${clientConfig.apiBaseUrl}/api/ai/generate-cuisine-details`;
+      
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify({ cuisine })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.error || "Failed to generate cultural details");
+      }
+      
+      return await response.json();
+    } else {
+      // Server-side implementation
+      const prompt = `Generate cultural context and serving etiquette information for ${
+        cuisine.name
+      } cuisine from ${cuisine.region}. Base the response on:
 Description: ${cuisine.description}
 Key Ingredients: ${JSON.stringify(cuisine.keyIngredients)}
 Cooking Techniques: ${JSON.stringify(cuisine.cookingTechniques)}
@@ -120,51 +238,94 @@ Respond with this JSON structure:
     "taboos": "things to avoid as bullet points",
     "general": "overall dining etiquette summary"
   }
-}`;
-    try {
-        const result = await generateContent(prompt);
-        const response = await result.response.text();
-        console.log('Cultural details response:', response);
-        const parsed = await safeJsonParse(response);
-        if (!(parsed === null || parsed === void 0 ? void 0 : parsed.culturalContext) || !(parsed === null || parsed === void 0 ? void 0 : parsed.servingEtiquette)) {
-            throw new Error('Invalid response structure - missing required sections');
+}`
+
+      const result = await generateContent(prompt)
+      const response = await result.response.text()
+      console.log("Cultural details response:", response)
+
+      const parsed = await safeJsonParse(response)
+
+      if (!parsed?.culturalContext || !parsed?.servingEtiquette) {
+        throw new Error("Invalid response structure - missing required sections")
+      }
+
+      const requiredContextFields = [
+        "history",
+        "traditions",
+        "festivals",
+        "influences"
+      ]
+      const requiredEtiquetteFields = [
+        "tableSetting",
+        "diningCustoms",
+        "servingOrder",
+        "taboos",
+        "general"
+      ]
+
+      const missingContextFields = requiredContextFields.filter(
+        field => !parsed.culturalContext[field]
+      )
+      const missingEtiquetteFields = requiredEtiquetteFields.filter(
+        field => !parsed.servingEtiquette[field]
+      )
+
+      if (missingContextFields.length > 0 || missingEtiquetteFields.length > 0) {
+        throw new Error(
+          "Invalid response structure - missing required fields: " +
+            [...missingContextFields, ...missingEtiquetteFields].join(", ")
+        )
+      }
+
+      // Process bullet-pointed sections
+      const bulletSections = [
+        "tableSetting",
+        "diningCustoms",
+        "servingOrder",
+        "taboos"
+      ]
+      bulletSections.forEach(section => {
+        if (typeof parsed.servingEtiquette[section] === "string") {
+          const points = parsed.servingEtiquette[section]
+            .split(/(?:\\n|\n|\.(?=\s|$))/)
+            .map(point => point.trim())
+            .filter(Boolean)
+            .map(point => point.replace(/^[•\-\*]\s*/, "")) // Remove any leading bullets
+
+          // Join without adding bullet points
+          parsed.servingEtiquette[section] = points.join("\n")
         }
-        const requiredContextFields = ['history', 'traditions', 'festivals', 'influences'];
-        const requiredEtiquetteFields = ['tableSetting', 'diningCustoms', 'servingOrder', 'taboos', 'general'];
-        const missingContextFields = requiredContextFields.filter(field => !parsed.culturalContext[field]);
-        const missingEtiquetteFields = requiredEtiquetteFields.filter(field => !parsed.servingEtiquette[field]);
-        if (missingContextFields.length > 0 || missingEtiquetteFields.length > 0) {
-            throw new Error('Invalid response structure - missing required fields: ' +
-                [...missingContextFields, ...missingEtiquetteFields].join(', '));
-        }
-        // Process bullet-pointed sections
-        const bulletSections = ['tableSetting', 'diningCustoms', 'servingOrder', 'taboos'];
-        bulletSections.forEach(section => {
-            if (typeof parsed.servingEtiquette[section] === 'string') {
-                const points = parsed.servingEtiquette[section]
-                    .split(/(?:\\n|\n|\.(?=\s|$))/)
-                    .map(point => point.trim())
-                    .filter(Boolean)
-                    .map(point => point.replace(/^[•\-\*]\s*/, '')); // Remove any leading bullets
-                // Join without adding bullet points
-                parsed.servingEtiquette[section] = points.join('\n');
-            }
-        });
-        return parsed;
+      })
+
+      return parsed
     }
-    catch (err) {
-        const error = err;
-        console.error('Error generating cultural details:', error);
-        throw new Error('Failed to generate cultural details: ' + ((error === null || error === void 0 ? void 0 : error.message) || 'Unknown error'));
-    }
+  } catch (err) {
+    const error = err
+    console.error("Error generating cultural details:", error)
+    throw new Error(
+      "Failed to generate cultural details: " +
+        (error?.message || "Unknown error")
+    )
+  }
 }
+
 export async function getPairings(recipe, cuisine) {
-    console.log('Fetching pairings for:', { recipeName: recipe.name, cuisine: cuisine.name });
-    const traditionalPairings = getTraditionalPairings(cuisine.region.toLowerCase());
-    const prompt = `Suggest specific food pairings for this ${cuisine.name} recipe:
+  console.log("Fetching pairings for:", {
+    recipeName: recipe.name,
+    cuisine: cuisine.name
+  })
+
+  const traditionalPairings = getTraditionalPairings(
+    cuisine.region.toLowerCase()
+  )
+
+  const prompt = `Suggest specific food pairings for this ${
+    cuisine.name
+  } recipe:
     Recipe: ${JSON.stringify({
-        name: recipe.name,
-        ingredients: recipe.authenticIngredients
+      name: recipe.name,
+      ingredients: recipe.authenticIngredients
     })}
     
     Return JSON with these categories:
@@ -173,32 +334,62 @@ export async function getPairings(recipe, cuisine) {
       "sideDishes": string[] (appropriate side dishes),
       "desserts": string[] (dessert pairings),
       "beverages": string[] (drink pairings)
-    }`;
-    try {
-        const result = await generateContent(prompt);
-        const response = await result.response.text();
-        console.log('Pairings response:', response);
-        const aiPairings = await safeJsonParse(response);
-        return {
-            mainDishes: Array.from(new Set([...traditionalPairings.mainDishes, ...(aiPairings.mainDishes || [])])),
-            sideDishes: Array.from(new Set([...traditionalPairings.sideDishes, ...(aiPairings.sideDishes || [])])),
-            desserts: Array.from(new Set([...traditionalPairings.desserts, ...(aiPairings.desserts || [])])),
-            beverages: Array.from(new Set([...traditionalPairings.beverages, ...(aiPairings.beverages || [])]))
-        };
+    }`
+
+  try {
+    const result = await generateContent(prompt)
+    const response = await result.response.text()
+    console.log("Pairings response:", response)
+
+    const aiPairings = await safeJsonParse(response)
+
+    return {
+      mainDishes: Array.from(
+        new Set([
+          ...traditionalPairings.mainDishes,
+          ...(aiPairings.mainDishes || [])
+        ])
+      ),
+      sideDishes: Array.from(
+        new Set([
+          ...traditionalPairings.sideDishes,
+          ...(aiPairings.sideDishes || [])
+        ])
+      ),
+      desserts: Array.from(
+        new Set([
+          ...traditionalPairings.desserts,
+          ...(aiPairings.desserts || [])
+        ])
+      ),
+      beverages: Array.from(
+        new Set([
+          ...traditionalPairings.beverages,
+          ...(aiPairings.beverages || [])
+        ])
+      )
     }
-    catch (error) {
-        console.error('Error generating pairings:', error);
-        return traditionalPairings;
-    }
+  } catch (error) {
+    console.error("Error generating pairings:", error)
+    return traditionalPairings
+  }
 }
+
 export async function getEtiquette(recipe, cuisine) {
-    console.log('Fetching etiquette for:', { recipeName: recipe.name, cuisine: cuisine.name });
-    const regionalEtiquette = getRegionalEtiquette(cuisine.region.toLowerCase());
-    const prompt = `Provide specific serving etiquette for this ${cuisine.name} dish:
+  console.log("Fetching etiquette for:", {
+    recipeName: recipe.name,
+    cuisine: cuisine.name
+  })
+
+  const regionalEtiquette = getRegionalEtiquette(cuisine.region.toLowerCase())
+
+  const prompt = `Provide specific serving etiquette for this ${
+    cuisine.name
+  } dish:
     Recipe: ${JSON.stringify({
-        name: recipe.name,
-        culturalNotes: recipe.culturalNotes,
-        servingSuggestions: recipe.servingSuggestions
+      name: recipe.name,
+      culturalNotes: recipe.culturalNotes,
+      servingSuggestions: recipe.servingSuggestions
     })}
     
     Return JSON with these categories:
@@ -207,28 +398,45 @@ export async function getEtiquette(recipe, cuisine) {
       "customs": string[] (dining customs to observe),
       "taboos": string[] (practices to avoid),
       "servingOrder": string[] (proper serving sequence)
-    }`;
-    try {
-        const result = await generateContent(prompt);
-        const response = await result.response.text();
-        const aiEtiquette = await safeJsonParse(response);
-        return {
-            presentation: Array.from(new Set([...regionalEtiquette.presentation, ...(aiEtiquette.presentation || [])])),
-            customs: Array.from(new Set([...regionalEtiquette.customs, ...(aiEtiquette.customs || [])])),
-            taboos: Array.from(new Set([...regionalEtiquette.taboos, ...(aiEtiquette.taboos || [])])),
-            servingOrder: Array.from(new Set([...regionalEtiquette.servingOrder, ...(aiEtiquette.servingOrder || [])]))
-        };
+    }`
+
+  try {
+    const result = await generateContent(prompt)
+    const response = await result.response.text()
+    const aiEtiquette = await safeJsonParse(response)
+
+    return {
+      presentation: Array.from(
+        new Set([
+          ...regionalEtiquette.presentation,
+          ...(aiEtiquette.presentation || [])
+        ])
+      ),
+      customs: Array.from(
+        new Set([...regionalEtiquette.customs, ...(aiEtiquette.customs || [])])
+      ),
+      taboos: Array.from(
+        new Set([...regionalEtiquette.taboos, ...(aiEtiquette.taboos || [])])
+      ),
+      servingOrder: Array.from(
+        new Set([
+          ...regionalEtiquette.servingOrder,
+          ...(aiEtiquette.servingOrder || [])
+        ])
+      )
     }
-    catch (error) {
-        console.error('Error generating etiquette:', error);
-        return regionalEtiquette;
-    }
+  } catch (error) {
+    console.error("Error generating etiquette:", error)
+    return regionalEtiquette
+  }
 }
+
 export async function getSubstitutions(recipe, pantryItems, region) {
-    const ingredients = Array.isArray(recipe.authenticIngredients)
-        ? recipe.authenticIngredients
-        : Object.keys(recipe.authenticIngredients || {});
-    const substitutionsPrompt = `You are a JSON API that must return a valid JSON array. For these ingredients, provide substitution options:
+  const ingredients = Array.isArray(recipe.authenticIngredients)
+    ? recipe.authenticIngredients
+    : Object.keys(recipe.authenticIngredients || {})
+
+  const substitutionsPrompt = `You are a JSON API that must return a valid JSON array. For these ingredients, provide substitution options:
     Ingredients: ${JSON.stringify(ingredients)}
     Available pantry items: ${JSON.stringify(pantryItems)}
     Region: ${region}
@@ -241,65 +449,101 @@ export async function getSubstitutions(recipe, pantryItems, region) {
         "notes": "usage notes",
         "flavorImpact": "minimal/moderate/significant"
       }
-    ]`;
-    try {
-        const result = await generateContent(substitutionsPrompt);
-        const response = await result.response.text();
-        let parsedContent = await safeJsonParse(response);
-        if (!Array.isArray(parsedContent)) {
-            parsedContent = [parsedContent];
-        }
-        // Merge AI suggestions with predefined rules
-        const substitutions = ingredients.map(ingredient => {
-            const rule = getSubstitutionRules()[ingredient.toLowerCase()];
-            const aiSuggestion = parsedContent.find((s) => { var _a; return ((_a = s.original) === null || _a === void 0 ? void 0 : _a.toLowerCase()) === ingredient.toLowerCase(); });
-            return {
-                original: ingredient,
-                substitute: (rule === null || rule === void 0 ? void 0 : rule.substitutes[0]) || (aiSuggestion === null || aiSuggestion === void 0 ? void 0 : aiSuggestion.substitute) || 'No direct substitute available',
-                notes: (rule === null || rule === void 0 ? void 0 : rule.notes) || (aiSuggestion === null || aiSuggestion === void 0 ? void 0 : aiSuggestion.notes) || 'Use with caution as flavor profile may differ',
-                flavorImpact: (rule === null || rule === void 0 ? void 0 : rule.flavorImpact) || (aiSuggestion === null || aiSuggestion === void 0 ? void 0 : aiSuggestion.flavorImpact) || 'significant'
-            };
-        });
-        return {
-            substitutions,
-            authenticityScore: 100 - (substitutions.filter(s => s.flavorImpact === 'significant').length * 20),
-            authenticityFeedback: ['Substitutions may affect the authentic taste of the dish']
-        };
+    ]`
+
+  try {
+    const result = await generateContent(substitutionsPrompt)
+    const response = await result.response.text()
+
+    let parsedContent = await safeJsonParse(response)
+    if (!Array.isArray(parsedContent)) {
+      parsedContent = [parsedContent]
     }
-    catch (error) {
-        console.error('Error generating substitutions:', error);
-        return {
-            substitutions: [],
-            authenticityScore: 0,
-            authenticityFeedback: ['Error generating substitutions']
-        };
+
+    // Merge AI suggestions with predefined rules
+    const substitutions = ingredients.map(ingredient => {
+      const rule = getSubstitutionRules()[ingredient.toLowerCase()]
+      const aiSuggestion = parsedContent.find(
+        s => s.original?.toLowerCase() === ingredient.toLowerCase()
+      )
+
+      return {
+        original: ingredient,
+        substitute:
+          rule?.substitutes[0] ||
+          aiSuggestion?.substitute ||
+          "No direct substitute available",
+        notes:
+          rule?.notes ||
+          aiSuggestion?.notes ||
+          "Use with caution as flavor profile may differ",
+        flavorImpact:
+          rule?.flavorImpact || aiSuggestion?.flavorImpact || "significant"
+      }
+    })
+
+    return {
+      substitutions,
+      authenticityScore:
+        100 -
+        substitutions.filter(s => s.flavorImpact === "significant").length * 20,
+      authenticityFeedback: [
+        "Substitutions may affect the authentic taste of the dish"
+      ]
     }
+  } catch (error) {
+    console.error("Error generating substitutions:", error)
+    return {
+      substitutions: [],
+      authenticityScore: 0,
+      authenticityFeedback: ["Error generating substitutions"]
+    }
+  }
 }
-export async function getCulturalCuisineInfo(cuisine, includeImagePrompts = false) {
-    try {
-        const prompt = `Provide detailed information about ${cuisine} cuisine as a JSON object with the following structure:
+
+export async function getCulturalCuisineInfo(
+  cuisine,
+  includeImagePrompts = false
+) {
+  try {
+    const prompt = `Provide detailed information about ${cuisine} cuisine as a JSON object with the following structure:
     {
       "overview": "Brief overview of the cuisine",
       "keyIngredients": ["list of essential ingredients"],
       "commonDishes": ["list of popular dishes"],
       "cookingTechniques": ["list of cooking techniques"],
       "culturalSignificance": "Cultural importance and history",
-      ${includeImagePrompts ? '"imagePrompts": ["list of detailed image generation prompts for dishes"],' : ''}
+      ${
+        includeImagePrompts
+          ? '"imagePrompts": ["list of detailed image generation prompts for dishes"],'
+          : ""
+      }
       "dietaryConsiderations": ["list of dietary considerations"]
-    }`;
-        const result = await generateContent(prompt);
-        const response = await result.response.text();
-        return await safeJsonParse(response);
-    }
-    catch (error) {
-        console.error('Error getting cuisine information:', error);
-        throw error;
-    }
+    }`
+
+    const result = await generateContent(prompt)
+    const response = await result.response.text()
+    return await safeJsonParse(response)
+  } catch (error) {
+    console.error("Error getting cuisine information:", error)
+    throw error
+  }
 }
-export async function getAuthenticRecipeAdaptation(recipe, cuisine, dietaryRestrictions) {
-    try {
-        const prompt = `Adapt this recipe "${recipe}" to be more authentic to ${cuisine} cuisine.
-    ${dietaryRestrictions ? `Consider these dietary restrictions: ${dietaryRestrictions.join(', ')}` : ''}
+
+export async function getAuthenticRecipeAdaptation(
+  recipe,
+  cuisine,
+  dietaryRestrictions
+) {
+  try {
+    const prompt = `Adapt this recipe "${recipe}" to be more authentic to ${cuisine} cuisine.
+    ${
+      dietaryRestrictions
+        ? `Consider these dietary restrictions: ${dietaryRestrictions.join(
+            ", "
+          )}`
+        : ""
+    }
     
     Return a JSON object with:
     {
@@ -309,20 +553,23 @@ export async function getAuthenticRecipeAdaptation(recipe, cuisine, dietaryRestr
       "ingredients": ["list of ingredients"],
       "instructions": ["step by step instructions"],
       "culturalNotes": "Cultural context and authenticity notes"
-    }`;
-        const result = await generateContent(prompt);
-        const response = await result.response.text();
-        return await safeJsonParse(response);
-    }
-    catch (error) {
-        console.error('Error adapting recipe:', error);
-        throw error;
-    }
+    }`
+
+    const result = await generateContent(prompt)
+    const response = await result.response.text()
+    return await safeJsonParse(response)
+  } catch (error) {
+    console.error("Error adapting recipe:", error)
+    throw error
+  }
 }
+
 export async function getCrossCulturalFusion(cuisine1, cuisine2, preferences) {
-    try {
-        const prompt = `Create a fusion recipe combining elements from ${cuisine1} and ${cuisine2} cuisines.
-    ${preferences ? `Consider these preferences: ${preferences.join(', ')}` : ''}
+  try {
+    const prompt = `Create a fusion recipe combining elements from ${cuisine1} and ${cuisine2} cuisines.
+    ${
+      preferences ? `Consider these preferences: ${preferences.join(", ")}` : ""
+    }
     
     Return a JSON object with:
     {
@@ -335,19 +582,20 @@ export async function getCrossCulturalFusion(cuisine1, cuisine2, preferences) {
       "ingredients": ["list of ingredients"],
       "instructions": ["step by step instructions"],
       "culturalNotes": "Notes about the fusion approach"
-    }`;
-        const result = await generateContent(prompt);
-        const response = await result.response.text();
-        return await safeJsonParse(response);
-    }
-    catch (error) {
-        console.error('Error creating fusion recipe:', error);
-        throw error;
-    }
+    }`
+
+    const result = await generateContent(prompt)
+    const response = await result.response.text()
+    return await safeJsonParse(response)
+  } catch (error) {
+    console.error("Error creating fusion recipe:", error)
+    throw error
+  }
 }
+
 export async function getCuisineInsights(cuisine) {
-    try {
-        const prompt = `Provide detailed insights about this cuisine:
+  try {
+    const prompt = `Provide detailed insights about this cuisine:
     Cuisine: ${cuisine}
     
     Return EXACTLY this JSON structure with no additional text:
@@ -374,19 +622,20 @@ export async function getCuisineInsights(cuisine) {
         "traditions": ["string"],
         "regionalVariations": ["string"]
       }
-    }`;
-        const result = await generateContent(prompt);
-        const response = await result.response.text();
-        return await safeJsonParse(response);
-    }
-    catch (error) {
-        console.error('Error getting cuisine insights:', error);
-        throw error;
-    }
+    }`
+
+    const result = await generateContent(prompt)
+    const response = await result.response.text()
+    return await safeJsonParse(response)
+  } catch (error) {
+    console.error("Error getting cuisine insights:", error)
+    throw error
+  }
 }
+
 export async function getAuthenticRecipe(dish, cuisine) {
-    try {
-        const prompt = `Provide an authentic recipe for this cultural dish:
+  try {
+    const prompt = `Provide an authentic recipe for this cultural dish:
     Dish: ${dish}
     Cuisine: ${cuisine}
     
@@ -417,19 +666,20 @@ export async function getAuthenticRecipe(dish, cuisine) {
           }
         ]
       }
-    }`;
-        const result = await generateContent(prompt);
-        const response = await result.response.text();
-        return await safeJsonParse(response);
-    }
-    catch (error) {
-        console.error('Error getting authentic recipe:', error);
-        throw error;
-    }
+    }`
+
+    const result = await generateContent(prompt)
+    const response = await result.response.text()
+    return await safeJsonParse(response)
+  } catch (error) {
+    console.error("Error getting authentic recipe:", error)
+    throw error
+  }
 }
+
 export async function getCulturalCookingTips(cuisine) {
-    try {
-        const prompt = `Provide cultural cooking tips for this cuisine:
+  try {
+    const prompt = `Provide cultural cooking tips for this cuisine:
     Cuisine: ${cuisine}
     
     Return EXACTLY this JSON structure with no additional text:
@@ -455,338 +705,362 @@ export async function getCulturalCookingTips(cuisine) {
         }
       ],
       "etiquette": ["string"]
-    }`;
-        const result = await generateContent(prompt);
-        const response = await result.response.text();
-        return await safeJsonParse(response);
-    }
-    catch (error) {
-        console.error('Error getting cultural cooking tips:', error);
-        throw error;
-    }
+    }`
+
+    const result = await generateContent(prompt)
+    const response = await result.response.text()
+    return await safeJsonParse(response)
+  } catch (error) {
+    console.error("Error getting cultural cooking tips:", error)
+    throw error
+  }
 }
+
 // Helper functions with embedded cultural knowledge data
 function getSubstitutionRules() {
-    return {
-        'kaffir lime leaves': {
-            substitutes: ['lime zest', 'bay leaves with lime zest'],
-            notes: 'Use lime zest for citrus notes, bay leaf adds aromatic element',
-            flavorImpact: 'moderate'
-        },
-        'fish sauce': {
-            substitutes: ['soy sauce with salt', 'worcestershire sauce'],
-            notes: 'Add a pinch of salt and a drop of vinegar to better mimic umami flavor',
-            flavorImpact: 'significant'
-        },
-        'gochujang': {
-            substitutes: ['sriracha with miso paste', 'red pepper flakes with honey'],
-            notes: 'Mix 2 parts sriracha with 1 part miso for similar fermented spicy flavor',
-            flavorImpact: 'moderate'
-        },
-        'lemongrass': {
-            substitutes: ['lemon zest with ginger', 'lemon verbena'],
-            notes: 'Combine 1 tablespoon lemon zest with 1/4 teaspoon ginger powder',
-            flavorImpact: 'moderate'
-        },
-        'tahini': {
-            substitutes: ['smooth peanut butter', 'sunflower seed butter'],
-            notes: 'Thin with sesame oil if available for closer flavor profile',
-            flavorImpact: 'minimal'
-        },
-        'ghee': {
-            substitutes: ['clarified butter', 'butter', 'coconut oil'],
-            notes: 'Unsalted butter is your best alternative, coconut oil changes flavor profile',
-            flavorImpact: 'minimal'
-        },
-        'sumac': {
-            substitutes: ['lemon zest', 'amchoor powder', 'tamarind'],
-            notes: 'Add a touch of salt to lemon zest for similar tanginess',
-            flavorImpact: 'moderate'
-        },
-        'oyster sauce': {
-            substitutes: ['hoisin sauce', 'soy sauce with sugar'],
-            notes: 'Mix 1 tablespoon soy sauce with 1/2 teaspoon sugar and 1/2 teaspoon Worcestershire sauce',
-            flavorImpact: 'moderate'
-        },
-        'galangal': {
-            substitutes: ['ginger', 'ginger with lemon zest'],
-            notes: 'True galangal has a sharper, citrusy flavor than ginger',
-            flavorImpact: 'moderate'
-        },
-        'tamarind paste': {
-            substitutes: ['lime juice with brown sugar', 'pomegranate molasses', 'vinegar with dates'],
-            notes: 'Mix 1 part lime juice with 1 part brown sugar for similar sweet-sour profile',
-            flavorImpact: 'moderate'
-        },
-        'shiso leaves': {
-            substitutes: ['mint with basil', 'thai basil'],
-            notes: 'Equal parts mint and basil can approximate the complex flavor',
-            flavorImpact: 'moderate'
-        },
-        'miso paste': {
-            substitutes: ['tahini with soy sauce', 'vegetable bouillon'],
-            notes: 'Lacks fermented quality but provides umami base',
-            flavorImpact: 'significant'
-        },
-        'za\'atar': {
-            substitutes: ['thyme with sesame seeds and sumac', 'thyme with lemon zest'],
-            notes: 'Mix 1 tbsp thyme, 1 tsp sesame seeds, pinch of salt and lemon zest',
-            flavorImpact: 'moderate'
-        },
-        'plantains': {
-            substitutes: ['green bananas', 'potatoes for savory dishes'],
-            notes: 'Texture will differ; use less cooking time',
-            flavorImpact: 'significant'
-        },
-        'paneer': {
-            substitutes: ['firm tofu', 'halloumi', 'queso fresco'],
-            notes: 'Drain tofu well and press before using',
-            flavorImpact: 'moderate'
-        }
-    };
+  return {
+    "kaffir lime leaves": {
+      substitutes: ["lime zest", "bay leaves with lime zest"],
+      notes: "Use lime zest for citrus notes, bay leaf adds aromatic element",
+      flavorImpact: "moderate"
+    },
+    "fish sauce": {
+      substitutes: ["soy sauce with salt", "worcestershire sauce"],
+      notes:
+        "Add a pinch of salt and a drop of vinegar to better mimic umami flavor",
+      flavorImpact: "significant"
+    },
+    gochujang: {
+      substitutes: ["sriracha with miso paste", "red pepper flakes with honey"],
+      notes:
+        "Mix 2 parts sriracha with 1 part miso for similar fermented spicy flavor",
+      flavorImpact: "moderate"
+    },
+    lemongrass: {
+      substitutes: ["lemon zest with ginger", "lemon verbena"],
+      notes: "Combine 1 tablespoon lemon zest with 1/4 teaspoon ginger powder",
+      flavorImpact: "moderate"
+    },
+    tahini: {
+      substitutes: ["smooth peanut butter", "sunflower seed butter"],
+      notes: "Thin with sesame oil if available for closer flavor profile",
+      flavorImpact: "minimal"
+    },
+    ghee: {
+      substitutes: ["clarified butter", "butter", "coconut oil"],
+      notes:
+        "Unsalted butter is your best alternative, coconut oil changes flavor profile",
+      flavorImpact: "minimal"
+    },
+    sumac: {
+      substitutes: ["lemon zest", "amchoor powder", "tamarind"],
+      notes: "Add a touch of salt to lemon zest for similar tanginess",
+      flavorImpact: "moderate"
+    },
+    "oyster sauce": {
+      substitutes: ["hoisin sauce", "soy sauce with sugar"],
+      notes:
+        "Mix 1 tablespoon soy sauce with 1/2 teaspoon sugar and 1/2 teaspoon Worcestershire sauce",
+      flavorImpact: "moderate"
+    },
+    galangal: {
+      substitutes: ["ginger", "ginger with lemon zest"],
+      notes: "True galangal has a sharper, citrusy flavor than ginger",
+      flavorImpact: "moderate"
+    },
+    "tamarind paste": {
+      substitutes: [
+        "lime juice with brown sugar",
+        "pomegranate molasses",
+        "vinegar with dates"
+      ],
+      notes:
+        "Mix 1 part lime juice with 1 part brown sugar for similar sweet-sour profile",
+      flavorImpact: "moderate"
+    },
+    "shiso leaves": {
+      substitutes: ["mint with basil", "thai basil"],
+      notes: "Equal parts mint and basil can approximate the complex flavor",
+      flavorImpact: "moderate"
+    },
+    "miso paste": {
+      substitutes: ["tahini with soy sauce", "vegetable bouillon"],
+      notes: "Lacks fermented quality but provides umami base",
+      flavorImpact: "significant"
+    },
+    "za'atar": {
+      substitutes: [
+        "thyme with sesame seeds and sumac",
+        "thyme with lemon zest"
+      ],
+      notes:
+        "Mix 1 tbsp thyme, 1 tsp sesame seeds, pinch of salt and lemon zest",
+      flavorImpact: "moderate"
+    },
+    plantains: {
+      substitutes: ["green bananas", "potatoes for savory dishes"],
+      notes: "Texture will differ; use less cooking time",
+      flavorImpact: "significant"
+    },
+    paneer: {
+      substitutes: ["firm tofu", "halloumi", "queso fresco"],
+      notes: "Drain tofu well and press before using",
+      flavorImpact: "moderate"
+    }
+  }
 }
+
 function getTraditionalPairings(region) {
-    const pairings = {
-        'east_asia': {
-            mainDishes: ['Steamed Fish', 'Stir-fried Vegetables', 'Clay Pot Rice'],
-            sideDishes: ['Pickled Vegetables', 'Cold Salad', 'Steamed Eggs'],
-            desserts: ['Red Bean Soup', 'Mango Pudding', 'Egg Tarts'],
-            beverages: ['Jasmine Tea', 'Oolong Tea', 'Rice Wine']
-        },
-        'southeast_asia': {
-            mainDishes: ['Green Curry', 'Pad Thai', 'Beef Rendang'],
-            sideDishes: ['Som Tam', 'Sticky Rice', 'Roti Canai'],
-            desserts: ['Mango Sticky Rice', 'Thai Tea Ice Cream', 'Kuih'],
-            beverages: ['Thai Iced Tea', 'Coconut Water', 'Sugarcane Juice']
-        },
-        'south_asia': {
-            mainDishes: ['Butter Chicken', 'Biryani', 'Dal Makhani'],
-            sideDishes: ['Naan', 'Raita', 'Chutney'],
-            desserts: ['Gulab Jamun', 'Kheer', 'Jalebi'],
-            beverages: ['Lassi', 'Masala Chai', 'Rooh Afza']
-        },
-        'middle_east': {
-            mainDishes: ['Lamb Shawarma', 'Falafel', 'Kebabs'],
-            sideDishes: ['Hummus', 'Tabbouleh', 'Baba Ganoush'],
-            desserts: ['Baklava', 'Kunafa', 'Turkish Delight'],
-            beverages: ['Mint Tea', 'Turkish Coffee', 'Ayran']
-        },
-        'mediterranean': {
-            mainDishes: ['Paella', 'Moussaka', 'Risotto'],
-            sideDishes: ['Greek Salad', 'Bruschetta', 'Dolmas'],
-            desserts: ['Tiramisu', 'Baklava', 'Panna Cotta'],
-            beverages: ['Wine', 'Limoncello', 'Ouzo']
-        },
-        'latin_america': {
-            mainDishes: ['Tacos', 'Mole Poblano', 'Feijoada'],
-            sideDishes: ['Guacamole', 'Elote', 'Black Beans'],
-            desserts: ['Tres Leches Cake', 'Churros', 'Flan'],
-            beverages: ['Horchata', 'Margarita', 'Agua Fresca']
-        },
-        'caribbean': {
-            mainDishes: ['Jerk Chicken', 'Curry Goat', 'Ackee and Saltfish'],
-            sideDishes: ['Rice and Peas', 'Festival', 'Plantains'],
-            desserts: ['Rum Cake', 'Sweet Potato Pudding', 'Coconut Drops'],
-            beverages: ['Rum Punch', 'Sorrel Drink', 'Ginger Beer']
-        },
-        'west_africa': {
-            mainDishes: ['Jollof Rice', 'Egusi Soup', 'Peanut Stew'],
-            sideDishes: ['Fufu', 'Fried Plantains', 'Moin Moin'],
-            desserts: ['Chin Chin', 'Puff Puff', 'Coconut Candy'],
-            beverages: ['Palm Wine', 'Bissap', 'Ginger Drink']
-        },
-        'east_africa': {
-            mainDishes: ['Injera with Wat', 'Nyama Choma', 'Pilau Rice'],
-            sideDishes: ['Chapati', 'Sukuma Wiki', 'Ugali'],
-            desserts: ['Mandazi', 'Kashata', 'Maandazi'],
-            beverages: ['Ethiopian Coffee', 'Tangawizi', 'Urwaga']
-        },
-        'north_africa': {
-            mainDishes: ['Couscous', 'Tagine', 'Shakshuka'],
-            sideDishes: ['Harissa', 'Zaalouk', 'Batbout'],
-            desserts: ['Makroud', 'Msemen', 'Basbousa'],
-            beverages: ['Mint Tea', 'Almond Milk', 'Hibiscus Tea']
-        }
-    };
-    return pairings[region] || {
-        mainDishes: [],
-        sideDishes: [],
-        desserts: [],
-        beverages: []
-    };
+  const pairings = {
+    east_asia: {
+      mainDishes: ["Steamed Fish", "Stir-fried Vegetables", "Clay Pot Rice"],
+      sideDishes: ["Pickled Vegetables", "Cold Salad", "Steamed Eggs"],
+      desserts: ["Red Bean Soup", "Mango Pudding", "Egg Tarts"],
+      beverages: ["Jasmine Tea", "Oolong Tea", "Rice Wine"]
+    },
+    southeast_asia: {
+      mainDishes: ["Green Curry", "Pad Thai", "Beef Rendang"],
+      sideDishes: ["Som Tam", "Sticky Rice", "Roti Canai"],
+      desserts: ["Mango Sticky Rice", "Thai Tea Ice Cream", "Kuih"],
+      beverages: ["Thai Iced Tea", "Coconut Water", "Sugarcane Juice"]
+    },
+    south_asia: {
+      mainDishes: ["Butter Chicken", "Biryani", "Dal Makhani"],
+      sideDishes: ["Naan", "Raita", "Chutney"],
+      desserts: ["Gulab Jamun", "Kheer", "Jalebi"],
+      beverages: ["Lassi", "Masala Chai", "Rooh Afza"]
+    },
+    middle_east: {
+      mainDishes: ["Lamb Shawarma", "Falafel", "Kebabs"],
+      sideDishes: ["Hummus", "Tabbouleh", "Baba Ganoush"],
+      desserts: ["Baklava", "Kunafa", "Turkish Delight"],
+      beverages: ["Mint Tea", "Turkish Coffee", "Ayran"]
+    },
+    mediterranean: {
+      mainDishes: ["Paella", "Moussaka", "Risotto"],
+      sideDishes: ["Greek Salad", "Bruschetta", "Dolmas"],
+      desserts: ["Tiramisu", "Baklava", "Panna Cotta"],
+      beverages: ["Wine", "Limoncello", "Ouzo"]
+    },
+    latin_america: {
+      mainDishes: ["Tacos", "Mole Poblano", "Feijoada"],
+      sideDishes: ["Guacamole", "Elote", "Black Beans"],
+      desserts: ["Tres Leches Cake", "Churros", "Flan"],
+      beverages: ["Horchata", "Margarita", "Agua Fresca"]
+    },
+    caribbean: {
+      mainDishes: ["Jerk Chicken", "Curry Goat", "Ackee and Saltfish"],
+      sideDishes: ["Rice and Peas", "Festival", "Plantains"],
+      desserts: ["Rum Cake", "Sweet Potato Pudding", "Coconut Drops"],
+      beverages: ["Rum Punch", "Sorrel Drink", "Ginger Beer"]
+    },
+    west_africa: {
+      mainDishes: ["Jollof Rice", "Egusi Soup", "Peanut Stew"],
+      sideDishes: ["Fufu", "Fried Plantains", "Moin Moin"],
+      desserts: ["Chin Chin", "Puff Puff", "Coconut Candy"],
+      beverages: ["Palm Wine", "Bissap", "Ginger Drink"]
+    },
+    east_africa: {
+      mainDishes: ["Injera with Wat", "Nyama Choma", "Pilau Rice"],
+      sideDishes: ["Chapati", "Sukuma Wiki", "Ugali"],
+      desserts: ["Mandazi", "Kashata", "Maandazi"],
+      beverages: ["Ethiopian Coffee", "Tangawizi", "Urwaga"]
+    },
+    north_africa: {
+      mainDishes: ["Couscous", "Tagine", "Shakshuka"],
+      sideDishes: ["Harissa", "Zaalouk", "Batbout"],
+      desserts: ["Makroud", "Msemen", "Basbousa"],
+      beverages: ["Mint Tea", "Almond Milk", "Hibiscus Tea"]
+    }
+  }
+
+  return (
+    pairings[region] || {
+      mainDishes: [],
+      sideDishes: [],
+      desserts: [],
+      beverages: []
+    }
+  )
 }
+
 function getRegionalEtiquette(region) {
-    const etiquette = {
-        'east_asia': {
-            presentation: [
-                'Serve rice in individual bowls',
-                'Place shared dishes in the center',
-                'Arrange food to highlight colors and textures',
-                'Use small plates for individual portions'
-            ],
-            customs: [
-                'Hold rice bowl close to mouth',
-                'Use chopsticks correctly',
-                'Pour tea for others before yourself',
-                'Tap fingers as thanks when someone pours tea for you'
-            ],
-            taboos: [
-                'Don\'t stick chopsticks vertically in rice',
-                'Don\'t pass food directly from chopsticks to chopsticks',
-                'Don\'t point with chopsticks',
-                'Don\'t flip fish over on the plate'
-            ],
-            servingOrder: [
-                'Soup first',
-                'Rice and main dishes together',
-                'Fruit or light dessert last',
-                'Tea throughout the meal'
-            ]
-        },
-        'southeast_asia': {
-            presentation: [
-                'Serve food family-style on a raised platform',
-                'Arrange dishes by spice level',
-                'Include contrasting textures and flavors',
-                'Garnish with fresh herbs and lime wedges'
-            ],
-            customs: [
-                'Eat with right hand in some regions',
-                'Use fork and spoon (fork to push, spoon to eat)',
-                'Take small portions to sample everything',
-                'Cool spicy dishes with plain rice'
-            ],
-            taboos: [
-                'Don\'t use left hand for eating',
-                'Don\'t place serving spoons in your mouth',
-                'Don\'t leave chopsticks crossed',
-                'Don\'t waste rice'
-            ],
-            servingOrder: [
-                'All dishes served simultaneously',
-                'Rice as the foundation',
-                'Balance between spicy, sour, sweet and savory in one meal',
-                'Fresh fruit for dessert'
-            ]
-        },
-        'south_asia': {
-            presentation: [
-                'Serve on thali plates with small compartments',
-                'Balance colors and textures across the plate',
-                'Place bread and rice separately',
-                'Arrange accompaniments in small bowls'
-            ],
-            customs: [
-                'Traditionally eat with right hand fingers',
-                'Tear bread with fingers, not cutlery',
-                'Share food and offer to others first',
-                'Mix rice with curry using fingertips'
-            ],
-            taboos: [
-                'Don\'t use left hand for eating or passing food',
-                'Don\'t waste food on your plate',
-                'Don\'t start eating before elders or guests',
-                'Don\'t lick fingers in formal settings'
-            ],
-            servingOrder: [
-                'Begin with something sweet in some regions',
-                'Serve bread and rice with main dishes',
-                'Sweet dish or paan to conclude the meal',
-                'Yogurt or raita to balance spice'
-            ]
-        },
-        'middle_east': {
-            presentation: [
-                'Large central platters for sharing',
-                'Multiple small mezze dishes',
-                'Vibrant colors and garnishes',
-                'Arrange bread in cloth-lined baskets'
-            ],
-            customs: [
-                'Break bread with hands, never cut with knife',
-                'Dip bread in shared dishes',
-                'Serve elders and guests first',
-                'Use right hand for eating'
-            ],
-            taboos: [
-                'Don\'t refuse offered food (take at least a small portion)',
-                'Don\'t eat with left hand',
-                'Don\'t rush through meals',
-                'Don\'t blow on hot food'
-            ],
-            servingOrder: [
-                'Mezze (small appetizers) first',
-                'Main dishes with bread',
-                'Sweet tea and desserts after the meal',
-                'Coffee to conclude'
-            ]
-        },
-        'mediterranean': {
-            presentation: [
-                'Simple, rustic presentation',
-                'Fresh herbs as garnish',
-                'Olive oil drizzled as finishing touch',
-                'Colorful vegetable arrangements'
-            ],
-            customs: [
-                'Bread accompanies the entire meal',
-                'Share multiple dishes family-style',
-                'Use bread to soak up sauces',
-                'Leisurely pace with conversation'
-            ],
-            taboos: [
-                'Don\'t rush the meal',
-                'Don\'t waste bread',
-                'Don\'t add cheese to seafood pasta in Italy',
-                'Don\'t ask for additional seasoning before tasting'
-            ],
-            servingOrder: [
-                'Antipasti/appetizers',
-                'Pasta or rice dish',
-                'Main protein dish',
-                'Salad course',
-                'Cheese and fruit',
-                'Dessert and coffee'
-            ]
-        },
-        'latin_america': {
-            presentation: [
-                'Colorful arrangements',
-                'Fresh garnishes like cilantro and lime',
-                'Serve with traditional salsas on the side',
-                'Family-style large platters'
-            ],
-            customs: [
-                'Wait for eldest to begin eating',
-                'Keep hands visible on table, not in lap',
-                'Use tortillas or bread to scoop food',
-                'Express appreciation for the food'
-            ],
-            taboos: [
-                'Don\'t eat tacos with fork and knife',
-                'Don\'t add hot sauce before tasting',
-                'Don\'t refuse offered food in someone\'s home',
-                'Don\'t leave the table until everyone is finished'
-            ],
-            servingOrder: [
-                'Soup or light appetizer',
-                'Main course with sides',
-                'Dessert',
-                'Coffee or digestif'
-            ]
-        }
-    };
-    return etiquette[region] || {
-        presentation: [],
-        customs: [],
-        taboos: [],
-        servingOrder: []
-    };
+  const etiquette = {
+    east_asia: {
+      presentation: [
+        "Serve rice in individual bowls",
+        "Place shared dishes in the center",
+        "Arrange food to highlight colors and textures",
+        "Use small plates for individual portions"
+      ],
+      customs: [
+        "Hold rice bowl close to mouth",
+        "Use chopsticks correctly",
+        "Pour tea for others before yourself",
+        "Tap fingers as thanks when someone pours tea for you"
+      ],
+      taboos: [
+        "Don't stick chopsticks vertically in rice",
+        "Don't pass food directly from chopsticks to chopsticks",
+        "Don't point with chopsticks",
+        "Don't flip fish over on the plate"
+      ],
+      servingOrder: [
+        "Soup first",
+        "Rice and main dishes together",
+        "Fruit or light dessert last",
+        "Tea throughout the meal"
+      ]
+    },
+    southeast_asia: {
+      presentation: [
+        "Serve food family-style on a raised platform",
+        "Arrange dishes by spice level",
+        "Include contrasting textures and flavors",
+        "Garnish with fresh herbs and lime wedges"
+      ],
+      customs: [
+        "Eat with right hand in some regions",
+        "Use fork and spoon (fork to push, spoon to eat)",
+        "Take small portions to sample everything",
+        "Cool spicy dishes with plain rice"
+      ],
+      taboos: [
+        "Don't use left hand for eating",
+        "Don't place serving spoons in your mouth",
+        "Don't leave chopsticks crossed",
+        "Don't waste rice"
+      ],
+      servingOrder: [
+        "All dishes served simultaneously",
+        "Rice as the foundation",
+        "Balance between spicy, sour, sweet and savory in one meal",
+        "Fresh fruit for dessert"
+      ]
+    },
+    south_asia: {
+      presentation: [
+        "Serve on thali plates with small compartments",
+        "Balance colors and textures across the plate",
+        "Place bread and rice separately",
+        "Arrange accompaniments in small bowls"
+      ],
+      customs: [
+        "Traditionally eat with right hand fingers",
+        "Tear bread with fingers, not cutlery",
+        "Share food and offer to others first",
+        "Mix rice with curry using fingertips"
+      ],
+      taboos: [
+        "Don't use left hand for eating or passing food",
+        "Don't waste food on your plate",
+        "Don't start eating before elders or guests",
+        "Don't lick fingers in formal settings"
+      ],
+      servingOrder: [
+        "Begin with something sweet in some regions",
+        "Serve bread and rice with main dishes",
+        "Sweet dish or paan to conclude the meal",
+        "Yogurt or raita to balance spice"
+      ]
+    },
+    middle_east: {
+      presentation: [
+        "Large central platters for sharing",
+        "Multiple small mezze dishes",
+        "Vibrant colors and garnishes",
+        "Arrange bread in cloth-lined baskets"
+      ],
+      customs: [
+        "Break bread with hands, never cut with knife",
+        "Dip bread in shared dishes",
+        "Serve elders and guests first",
+        "Use right hand for eating"
+      ],
+      taboos: [
+        "Don't refuse offered food (take at least a small portion)",
+        "Don't eat with left hand",
+        "Don't rush through meals",
+        "Don't blow on hot food"
+      ],
+      servingOrder: [
+        "Mezze (small appetizers) first",
+        "Main dishes with bread",
+        "Sweet tea and desserts after the meal",
+        "Coffee to conclude"
+      ]
+    },
+    mediterranean: {
+      presentation: [
+        "Simple, rustic presentation",
+        "Fresh herbs as garnish",
+        "Olive oil drizzled as finishing touch",
+        "Colorful vegetable arrangements"
+      ],
+      customs: [
+        "Bread accompanies the entire meal",
+        "Share multiple dishes family-style",
+        "Use bread to soak up sauces",
+        "Leisurely pace with conversation"
+      ],
+      taboos: [
+        "Don't rush the meal",
+        "Don't waste bread",
+        "Don't add cheese to seafood pasta in Italy",
+        "Don't ask for additional seasoning before tasting"
+      ],
+      servingOrder: [
+        "Antipasti/appetizers",
+        "Pasta or rice dish",
+        "Main protein dish",
+        "Salad course",
+        "Cheese and fruit",
+        "Dessert and coffee"
+      ]
+    },
+    latin_america: {
+      presentation: [
+        "Colorful arrangements",
+        "Fresh garnishes like cilantro and lime",
+        "Serve with traditional salsas on the side",
+        "Family-style large platters"
+      ],
+      customs: [
+        "Wait for eldest to begin eating",
+        "Keep hands visible on table, not in lap",
+        "Use tortillas or bread to scoop food",
+        "Express appreciation for the food"
+      ],
+      taboos: [
+        "Don't eat tacos with fork and knife",
+        "Don't add hot sauce before tasting",
+        "Don't refuse offered food in someone's home",
+        "Don't leave the table until everyone is finished"
+      ],
+      servingOrder: [
+        "Soup or light appetizer",
+        "Main course with sides",
+        "Dessert",
+        "Coffee or digestif"
+      ]
+    }
+  }
+
+  return (
+    etiquette[region] || {
+      presentation: [],
+      customs: [],
+      taboos: [],
+      servingOrder: []
+    }
+  )
 }
+
 export async function generateCulturalRecipeDetails(recipeName, cuisineName) {
-    try {
-        console.log('Generating recipe details for:', { recipeName, cuisineName });
-        const prompt = `Generate detailed cultural recipe information for "${recipeName}" from ${cuisineName} cuisine.
+  try {
+    console.log("Generating recipe details for:", { recipeName, cuisineName })
+
+    const prompt = `Generate detailed cultural recipe information for "${recipeName}" from ${cuisineName} cuisine.
 
     Return EXACTLY this JSON structure with no additional text:
     {
@@ -811,25 +1085,53 @@ export async function generateCulturalRecipeDetails(recipeName, cuisineName) {
     - Each ingredient must include both the amount and the ingredient name
     - Use standard measurements (cups, tablespoons, teaspoons, pounds, ounces, etc.)
     - Include all essential ingredients for an authentic recipe
-    - Instructions should be clear, numbered steps`;
-        console.log('Sending prompt to AI:', prompt);
-        const result = await generateContent(prompt);
-        const response = await result.response.text();
-        console.log('Raw AI response:', response);
-        const data = await safeJsonParse(response);
-        console.log('Parsed AI response:', data);
-        // Ensure the response matches our expected format
-        const formattedData = {
-            description: data.description || '',
-            difficulty: data.difficulty || 'intermediate',
-            authenticIngredients: Array.isArray(data.authenticIngredients) ? data.authenticIngredients : [],
-            instructions: Array.isArray(data.instructions) ? data.instructions : []
-        };
-        console.log('Final formatted data:', formattedData);
-        return formattedData;
+    - Instructions should be clear, numbered steps`
+
+    console.log("Sending prompt to AI:", prompt)
+
+    const result = await generateContent(prompt)
+    const response = await result.response.text()
+    console.log("Raw AI response:", response)
+
+    const data = await safeJsonParse(response)
+    console.log("Parsed AI response:", data)
+
+    // Ensure the response matches our expected format
+    const formattedData = {
+      description: data.description || "",
+      difficulty: data.difficulty || "intermediate",
+      authenticIngredients: Array.isArray(data.authenticIngredients)
+        ? data.authenticIngredients
+        : [],
+      instructions: Array.isArray(data.instructions) ? data.instructions : []
     }
-    catch (error) {
-        console.error('Error generating cultural recipe details:', error);
-        throw error;
-    }
+
+    console.log("Final formatted data:", formattedData)
+    return formattedData
+  } catch (error) {
+    console.error("Error generating cultural recipe details:", error)
+    throw error
+  }
 }
+
+// Create a service object with all the functions
+const culturalCuisineService = {
+  generateCuisineDetailsFromName,
+  getCulturalContext,
+  analyzeCulturalCuisine,
+  getRecipeAuthenticityScore,
+  getTechniqueTips,
+  generateCulturalDetails,
+  getPairings,
+  getEtiquette,
+  getSubstitutions,
+  getCulturalCuisineInfo,
+  getAuthenticRecipeAdaptation,
+  getCrossCulturalFusion,
+  getCuisineInsights,
+  getAuthenticRecipe,
+  getCulturalCookingTips,
+  generateCulturalRecipeDetails
+};
+
+export default culturalCuisineService;

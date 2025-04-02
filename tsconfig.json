@@ -28,9 +28,6 @@
     "allowJs": true,
     "checkJs": false,
     "noFallthroughCasesInSwitch": false,
-    "noPropertyAccessFromIndexSignature": false,
-    "outDir": "dist",
-    "rootDir": ".",
-    "sourceMap": true
+    "noPropertyAccessFromIndexSignature": false
   }
 }

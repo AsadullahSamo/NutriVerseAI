@@ -8,10 +8,6 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Ensure paths are normalized
-const clientRoot = path.resolve(__dirname, "client");
-const clientSrc = path.resolve(clientRoot, "src");
-
 export default defineConfig({
   plugins: [
     react(),
@@ -31,37 +27,19 @@ export default defineConfig({
   envPrefix: ['VITE_'],
   resolve: {
     alias: {
-      "@": clientSrc,
+      "@": path.resolve(__dirname, "client", "src"),
       "@shared": path.resolve(__dirname, "shared"),
       "@ai-services": path.resolve(__dirname, "ai-services"),
-    }
-  },
-  root: clientRoot,
-  publicDir: path.resolve(clientRoot, "public"),
-  build: {
-    outDir: path.resolve(__dirname, "dist/client"),
-    emptyOutDir: true,
-    manifest: true,
-    rollupOptions: {
-      input: path.resolve(clientRoot, "index.html")
     },
-    assetsDir: "assets",
-    cssCodeSplit: true,
-    modulePreload: {
-      polyfill: true
-    }
+  },
+  root: path.resolve(__dirname, "client"),
+  build: {
+    outDir: path.resolve(__dirname, "dist/public"),
+    emptyOutDir: true,
   },
   server: {
     hmr: {
       overlay: false,
-    },
-    fs: {
-      strict: false,
-      allow: [
-        clientRoot,
-        path.resolve(__dirname, "shared"),
-        path.resolve(__dirname, "ai-services")
-      ]
     },
     proxy: {
       '/api': {
@@ -77,7 +55,4 @@ export default defineConfig({
       }
     }
   },
-  optimizeDeps: {
-    include: ['react', 'react-dom']
-  }
 });

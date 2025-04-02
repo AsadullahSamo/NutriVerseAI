@@ -606,6 +606,8 @@ export async function registerRoutes(app) {
                     return cuisine;
                 }
             });
+            // Set explicit content-type to ensure client receives JSON
+            res.setHeader('Content-Type', 'application/json');
             res.json(processedCuisines);
         }
         catch (error) {
@@ -618,6 +620,8 @@ export async function registerRoutes(app) {
                     cause: error.cause
                 });
             }
+            // Set explicit content-type for error responses too
+            res.setHeader('Content-Type', 'application/json');
             res.status(500).json({
                 error: 'Failed to fetch cuisines',
                 details: error instanceof Error ? error.message : 'Unknown error',
