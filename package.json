@@ -9,7 +9,7 @@
     "dev:server": "nodemon --exec tsx server/index.ts",
     "build": "npm run build:client && npm run build:server",
     "build:client": "vite build",
-    "build:server": "cp-cli server dist/server && cp-cli shared dist/shared && tsc",
+    "build:server": "node server/esbuild.config.js",
     "start": "node dist/server/index.js",
     "check": "tsc",
     "db:push": "drizzle-kit push"
