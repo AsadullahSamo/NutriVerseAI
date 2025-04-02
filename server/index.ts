@@ -1,14 +1,14 @@
 import { config } from 'dotenv';
-import { resolve } from 'path';
+import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 
+// ES Module compatible __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Load environment variables from .env file in the root directory only in development
 if (process.env.NODE_ENV !== 'production') {
-  config({ path: resolve(__dirname, '..', '.env') });
+  config({ path: resolve(dirname(__dirname), '.env') });
 }
 
 import express, { type Request, Response, NextFunction } from "express";
