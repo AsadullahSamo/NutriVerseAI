@@ -12,7 +12,7 @@ import PantryPage from "@/pages/pantry-page"
 import CommunityPage from "@/pages/community-page"
 import MealPlanPage from "@/pages/meal-plan-page"
 import { ProtectedRoute } from "./lib/protected-route"
-import { Navbar } from "@/components/navbar"
+import { Navbar } from "@/components/Navbar"
 import NutritionPage from "./pages/nutrition-page"
 import KitchenEquipmentPage from "@/pages/kitchen-equipment-page"
 import CulturalCuisinePage from "@/pages/cultural-cuisine-page"
@@ -26,30 +26,34 @@ function Router() {
       <Switch>
         <Route path="/auth" component={AuthPage} />
         <Route>
-          <Navbar />
-          <Switch>
-            <ProtectedRoute path="/" component={HomePage} />
-            <ProtectedRoute path="/recipes" component={RecipesPage} />
-            <ProtectedRoute path="/pantry" component={PantryPage} />
-            <ProtectedRoute path="/community" component={CommunityPage} />
-            <ProtectedRoute path="/meal-plans" component={MealPlanPage} />
-            <ProtectedRoute path="/nutrition" component={NutritionPage} />
-            <ProtectedRoute
-              path="/kitchen-equipment"
-              component={KitchenEquipmentPage}
-            />
-            <ProtectedRoute
-              path="/cultural-cuisine"
-              component={CulturalCuisinePage}
-            />
-            <ProtectedRoute
-              path="/kitchen-storage"
-              component={KitchenStoragePage}
-            />
-            <ProtectedRoute path="/profile" component={ProfilePage} />
-            <ProtectedRoute path="/settings" component={UserSettings} />
-            <Route component={NotFound} />
-          </Switch>
+          <div className="min-h-screen flex flex-col">
+            <Navbar />
+            <main className="flex-1 pt-16">
+              <Switch>
+                <ProtectedRoute path="/" component={HomePage} />
+                <ProtectedRoute path="/recipes" component={RecipesPage} />
+                <ProtectedRoute path="/pantry" component={PantryPage} />
+                <ProtectedRoute path="/community" component={CommunityPage} />
+                <ProtectedRoute path="/meal-plans" component={MealPlanPage} />
+                <ProtectedRoute path="/nutrition" component={NutritionPage} />
+                <ProtectedRoute
+                  path="/kitchen-equipment"
+                  component={KitchenEquipmentPage}
+                />
+                <ProtectedRoute
+                  path="/cultural-cuisine"
+                  component={CulturalCuisinePage}
+                />
+                <ProtectedRoute
+                  path="/kitchen-storage"
+                  component={KitchenStoragePage}
+                />
+                <ProtectedRoute path="/profile" component={ProfilePage} />
+                <ProtectedRoute path="/settings" component={UserSettings} />
+                <Route component={NotFound} />
+              </Switch>
+            </main>
+          </div>
         </Route>
       </Switch>
     </>

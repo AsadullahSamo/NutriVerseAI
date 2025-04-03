@@ -203,34 +203,11 @@ export function Navbar() {
                     </Link>
                   ))
                 )}
-
-                {/* Auth buttons for mobile */}
-                {!user && (
-                  <div className="flex flex-col gap-4 p-6">
-                    <Button
-                      variant="ghost"
-                      asChild
-                      className="justify-start text-base"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Link href="/sign-in">Sign In</Link>
-                    </Button>
-                    <Button
-                      asChild
-                      className="justify-start text-base"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      <Link href="/sign-up">Sign Up</Link>
-                    </Button>
-                  </div>
-                )}
               </nav>
             </div>
           </>
         )}
       </header>
-      {/* Spacer to prevent content from going under fixed header */}
-      <div className="h-14" />
     </>
   )
-}
+} 
