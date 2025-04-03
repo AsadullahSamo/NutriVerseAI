@@ -2,8 +2,8 @@ import { createServer } from "http";
 import { setupAuth } from "./auth";
 import { storage } from "./storage";
 import { insertRecipeSchema, insertGroceryListSchema, insertPantryItemSchema, insertCommunityPostSchema, insertNutritionGoalSchema, culturalCuisines, culturalRecipes, culturalTechniques, pantryItems, kitchenEquipment, recipes } from "@shared/schema";
-import { analyzeMoodSentiment, generateMoodInsights, generateAIMealPlan, getNutritionRecommendations, } from "../ai-services/recipe-ai";
-import { getRecipeAuthenticityScore, getEtiquette, getPairings, getSubstitutions, generateCulturalRecipeDetails } from "../ai-services/cultural-cuisine-service";
+import { analyzeMoodSentiment, generateMoodInsights, generateAIMealPlan, getNutritionRecommendations, } from "../../ai-services/recipe-ai";
+import { getRecipeAuthenticityScore, getEtiquette, getPairings, getSubstitutions, generateCulturalRecipeDetails } from "../../ai-services/cultural-cuisine-service";
 import { desc, eq, and } from "drizzle-orm";
 import { db } from "./db";
 // Middleware to check if user is authenticated

@@ -2,42 +2,8 @@ import { generateContent, safeJsonParse } from "./gemini-client"
 
 export async function generateCuisineDetailsFromName(name, region) {
   try {
-    // Check if we're running in browser
-    const isClient = typeof window !== 'undefined';
-    
-    if (isClient) {
-      // Client-side implementation - use the API endpoint
-      const clientConfig = await import("../client/src/lib/config").then(module => module.default);
-      console.log("[AI Service] Using API base URL:", clientConfig.apiBaseUrl);
-      
-      console.log("[AI Service] Using client-side implementation");
-      const apiUrl = `${clientConfig.apiBaseUrl}/api/ai/generate-cultural-recipe`;
-      
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-        credentials: "include",
-        body: JSON.stringify({ 
-          recipeName: name, 
-          cuisineName: region
-        })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || errorData.error || "Failed to generate cuisine details");
-      }
-      
-      const data = await response.json();
-      console.log("[Client] Received cuisine details:", data);
-      return data;
-    } else {
-      // Server-side implementation - use Gemini directly
-      console.log(`[Server] Generating cuisine details for ${name} cuisine from ${region} using Gemini`);
-      const prompt = `Generate detailed information about ${name} cuisine from ${region}.
+    console.log(`[Server] Generating cuisine details for ${name} cuisine from ${region} using Gemini`);
+    const prompt = `Generate detailed information about ${name} cuisine from ${region}.
 
 For key ingredients and cooking techniques, put each item on a separate line WITHOUT any numbering, bullets, or other markers.
 
@@ -72,39 +38,38 @@ For keyIngredients and cookingTechniques, make sure they are plain strings with 
 Do NOT use bullet points, numbers or any prefixes for the ingredients or techniques.
 STRICTLY FOLLOW THE EXACT FORMAT SHOWN ABOVE for keyIngredients and cookingTechniques.`;
 
-      console.log("[Server] Sending prompt to Gemini:", prompt);
-      const result = await generateContent(prompt)
-      const response = await result.response.text()
-      console.log("[Server] Raw Gemini response:", response);
-      
-      const parsedResponse = await safeJsonParse(response)
-      console.log("[Server] Parsed Gemini response:", parsedResponse);
-      
-      // Validate the response structure and ensure formatting
-      if (!parsedResponse || !parsedResponse.description) {
-        console.error("[Server] Invalid Gemini response structure:", parsedResponse);
-        throw new Error("Invalid response from AI service - missing required fields");
-      }
-      
-      // Make sure keyIngredients and cookingTechniques are formatted as newline-separated strings
-      const formattedResponse = {
-        ...parsedResponse,
-        keyIngredients: typeof parsedResponse.keyIngredients === 'string' 
-          ? parsedResponse.keyIngredients.replace(/^\d+\.\s+|^-\s+|^\*\s+/gm, '') // Remove bullets/numbers
-          : Array.isArray(parsedResponse.keyIngredients)
-            ? parsedResponse.keyIngredients.join('\n')
-            : "Ingredient 1\nIngredient 2\nIngredient 3\nIngredient 4\nIngredient 5",
-            
-        cookingTechniques: typeof parsedResponse.cookingTechniques === 'string'
-          ? parsedResponse.cookingTechniques.replace(/^\d+\.\s+|^-\s+|^\*\s+/gm, '') // Remove bullets/numbers
-          : Array.isArray(parsedResponse.cookingTechniques)
-            ? parsedResponse.cookingTechniques.join('\n')
-            : "Technique 1\nTechnique 2\nTechnique 3"
-      };
-      
-      console.log("[Server] Final formatted response:", formattedResponse);
-      return formattedResponse;
+    console.log("[Server] Sending prompt to Gemini:", prompt);
+    const result = await generateContent(prompt)
+    const response = await result.response.text()
+    console.log("[Server] Raw Gemini response:", response);
+    
+    const parsedResponse = await safeJsonParse(response)
+    console.log("[Server] Parsed Gemini response:", parsedResponse);
+    
+    // Validate the response structure and ensure formatting
+    if (!parsedResponse || !parsedResponse.description) {
+      console.error("[Server] Invalid Gemini response structure:", parsedResponse);
+      throw new Error("Invalid response from AI service - missing required fields");
     }
+    
+    // Make sure keyIngredients and cookingTechniques are formatted as newline-separated strings
+    const formattedResponse = {
+      ...parsedResponse,
+      keyIngredients: typeof parsedResponse.keyIngredients === 'string' 
+        ? parsedResponse.keyIngredients.replace(/^\d+\.\s+|^-\s+|^\*\s+/gm, '') // Remove bullets/numbers
+        : Array.isArray(parsedResponse.keyIngredients)
+          ? parsedResponse.keyIngredients.join('\n')
+          : "Ingredient 1\nIngredient 2\nIngredient 3\nIngredient 4\nIngredient 5",
+          
+      cookingTechniques: typeof parsedResponse.cookingTechniques === 'string'
+        ? parsedResponse.cookingTechniques.replace(/^\d+\.\s+|^-\s+|^\*\s+/gm, '') // Remove bullets/numbers
+        : Array.isArray(parsedResponse.cookingTechniques)
+          ? parsedResponse.cookingTechniques.join('\n')
+          : "Technique 1\nTechnique 2\nTechnique 3"
+    };
+    
+    console.log("[Server] Final formatted response:", formattedResponse);
+    return formattedResponse;
   } catch (error) {
     console.error("[Error] Failed to generate cuisine details:", error);
     throw new Error("Failed to generate cuisine details: " + (error.message || "Unknown error"));
@@ -186,127 +151,48 @@ export async function getTechniqueTips(technique, cuisine) {
 
 export async function generateCulturalDetails(cuisine) {
   try {
-    // Check if we're running in browser
-    const isClient = typeof window !== 'undefined';
+    console.log("[Server] Generating cultural details for cuisine:", cuisine);
+    const prompt = `Generate detailed cultural information about ${cuisine.name} cuisine.
     
-    if (isClient) {
-      // Import config to get the API base URL
-      const clientConfig = await import("../client/src/lib/config").then(module => module.default);
-      console.log("[AI Service] Using API base URL:", clientConfig.apiBaseUrl);
-      
-      // Client-side implementation - use the API endpoint
-      console.log("[AI Service] Using client-side implementation for cultural details");
-      const apiUrl = `${clientConfig.apiBaseUrl}/api/ai/generate-cuisine-details`;
-      
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-        credentials: "include",
-        body: JSON.stringify({ cuisine })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || errorData.error || "Failed to generate cultural details");
+    Include:
+    1. A comprehensive description
+    2. Key ingredients commonly used
+    3. Traditional cooking techniques
+    4. Cultural context and history
+    5. Serving etiquette and customs
+    
+    Return the information in this exact JSON format:
+    {
+      "description": "Detailed description",
+      "keyIngredients": "Ingredient 1\\nIngredient 2\\nIngredient 3",
+      "cookingTechniques": "Technique 1\\nTechnique 2\\nTechnique 3",
+      "culturalContext": {
+        "history": "Brief Historical background",
+        "traditions": "key culinary traditions",
+        "festivals": "celebrations and Related Food festivals",
+        "influences": "Cultural and historical influences"
+      },
+      "servingEtiquette": {
+        "tableSettings": "table arrangement guidelines as bullet points. Do not use numbers or other markers",
+        "diningCustoms": "dining rules as bullet points. Do not use numbers or other markers",
+        "servingOrder": "Course sequence as bullet points. Do not use numbers or other markers",
+        "taboos": "Things to avoid as bullet points. Do not use numbers or other markers",
+        "general": "overall dining etiquette summary. Do not use numbers or other markers"
       }
-      
-      return await response.json();
-    } else {
-      // Server-side implementation
-      const prompt = `Generate cultural context and serving etiquette information for ${
-        cuisine.name
-      } cuisine from ${cuisine.region}. Base the response on:
-Description: ${cuisine.description}
-Key Ingredients: ${JSON.stringify(cuisine.keyIngredients)}
-Cooking Techniques: ${JSON.stringify(cuisine.cookingTechniques)}
+    }`;
 
-Respond with this JSON structure:
-{
-  "culturalContext": {
-    "history": "brief historical background",
-    "traditions": "key culinary traditions",
-    "festivals": "celebrations and food significance",
-    "influences": "cultural and historical influences"
-  },
-  "servingEtiquette": {
-    "tableSetting": "table arrangement guidelines as bullet points",
-    "diningCustoms": "dining rules as bullet points",
-    "servingOrder": "course sequence as bullet points",
-    "taboos": "things to avoid as bullet points",
-    "general": "overall dining etiquette summary"
-  }
-}`
+    const result = await generateContent(prompt);
+    const response = await result.response.text();
+    const parsedResponse = await safeJsonParse(response);
 
-      const result = await generateContent(prompt)
-      const response = await result.response.text()
-      console.log("Cultural details response:", response)
-
-      const parsed = await safeJsonParse(response)
-
-      if (!parsed?.culturalContext || !parsed?.servingEtiquette) {
-        throw new Error("Invalid response structure - missing required sections")
-      }
-
-      const requiredContextFields = [
-        "history",
-        "traditions",
-        "festivals",
-        "influences"
-      ]
-      const requiredEtiquetteFields = [
-        "tableSetting",
-        "diningCustoms",
-        "servingOrder",
-        "taboos",
-        "general"
-      ]
-
-      const missingContextFields = requiredContextFields.filter(
-        field => !parsed.culturalContext[field]
-      )
-      const missingEtiquetteFields = requiredEtiquetteFields.filter(
-        field => !parsed.servingEtiquette[field]
-      )
-
-      if (missingContextFields.length > 0 || missingEtiquetteFields.length > 0) {
-        throw new Error(
-          "Invalid response structure - missing required fields: " +
-            [...missingContextFields, ...missingEtiquetteFields].join(", ")
-        )
-      }
-
-      // Process bullet-pointed sections
-      const bulletSections = [
-        "tableSetting",
-        "diningCustoms",
-        "servingOrder",
-        "taboos"
-      ]
-      bulletSections.forEach(section => {
-        if (typeof parsed.servingEtiquette[section] === "string") {
-          const points = parsed.servingEtiquette[section]
-            .split(/(?:\\n|\n|\.(?=\s|$))/)
-            .map(point => point.trim())
-            .filter(Boolean)
-            .map(point => point.replace(/^[•\-\*]\s*/, "")) // Remove any leading bullets
-
-          // Join without adding bullet points
-          parsed.servingEtiquette[section] = points.join("\n")
-        }
-      })
-
-      return parsed
+    if (!parsedResponse || !parsedResponse.description) {
+      throw new Error("Invalid response from AI service");
     }
-  } catch (err) {
-    const error = err
-    console.error("Error generating cultural details:", error)
-    throw new Error(
-      "Failed to generate cultural details: " +
-        (error?.message || "Unknown error")
-    )
+
+    return parsedResponse;
+  } catch (error) {
+    console.error("[Server] Error generating cultural details:", error);
+    throw error;
   }
 }
 
@@ -1114,8 +1000,7 @@ export async function generateCulturalRecipeDetails(recipeName, cuisineName) {
   }
 }
 
-// Create a service object with all the functions
-const culturalCuisineService = {
+export default {
   generateCuisineDetailsFromName,
   getCulturalContext,
   analyzeCulturalCuisine,
@@ -1133,5 +1018,3 @@ const culturalCuisineService = {
   getCulturalCookingTips,
   generateCulturalRecipeDetails
 };
-
-export default culturalCuisineService;

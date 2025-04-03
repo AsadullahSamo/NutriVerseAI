@@ -1,4 +1,4 @@
-import { model, safeJsonParse } from "../../../ai-services/gemini-client"
+import { model, safeJsonParse } from "@ai-services/gemini-client"
 
 export async function getEquipmentRecommendations(
   currentEquipment,

@@ -22,7 +22,7 @@ import {
   generateMoodInsights, 
   generateAIMealPlan,
   getNutritionRecommendations,
-} from "../ai-services/recipe-ai.js";
+} from "./ai-services/recipe-ai.js";
 import {
   analyzeCulturalCuisine,
   getRecipeAuthenticityScore,
@@ -32,7 +32,7 @@ import {
   generateCulturalRecipeDetails,
   generateCulturalDetails,
   generateCuisineDetailsFromName
-} from "../ai-services/cultural-cuisine-service.js";
+} from "./ai-services/cultural-cuisine-service.js";
 import { desc, eq, and, count } from "drizzle-orm";
 import { db } from "./db.js";
 

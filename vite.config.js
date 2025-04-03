@@ -30,7 +30,7 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "client", "src"),
       "@shared": path.resolve(__dirname, "shared"),
-      "@ai-services": path.resolve(__dirname, "ai-services"),
+      "@ai-services": path.resolve(__dirname, "server", "ai-services"),
     },
   },
   root: path.resolve(__dirname, "client"),

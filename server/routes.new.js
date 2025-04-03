@@ -2,8 +2,8 @@ import { createServer } from "http";
 import { setupAuth } from "./auth.js";
 import { storage } from "./storage.js";
 import { recipes, insertRecipeSchema } from "@shared/schema.js";
-import recipeAI from "../ai-services/recipe-ai.js";
-import culturalCuisineService from "../ai-services/cultural-cuisine-service.js";
+import recipeAI from "./ai-services/recipe-ai.js";
+import culturalCuisineService from "./ai-services/cultural-cuisine-service.js";
 import { eq } from "drizzle-orm";
 import { db } from "./db.js";
 
