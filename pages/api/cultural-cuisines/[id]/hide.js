@@ -1,5 +1,5 @@
-import { getAuth } from "@/lib/auth"
-import { hideContentForUser, VisibilityError } from "@/lib/content-visibility"
+import { getAuth } from "@/server/lib/auth"
+import { hideContentForUser, VisibilityError } from "@/server/lib/content-visibility"
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {

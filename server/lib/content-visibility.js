@@ -99,23 +99,31 @@ export async function unhideContentForUser(userId, contentType, contentId) {
     }
 
     const hiddenFor = content[0].hiddenFor || []
+    if (!hiddenFor.includes(userId)) {
+      throw new VisibilityError(
+        "Content is not hidden for this user",
+        "NOT_HIDDEN"
+      )
+    }
 
     // Remove user from hiddenFor array
-    const updatedHiddenFor = hiddenFor.filter(id => id !== userId)
-
-    await db
+    const [updatedContent] = await db
       .update(table)
-      .set({ hiddenFor: updatedHiddenFor })
+      .set({
+        hiddenFor: hiddenFor.filter(id => id !== userId)
+      })
       .where(eq(table.id, contentId))
+      .returning()
 
-    return { success: true }
+    return { type: "unhidden", updatedContent }
   } catch (error) {
     if (error instanceof VisibilityError) {
       throw error
     }
+    console.error("Error in unhideContentForUser:", error)
     throw new VisibilityError(
       "Failed to update content visibility",
       "DATABASE_ERROR"
     )
   }
-}
+} 

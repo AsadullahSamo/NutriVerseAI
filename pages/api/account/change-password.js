@@ -1,6 +1,6 @@
-import { prisma } from "@/lib/prisma"
+import { prisma } from "@/server/lib/prisma"
 import { getServerSession } from "next-auth/next"
-import { authOptions } from "@/lib/auth-options"
+import { authOptions } from "@/server/lib/auth-options"
 import bcrypt from "bcrypt"
 
 export default async function handler(req, res) {

@@ -1,8 +1,8 @@
-import { getAuth } from "@/lib/auth"
+import { getAuth } from "@/server/lib/auth"
 import { db } from "@/server/db"
 import { culturalRecipes } from "@shared/schema"
 import { eq } from "drizzle-orm"
-import { isContentVisibleForUser } from "@/lib/content-visibility"
+import { isContentVisibleForUser } from "@/server/lib/content-visibility"
 
 export default async function handler(req, res) {
   try {
