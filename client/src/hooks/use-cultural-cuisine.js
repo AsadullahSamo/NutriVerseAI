@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { useAuth } from "./use-auth"
-import { useToast } from "./use-toast"
+import { useAuth } from "@/hooks/use-auth"
+import { useToast } from "@/hooks/use-toast"
 
 export function useCuisines() {
   const { user } = useAuth()
@@ -115,4 +115,4 @@ export function useRecipe(id) {
     cacheTime: 0, // Don't cache results to ensure fresh data
     retry: false // Don't retry if the recipe is not found (likely hidden)
   })
-}
+} 

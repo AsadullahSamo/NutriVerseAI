@@ -5,7 +5,7 @@ import { Input } from "./ui/input"
 import { Badge } from "./ui/badge"
 import { Separator } from "./ui/separator"
 import { getRecipeRecommendations } from "@ai-services/recipe-ai"
-import { useToast } from "../hooks/use-toast"
+import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert"
 import {
   Loader2,

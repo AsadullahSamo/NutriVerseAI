@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useToast } from "@/hooks/use-toast"
 import { apiRequest } from "@/lib/queryClient"
+import { useLocation } from "wouter"
 
 const AuthContext = createContext(undefined)
 
@@ -9,6 +10,7 @@ export function AuthProvider({ children }) {
   const [error, setError] = useState(null)
   const queryClient = useQueryClient()
   const { toast } = useToast()
+  const [, setLocation] = useLocation()
 
   // Fetch user on component mount
   const { data: user, isLoading } = useQuery({
@@ -19,6 +21,9 @@ export function AuthProvider({ children }) {
         if (!response.ok) return null
         return response.json()
       } catch (error) {
+        if (error instanceof Error && error.message.includes("401")) {
+          return null
+        }
         return null
       }
     },
@@ -173,7 +178,7 @@ export function AuthProvider({ children }) {
     AuthContext.Provider,
     {
       value: {
-        user,
+        user: user ?? null,
         isAuthenticated: !!user,
         isLoading,
         error,

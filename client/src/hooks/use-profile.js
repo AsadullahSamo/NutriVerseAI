@@ -30,4 +30,4 @@ export function useProfile() {
     clearProfile,
     isLoaded: !!user
   }
-}
+} 
