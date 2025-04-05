@@ -16,7 +16,6 @@
     "prebuild": "npm run clean"
   },
   "dependencies": {
-    "@clerk/clerk-react": "^4.32.5",
     "@google/generative-ai": "^0.24.0",
     "@hookform/resolvers": "^3.9.1",
     "@jridgewell/trace-mapping": "^0.3.25",
