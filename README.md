@@ -120,7 +120,7 @@ A smart nutrition and grocery management platform that helps users make healthy 
 ## Getting Started
 
 1. Clone the repository
-2. Install dependencies:
+2. Navigate to project directory and install dependencies
 ```bash
 npm install
 ```
