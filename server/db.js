@@ -1,37 +1,35 @@
-import { config } from 'dotenv';
+// External dependencies first
+import { drizzle } from "drizzle-orm/neon-http"
+import { neon, neonConfig } from "@neondatabase/serverless"
+import * as dotenv from "dotenv"
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { neon, neonConfig } from "@neondatabase/serverless";
-import { drizzle } from 'drizzle-orm/neon-http';
-import * as schema from "../shared/schema.js";
 
+// Get directory path for proper .env loading
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load environment variables with direct path
-const dotenvPath = resolve(__dirname, '..', '.env');
-console.log("Loading .env from:", dotenvPath);
-config({ path: dotenvPath });
+// Configure dotenv with specific path to the .env file
+dotenv.config({ path: resolve(__dirname, '..', '.env') });
 
-// Manually set DATABASE_URL if not loaded from .env
+// Check for DATABASE_URL, use fallback if not found
 if (!process.env.DATABASE_URL) {
-  console.log("DATABASE_URL not found in .env, setting manually");
+  console.warn("⚠️ DATABASE_URL not found in environment variables, using fallback value");
   process.env.DATABASE_URL = "postgresql://neondb_owner:npg_mQHh1L7rSziT@ep-aged-pond-a4ze298b-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require";
 }
 
-// Debug output to check environment variables
-console.log("DATABASE_URL set:", !!process.env.DATABASE_URL);
-console.log("DATABASE_URL substring:", process.env.DATABASE_URL ? process.env.DATABASE_URL.substring(0, 30) + "..." : "not set");
+// Log connection info for debugging
+console.log("Database connection string available:", !!process.env.DATABASE_URL);
+console.log("Database URL prefix:", process.env.DATABASE_URL.substring(0, 30) + "...");
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL must be set in .env file");
-}
+// Local imports after
+import * as schema from "./shared/schema.js"
 
-// Configure neon with retries and logging
+// Configure neon with retry settings
 neonConfig.fetchConnectionCache = true;
 neonConfig.webSocketConstructor = undefined; // Disable WebSocket for serverless
-// neonConfig.useSecure = true; // Ensure SSL is used
 
+// Define retry logic
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
 
@@ -64,9 +62,31 @@ async function createDatabaseConnection() {
 }
 
 // Initialize database connection
-const { sql, db } = await createDatabaseConnection();
+const connection = await createDatabaseConnection();
+export const sql = connection.sql;
+export const db = connection.db;
+export const pool = sql; // For backward compatibility
 
-// Export sql as pool for backward compatibility
-const pool = sql;
+// Simple query to verify the database connection
+export async function checkDbConnection() {
+  try {
+    await sql`SELECT NOW()`
+    console.log('✅ Database connected successfully')
+    return true
+  } catch (error) {
+    console.error('❌ Database connection error:', error)
+    return false
+  }
+}
 
-export { db, sql, pool };
+// Set up a cleanup function to end the pool when the application shuts down
+function cleanup() {
+  console.log('Closing database pool...')
+  sql.end()
+}
+
+// Listen for termination signals
+process.on('SIGINT', cleanup)
+process.on('SIGTERM', cleanup)
+// Also handle the nodemon restart signal
+process.once('SIGUSR2', cleanup)

@@ -1,8 +1,14 @@
 "use strict";
+// External dependencies first
 import { createServer } from "http";
+import { desc, eq, and, count } from "drizzle-orm";
+
+// Local dependencies after, in consistent order
+import { db } from "./db.js";
 import { setupAuth } from "./auth.js";
 import { storage } from "./storage.js";
-import { sql } from "drizzle-orm";
+
+// Schema imports
 import { 
   insertRecipeSchema, 
   insertGroceryListSchema, 
@@ -15,8 +21,17 @@ import {
   culturalTechniques,
   pantryItems,
   kitchenEquipment,
-  recipes
-} from "@shared/schema";
+  recipes,
+  users,
+  groceryLists,
+  communityPosts,
+  mealPlans,
+  nutritionGoals,
+  recipeConsumption,
+  recipe_likes
+} from "./shared/schema.js";
+
+// AI service imports
 import { 
   analyzeMoodSentiment, 
   generateMoodInsights, 
@@ -33,8 +48,6 @@ import {
   generateCulturalDetails,
   generateCuisineDetailsFromName
 } from "./ai-services/cultural-cuisine-service.js";
-import { desc, eq, and, count } from "drizzle-orm";
-import { db } from "./db.js";
 
 // Middleware to check if user is authenticated
 const isAuthenticated = (req, res, next) => {

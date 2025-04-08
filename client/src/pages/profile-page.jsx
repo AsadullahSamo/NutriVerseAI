@@ -44,7 +44,8 @@ export default function ProfilePage() {
     user,
     updateProfileMutation,
     changePasswordMutation,
-    logoutMutation
+    logoutMutation,
+    deleteAccountMutation
   } = useAuth()
   const { toast } = useToast()
   const {
@@ -296,45 +297,16 @@ export default function ProfilePage() {
     }
 
     try {
-      const response = await fetch("/api/account", {
-        method: "DELETE",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ password: deleteAccountPassword }),
-        credentials: "include"
-      })
-
-      // Clear local data regardless of outcome
-      localStorage.removeItem("userProfile")
-      localStorage.removeItem("userPreferences")
-
-      // Check if response is OK (200-299)
-      if (!response.ok) {
-        // Only try to parse JSON if there's actual content
-        if (response.headers.get("content-length") > 0) {
-          const errorData = await response.json()
-          throw new Error(errorData.message || "Failed to delete account")
-        } else {
-          throw new Error("Failed to delete account")
-        }
-      }
-
-      // Show success message without attempting to parse empty response
+      await deleteAccountMutation.mutateAsync({ password: deleteAccountPassword })
+      
+      // Show success message
       toast({
         title: "Account Deleted",
         description: "Your account has been deleted successfully."
       })
-
-      // Redirect to auth page
-      window.location.href = "/auth"
     } catch (error) {
       console.error("Delete account error:", error)
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete account.",
-        variant: "destructive"
-      })
+      // Error is handled by the mutation
     }
   }
 
@@ -638,57 +610,66 @@ export default function ProfilePage() {
 
             <Card className="border-destructive">
               <CardHeader>
-                <CardTitle className="text-destructive">
-                  Delete Account
-                </CardTitle>
+                <CardTitle className="text-destructive">Delete Account</CardTitle>
                 <CardDescription>
-                  Permanently delete your account and all your data
+                  Permanently delete your account and all associated data
                 </CardDescription>
               </CardHeader>
 
-              <CardFooter>
+              <CardContent>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive">Delete Account</Button>
+                    <Button variant="destructive" disabled={deleteAccountMutation.isPending}>
+                      {deleteAccountMutation.isPending ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Deleting...
+                        </>
+                      ) : (
+                        "Delete Account"
+                      )}
+                    </Button>
                   </AlertDialogTrigger>
-
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>
-                        Are you absolutely sure?
-                      </AlertDialogTitle>
+                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This action cannot be undone. This will permanently
-                        delete your account and remove all your data from our
-                        servers.
+                        This action cannot be undone. This will permanently delete your account
+                        and all associated data. Please enter your password to confirm.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
-
-                    <div className="space-y-2 py-4">
-                      <Label htmlFor="delete-password">
-                        Confirm your password
-                      </Label>
+                    <div className="py-4">
+                      <Label htmlFor="deleteAccountPassword">Password</Label>
                       <Input
-                        id="delete-password"
+                        id="deleteAccountPassword"
                         type="password"
                         value={deleteAccountPassword}
-                        onChange={e => setDeleteAccountPassword(e.target.value)}
+                        onChange={(e) => setDeleteAccountPassword(e.target.value)}
                         placeholder="Enter your password"
+                        className="mt-2"
+                        disabled={deleteAccountMutation.isPending}
                       />
                     </div>
-
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogCancel disabled={deleteAccountMutation.isPending}>Cancel</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={handleDeleteAccount}
-                        className="bg-destructive hover:bg-destructive/90"
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        disabled={deleteAccountMutation.isPending}
                       >
-                        Delete Account
+                        {deleteAccountMutation.isPending ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Deleting...
+                          </>
+                        ) : (
+                          "Delete Account"
+                        )}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
-              </CardFooter>
+              </CardContent>
             </Card>
           </div>
         </TabsContent>

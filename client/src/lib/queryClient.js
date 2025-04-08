@@ -13,11 +13,12 @@ async function throwIfResNotOk(res) {
 
     // Handle specific error cases
     if (res.status === 401) {
-      throw new Error("Please log in to perform this action")
+      // Use the server's error message if available, otherwise provide a more specific message
+      throw new Error(errorMessage || "Authentication required. Please log in to continue.")
     } else if (res.status === 403) {
       throw new Error("You don't have permission to perform this action")
     } else if (res.status === 404) {
-      throw new Error("The requested resource was not found")
+      throw new Error("The username is incorrect")
     } else if (res.status === 429) {
       throw new Error("Too many requests. Please try again later")
     } else {
@@ -42,11 +43,12 @@ export async function apiRequest(method, path, body, customHeaders) {
 
     // Handle specific error cases
     if (response.status === 401) {
-      throw new Error("Please log in to perform this action")
+      // Use the server's error message if available, otherwise provide a more specific message
+      throw new Error(error.message || "Authentication required. Please log in to continue.")
     } else if (response.status === 403) {
       throw new Error("You don't have permission to perform this action")
     } else if (response.status === 404) {
-      throw new Error("The requested resource was not found")
+      throw new Error("The user does not exist")
     } else if (response.status === 429) {
       throw new Error("Too many requests. Please try again later")
     } else {

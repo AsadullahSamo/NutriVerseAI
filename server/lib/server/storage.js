@@ -9,8 +9,8 @@ var __rest = (this && this.__rest) || function (s, e) {
         }
     return t;
 };
-import { culturalRecipes } from "@shared/schema";
-import { users, recipes, groceryLists, pantryItems, communityPosts, recipe_likes, mealPlans, nutritionGoals, recipeConsumption, kitchenEquipment, kitchenStorageLocations, culturalCuisines } from "@shared/schema";
+import { culturalRecipes } from "../../shared/schema";
+import { users, recipes, groceryLists, pantryItems, communityPosts, recipe_likes, mealPlans, nutritionGoals, recipeConsumption, kitchenEquipment, kitchenStorageLocations, culturalCuisines } from "../../shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, desc, count } from "drizzle-orm";
 import session from "express-session";

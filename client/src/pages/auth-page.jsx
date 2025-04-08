@@ -70,6 +70,7 @@ export default function AuthPage() {
       await loginMutation.mutateAsync(data)
     } catch (error) {
       // Error is handled by mutation
+      console.error("Login error:", error)
     }
   }
 
@@ -88,6 +89,7 @@ export default function AuthPage() {
       }
     } catch (error) {
       // Error is handled by mutation
+      console.error("Registration error:", error)
     }
   }
 
@@ -103,6 +105,7 @@ export default function AuthPage() {
       forgotPasswordForm.reset()
     } catch (error) {
       // Error is handled by mutation
+      console.error("Forgot password error:", error)
     }
   }
 
@@ -132,6 +135,11 @@ export default function AuthPage() {
                     onSubmit={loginForm.handleSubmit(handleLogin)}
                     className="space-y-4"
                   >
+                    {loginMutation.error && (
+                      <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+                        {loginMutation.error.message}
+                      </div>
+                    )}
                     <FormField
                       control={loginForm.control}
                       name="username"
@@ -193,6 +201,11 @@ export default function AuthPage() {
                               )}
                               className="space-y-4"
                             >
+                              {forgotPasswordMutation.error && (
+                                <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+                                  {forgotPasswordMutation.error.message}
+                                </div>
+                              )}
                               <FormField
                                 control={forgotPasswordForm.control}
                                 name="username"
@@ -261,6 +274,11 @@ export default function AuthPage() {
                     onSubmit={registerForm.handleSubmit(handleRegister)}
                     className="space-y-4"
                   >
+                    {registerMutation.error && (
+                      <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+                        {registerMutation.error.message}
+                      </div>
+                    )}
                     <FormField
                       control={registerForm.control}
                       name="username"

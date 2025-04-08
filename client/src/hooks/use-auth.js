@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useToast } from "@/hooks/use-toast"
 import { apiRequest } from "@/lib/queryClient"
 import { useLocation } from "wouter"
+import { toast } from "sonner"
 
 const AuthContext = createContext(undefined)
 
@@ -33,50 +34,89 @@ export function AuthProvider({ children }) {
 
   // Login mutation
   const loginMutation = useMutation({
-    mutationFn: async credentials => {
-      const response = await apiRequest("POST", "/api/login", credentials)
+    mutationFn: async (credentials) => {
+      const response = await fetch("http://localhost:8000/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(credentials),
+      })
+
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.message || "Login failed")
+        if (response.status === 401) {
+          if (error.message.includes("User does not exist")) {
+            throw new Error("User does not exist. Please register an account.")
+          } else if (error.message.includes("Incorrect password")) {
+            throw new Error("Incorrect password. Please try again.")
+          }
+          throw new Error(error.message || "Invalid credentials")
+        }
+        throw new Error(error.message || "Failed to login")
       }
-      return await response.json()
+
+      const data = await response.json()
+      return data
     },
-    onSuccess: data => {
+    onSuccess: (data) => {
       setError(null)
       queryClient.setQueryData(["/api/user"], data)
       queryClient.invalidateQueries({ queryKey: ["/api/user"] })
-    },
-    onError: err => {
-      setError(err.message)
-      toast({
-        title: "Login failed",
-        description: err.message,
-        variant: "destructive"
+      toast("Successfully logged in!", {
+        duration: 3000,
+        style: {
+          background: "#4CAF50",
+          color: "white",
+        },
       })
-    }
+    },
+    onError: (error) => {
+      setError(error.message)
+      toast(error.message, {
+        duration: 3000,
+        style: {
+          background: "#f44336",
+          color: "white",
+        },
+      })
+    },
   })
 
   // Logout mutation
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/logout")
+      const response = await fetch("http://localhost:8000/api/logout", {
+        method: "POST",
+        credentials: "include",
+      })
       if (!response.ok) {
-        throw new Error("Logout failed")
+        throw new Error("Failed to logout")
       }
+      return response.json()
     },
     onSuccess: () => {
       queryClient.setQueryData(["/api/user"], null)
       queryClient.clear()
-      window.location.href = "/auth"
-    },
-    onError: err => {
-      setError(err.message)
-      toast({
-        title: "Logout failed",
-        description: err.message,
-        variant: "destructive"
+      toast("Successfully logged out!", {
+        duration: 3000,
+        style: {
+          background: "#4CAF50",
+          color: "white",
+        },
       })
-    }
+    },
+    onError: (error) => {
+      setError(error.message)
+      toast(error.message, {
+        duration: 3000,
+        style: {
+          background: "#f44336",
+          color: "white",
+        },
+      })
+    },
   })
 
   // Register mutation
@@ -150,6 +190,38 @@ export function AuthProvider({ children }) {
     }
   })
 
+  // Delete account mutation
+  const deleteAccountMutation = useMutation({
+    mutationFn: async passwordData => {
+      const response = await apiRequest(
+        "POST",
+        "/api/account/delete",
+        passwordData
+      )
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.message || "Failed to delete account")
+      }
+      return response.json()
+    },
+    onSuccess: () => {
+      setError(null)
+      // Clear local data
+      localStorage.removeItem("userProfile")
+      localStorage.removeItem("userPreferences")
+      // Redirect to auth page
+      window.location.href = "/auth"
+    },
+    onError: err => {
+      setError(err.message)
+      toast({
+        title: "Delete account failed",
+        description: err.message,
+        variant: "destructive"
+      })
+    }
+  })
+
   // Add forgot password mutation
   const forgotPasswordMutation = useMutation({
     mutationFn: async data => {
@@ -187,7 +259,8 @@ export function AuthProvider({ children }) {
         registerMutation,
         updateProfileMutation,
         changePasswordMutation,
-        forgotPasswordMutation
+        forgotPasswordMutation,
+        deleteAccountMutation
       }
     },
     children

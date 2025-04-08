@@ -12,11 +12,9 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 import express from "express";
-import { registerRoutes } from "./routes.js";  // Changed to named import
-import { setupVite, serveStatic, log } from "./vite.js";  // Added .js extension
 import cors from "cors";
-import { sql } from 'drizzle-orm';
-import { culturalCuisines } from '@shared/schema.js';  // Added .js extension
+import { registerRoutes } from "./routes.js";
+import { setupVite, serveStatic, log } from "./vite.js";
 
 const app = express();
 
@@ -79,12 +77,49 @@ app.use((req, res, next) => {
 
 (async () => {
   try {
-    // Test database connection
-    const { db } = await import('./db.js');  // Added .js extension
-    const testQuery = await db.select({ count: sql`count(*)` }).from(culturalCuisines);
-    console.log('Database connection test successful:', testQuery);
+    // Add a health check endpoint that doesn't depend on the database
+    app.get('/api/health/check', (req, res) => {
+      res.json({ status: 'ok', timestamp: new Date().toISOString() });
+    });
 
-    const server = await registerRoutes(app);  // Updated to use named function
+    // Continue with server initialization even if DB is unavailable
+    let dbConnected = false;
+    
+    try {
+      // Set a timeout for the database connection attempt
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Database connection timeout')), 8000)
+      );
+      
+      const dbPromise = Promise.all([
+        import('./db.js'),
+        import('./shared/schema.js')
+      ]);
+      
+      // Race the DB connection against a timeout
+      const [dbModule, schemaModule] = await Promise.race([
+        timeoutPromise.then(() => Promise.reject(new Error('Database connection timeout'))),
+        dbPromise
+      ]);
+      
+      const { db, sql } = dbModule;
+      const { culturalCuisines } = schemaModule;
+      
+      // Test database connection with a simple COUNT query
+      const result = await sql`SELECT COUNT(*) FROM cultural_cuisines`;
+      const count = result?.[0]?.count || 0;
+      console.log('Database connection test successful, found', count, 'cuisines');
+      dbConnected = true;
+    } catch (dbError) {
+      console.warn('⚠️ Database connection failed, continuing with limited functionality:', 
+        dbError.name, '-', dbError.message);
+      
+      if (dbError instanceof AggregateError && dbError.errors) {
+        dbError.errors.forEach(err => console.warn(' - ', err.message));
+      }
+    }
+
+    const server = await registerRoutes(app);
 
     // Global error handler with detailed logging
     app.use((err, _req, res, _next) => {
@@ -117,6 +152,7 @@ app.use((req, res, next) => {
     const PORT = parseInt(process.env.BACKEND_PORT || "8000", 10);
     server.listen(PORT, "localhost", () => {
       console.log(`Backend server started on port ${PORT}`);
+      console.log(`Database connection status: ${dbConnected ? '✅ Connected' : '⚠️ Not connected'}`);
       log(`serving on port ${PORT}`);
     });
   } catch (error) {

@@ -1,8 +1,26 @@
-import { users, recipes, groceryLists, pantryItems, communityPosts, recipe_likes, mealPlans, nutritionGoals, recipeConsumption, kitchenEquipment, kitchenStorageLocations, culturalRecipes, culturalCuisines } from "@shared/schema";
-import { db, sql, pool } from "./db";
-import { eq, and, gte, lte, desc, count } from "drizzle-orm";
+// Import external dependencies first
 import session from "express-session";
 import MemoryStore from "memorystore";
+import { eq, and, gte, lte, desc, count } from "drizzle-orm";
+
+// Import local modules after
+import { db, sql, pool } from "./db.js";  // sql is exported from db.js now
+import { 
+  users, 
+  recipes, 
+  groceryLists, 
+  pantryItems, 
+  communityPosts, 
+  recipe_likes, 
+  mealPlans, 
+  nutritionGoals, 
+  recipeConsumption, 
+  kitchenEquipment, 
+  kitchenStorageLocations, 
+  culturalRecipes, 
+  culturalCuisines,
+  insertUserSchema
+} from "./shared/schema.js";  // Add .js extension for consistency
 
 const MemorySessionStore = MemoryStore(session);
 

@@ -173,18 +173,18 @@ export function setupAuth(app) {
       try {
         const user = await storage.getUserByUsername(username)
         if (!user) {
-          return res.status(401).json({ message: "User does not exist" })
+          return res.status(401).json({ message: "User does not exist. Please register an account." })
         }
 
         // Verify secret key
         if (user.secretKey !== secretKey) {
-          return res.status(401).json({ message: "Invalid secret key" })
+          return res.status(401).json({ message: "Invalid secret key. Please try again." })
         }
 
         const safeUser = sanitizeUser(user)
         req.login(safeUser, err => {
           if (err) {
-            return res.status(500).json({ message: "Login failed" })
+            return res.status(500).json({ message: "Login failed. Please try again later." })
           }
           res.json(safeUser)
         })
@@ -195,16 +195,23 @@ export function setupAuth(app) {
       // Use regular password authentication
       passport.authenticate("local", (err, user, info) => {
         if (err) {
-          return res.status(500).json({ message: "Login failed" })
+          return res.status(500).json({ message: "Login failed. Please try again later." })
         }
         if (!user) {
-          return res
-            .status(401)
-            .json({ message: info?.message || "Invalid credentials" })
+          // Provide more specific error messages based on the info message
+          let errorMessage = "Invalid credentials. Please check your username and password."
+          if (info && info.message) {
+            if (info.message.includes("User does not exist")) {
+              errorMessage = "User does not exist. Please register an account."
+            } else if (info.message.includes("Incorrect password")) {
+              errorMessage = "Incorrect password. Please try again."
+            }
+          }
+          return res.status(401).json({ message: errorMessage })
         }
         req.login(user, err => {
           if (err) {
-            return res.status(500).json({ message: "Login failed" })
+            return res.status(500).json({ message: "Login failed. Please try again later." })
           }
           res.json(user)
         })
@@ -374,6 +381,44 @@ export function setupAuth(app) {
       res.status(500).json({ message: "Failed to delete account" })
     }
   })
+
+  // Delete account endpoint
+  app.post("/api/account/delete", async (req, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+
+      const { password } = req.body;
+      if (!password) {
+        return res.status(400).json({ message: "Password is required" });
+      }
+
+      const user = await storage.getUser(req.user.id);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Verify password
+      if (!(await comparePasswords(password, user.password))) {
+        return res.status(401).json({ message: "Incorrect password" });
+      }
+
+      // Delete the user and all associated data
+      await storage.deleteUser(user.id);
+
+      // Logout the user
+      req.logout((err) => {
+        if (err) {
+          console.error("Error during logout:", err);
+        }
+        res.json({ message: "Account deleted successfully" });
+      });
+    } catch (err) {
+      console.error("Delete account error:", err);
+      res.status(500).json({ message: "Failed to delete account" });
+    }
+  });
 
   return sessionMiddleware
 }

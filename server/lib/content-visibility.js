@@ -1,5 +1,5 @@
 import { db } from "@/server/db"
-import { culturalCuisines, culturalRecipes } from "@shared/schema"
+import { culturalCuisines, culturalRecipes } from "../shared/schema"
 import { eq } from "drizzle-orm"
 
 export class VisibilityError extends Error {
