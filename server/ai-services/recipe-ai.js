@@ -474,9 +474,52 @@ export async function generatePantryItemDetails(itemName, category) {
   }
 }
 
+export async function getPersonalizedRecipeRecommendations(
+  userRecipes,
+  nutritionGoals,
+  dietaryPreferences
+) {
+  console.log("Generating personalized recommendations with:", {
+    userRecipesCount: userRecipes?.length || 0,
+    hasNutritionGoals: !!nutritionGoals,
+    dietaryPreferences: dietaryPreferences
+  });
+
+  const prompt = `As a professional chef and nutritionist, analyze these user recipes and provide personalized recommendations that align with their nutrition goals.
+
+User's Current Recipes: ${JSON.stringify(userRecipes)}
+${nutritionGoals ? `Nutrition Goals: ${JSON.stringify(nutritionGoals)}` : ""}
+${dietaryPreferences ? `Dietary Preferences: ${dietaryPreferences.join(", ")}` : ""}
+
+IMPORTANT: Your response must be a valid JSON array containing EXACTLY 3 recipe recommendations. Each recipe must follow this format exactly:
+{
+  "title": "Recipe Name",
+  "description": "A brief description of the recipe and why it's recommended",
+  "ingredients": ["ingredient 1", "ingredient 2", ...],
+  "instructions": ["step 1", "step 2", ...],
+  "nutritionalValue": "Calories: X, Protein: Xg, Carbs: Xg, Fat: Xg",
+  "prepTime": "X mins",
+  "matchScore": number (0-100, indicating how well it matches user's goals)
+}`
+
+  try {
+    console.log("Sending request to Gemini API for personalized recommendations");
+    const result = await model.generateContent(prompt);
+    const response = await result.response.text();
+    console.log("Raw AI response:", response);
+    const recommendations = await safeJsonParse(response);
+    console.log("Generated recommendations:", recommendations);
+    return recommendations;
+  } catch (error) {
+    console.error("Gemini API Error:", error);
+    throw error;
+  }
+}
+
 // Create a service object with all the functions
 const recipeAI = {
   getRecipeRecommendations,
+  getPersonalizedRecipeRecommendations,
   analyzeNutritionalValue,
   getMealPlanSuggestions,
   generateAIMealPlan,

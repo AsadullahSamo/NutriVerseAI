@@ -129,15 +129,8 @@ npm install
 Create a `.env` file with:
 ```
 SESSION_SECRET=your_secret_key
-DATABASE_URL=your_database_url
-VITE_API_BASE_URL=http://localhost:8000
 BACKEND_PORT=8000
-VITE_GROQ_API_KEY=your_groq_api_key
-VITE_API_URL=http://localhost:8000
-NODE_ENV=development
-GEMINI_API_KEY=your_gemini_api_key
-VITE_GEMINI_API_KEY=your_gemini_api_key
-
+DATABASE_URL=your_database_url
 ```
 
 4. Initialize the database:

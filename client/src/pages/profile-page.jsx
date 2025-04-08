@@ -501,7 +501,7 @@ export default function ProfilePage() {
                 />
               </div>
 
-              <div className="flex items-center justify-between">
+              {/* <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Notifications</Label>
                   <p className="text-sm text-muted-foreground">
@@ -514,7 +514,7 @@ export default function ProfilePage() {
                     handlePreferencesChange("notifications", checked)
                   }
                 />
-              </div>
+              </div> */}
             </CardContent>
           </Card>
         </TabsContent>

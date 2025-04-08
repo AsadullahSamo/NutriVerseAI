@@ -48,6 +48,7 @@ import {
   generateCulturalDetails,
   generateCuisineDetailsFromName
 } from "./ai-services/cultural-cuisine-service.js";
+import { getPersonalizedRecipeRecommendations } from './ai-services/recipe-recommendation-ai.js';
 
 // Middleware to check if user is authenticated
 const isAuthenticated = (req, res, next) => {
@@ -1583,6 +1584,58 @@ export async function registerRoutes(app) {
     } catch (error) {
       console.error('[Server] Error generating details:', error);
       res.status(500).json({ error: 'Failed to generate details' });
+    }
+  });
+
+            // Add the personalized recipe recommendations endpoint
+  app.get('/api/recipes/personalized', async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      // Get user's recipes
+      const userRecipes = await db.select()
+        .from(recipes)
+        .where(eq(recipes.createdBy, userId));
+
+      // Get user's nutrition goals
+      const nutritionGoalsTable = nutritionGoals; // Rename to avoid variable name conflict
+      const userNutritionGoals = await db.select()
+        .from(nutritionGoalsTable)
+        .where(
+          and(
+            eq(nutritionGoalsTable.userId, userId),
+            eq(nutritionGoalsTable.isActive, true)
+          )
+        );
+
+      // Get user's preferences
+      const [user] = await db.select()
+        .from(users)
+        .where(eq(users.id, userId));
+
+      // Get user's pantry items
+      const pantryItemsTable = pantryItems; // Rename to avoid variable name conflict
+      const userPantryItems = await db.select()
+        .from(pantryItemsTable)
+        .where(eq(pantryItemsTable.userId, userId));
+
+      // Call the AI service with all available user data
+      const recommendations = await getPersonalizedRecipeRecommendations({
+        userRecipes,
+        nutritionGoals: userNutritionGoals[0], // Get the first active nutrition goal
+        dietaryPreferences: user?.preferences?.dietaryRestrictions || [],
+        pantryItems: userPantryItems,
+        cookingSkills: user?.preferences?.cookingSkills || { level: "intermediate" },
+        userPreferences: user?.preferences?.favoriteIngredients || []
+      });
+
+      res.json(recommendations);
+    } catch (error) {
+      console.error('Error getting personalized recipe recommendations:', error);
+      res.status(500).json({ error: 'Failed to get personalized recommendations' });
     }
   });
 
