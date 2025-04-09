@@ -48,7 +48,6 @@ import {
   generateCulturalDetails,
   generateCuisineDetailsFromName
 } from "./ai-services/cultural-cuisine-service.js";
-import { getPersonalizedRecipeRecommendations } from './ai-services/recipe-recommendation-ai.js';
 
 // Middleware to check if user is authenticated
 const isAuthenticated = (req, res, next) => {
@@ -1595,32 +1594,34 @@ export async function registerRoutes(app) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
+      // Import schema tables using different variable names
+      const recipesTable = recipes;
+      const usersTable = users;
+      const pantryItemsTable = pantryItems;
+      const nutritionGoalsTable = nutritionGoals;
+
       // Get user's recipes
       const userRecipes = await db.select()
-        .from(recipes)
-        .where(eq(recipes.createdBy, userId));
-
-      // Get user's nutrition goals
-      const nutritionGoalsTable = nutritionGoals; // Rename to avoid variable name conflict
-      const userNutritionGoals = await db.select()
-        .from(nutritionGoalsTable)
-        .where(
-          and(
-            eq(nutritionGoalsTable.userId, userId),
-            eq(nutritionGoalsTable.isActive, true)
-          )
-        );
+        .from(recipesTable)
+        .where(eq(recipesTable.createdBy, userId));
 
       // Get user's preferences
       const [user] = await db.select()
-        .from(users)
-        .where(eq(users.id, userId));
+        .from(usersTable)
+        .where(eq(usersTable.id, userId));
 
       // Get user's pantry items
-      const pantryItemsTable = pantryItems; // Rename to avoid variable name conflict
       const userPantryItems = await db.select()
         .from(pantryItemsTable)
         .where(eq(pantryItemsTable.userId, userId));
+
+      // Get user's nutrition goals with a simpler query
+      const userNutritionGoals = await db.select()
+        .from(nutritionGoalsTable)
+        .where(eq(nutritionGoalsTable.userId, userId));
+
+      // Import our specialized AI service for recipe recommendations
+      const { getPersonalizedRecipeRecommendations } = await import('./ai-services/recipe-recommendation-ai.js');
 
       // Call the AI service with all available user data
       const recommendations = await getPersonalizedRecipeRecommendations({

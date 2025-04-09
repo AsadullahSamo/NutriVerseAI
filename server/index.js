@@ -1,20 +1,34 @@
 import { config } from 'dotenv';
-import { resolve } from 'path';
+import { resolve, join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load environment variables from .env file in the root directory only in development
+// Load environment variables from .env file in the root directory
 if (process.env.NODE_ENV !== 'production') {
+  config({ path: resolve(__dirname, '..', '.env') });
+} else {
   config({ path: resolve(__dirname, '..', '.env') });
 }
 
 import express from "express";
 import cors from "cors";
 import { registerRoutes } from "./routes.js";
-import { setupVite, serveStatic, log } from "./vite.js";
+
+// Custom log function 
+function log(message, source = "express") {
+  const formattedTime = new Date().toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+
+  console.log(`${formattedTime} [${source}] ${message}`);
+}
 
 const app = express();
 
@@ -25,8 +39,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Updated CORS configuration to handle credentials and auth routes
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://nutri-cart-frontend.onrender.com', 'http://localhost:5173']
-    : 'http://localhost:5173',  // Cannot use * with credentials
+    ? ['https://nutri-cart-frontend.onrender.com', 'http://localhost:5173', 'http://localhost:8000']
+    : ['http://localhost:5173', 'http://localhost:8000'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
@@ -143,14 +157,24 @@ app.use((req, res, next) => {
       });
     });
 
-    if (app.get("env") === "development") {
-      await setupVite(app, server);
+    // Static file serving for all environments
+    const publicPath = join(__dirname, '..', 'public');
+    console.log('Serving static files from:', publicPath);
+    
+    if (fs.existsSync(publicPath)) {
+      app.use(express.static(publicPath));
+      
+      // Fall through to index.html for SPA routing
+      app.use('*', (req, res) => {
+        res.sendFile(join(publicPath, 'index.html'));
+      });
+      console.log('Static file serving configured successfully');
     } else {
-      serveStatic(app);
+      console.error(`Public directory not found at ${publicPath}`);
     }
 
     const PORT = parseInt(process.env.BACKEND_PORT || "8000", 10);
-    server.listen(PORT, "localhost", () => {
+    server.listen(PORT, "0.0.0.0", () => {
       console.log(`Backend server started on port ${PORT}`);
       console.log(`Database connection status: ${dbConnected ? '✅ Connected' : '⚠️ Not connected'}`);
       log(`serving on port ${PORT}`);

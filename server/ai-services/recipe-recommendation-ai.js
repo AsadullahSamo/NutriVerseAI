@@ -44,22 +44,11 @@ ${pantryItems && pantryItems.length > 0 ? `Available Ingredients: ${pantryItems.
 ${cookingSkills ? `Cooking Skills: ${cookingSkills.level}` : "Cooking skill level unknown."}
 ${userPreferences && userPreferences.length > 0 ? `Food Preferences: ${userPreferences.join(", ")}` : "No specific food preferences."}
 
-IMPORTANT GUIDELINES:
-1. Analyze the user's past recipes to understand their cooking style, preferred ingredients, and flavor profiles
-2. Create recommendations that build upon their existing recipes while introducing new variations
-3. Match the complexity level to their cooking skills
-4. Consider their dietary preferences and restrictions
-5. Align with their nutrition goals
-6. Use ingredients they typically cook with
-7. Avoid generic recommendations like "honey oats" or "stir-fry" unless they match the user's style
-8. Each recommendation should be unique and distinct from the others
-9. Include a detailed explanation of why each recipe is recommended for this specific user
-
-Your response must be a valid JSON array containing EXACTLY 3 recipe recommendations. Each recipe must follow this format exactly:
+IMPORTANT: Your response must be a valid JSON array containing EXACTLY 3 recipe recommendations. Each recipe must follow this format exactly:
 {
   "id": number (unique identifier for the recipe),
   "title": "Recipe Name",
-  "description": "A detailed explanation of why this recipe is recommended for this user, based on their preferences and past recipes",
+  "description": "A brief description of the recipe and why it's recommended for this user",
   "ingredients": ["ingredient 1", "ingredient 2", ...],
   "instructions": ["step 1", "step 2", ...],
   "nutritionInfo": {

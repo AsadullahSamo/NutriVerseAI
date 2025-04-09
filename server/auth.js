@@ -44,17 +44,16 @@ function sanitizeUser(raw) {
 export function setupAuth(app) {
   // Session middleware setup
   const sessionMiddleware = session({
-    secret: process.env.SESSION_SECRET || "your_secret_key",
-    resave: false,
-    saveUninitialized: false,
+    secret: process.env.SESSION_SECRET || "your_secure_session_secret",
+    resave: true,
+    saveUninitialized: true,
     store: storage.sessionStore,
     cookie: {
-      secure: process.env.NODE_ENV === "production",
+      secure: false, // Set to false for http testing
       httpOnly: true,
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
-      domain:
-        process.env.NODE_ENV === "production" ? process.env.DOMAIN : undefined
+      sameSite: "lax",
+      path: "/"
     },
     name: "sessionId"
   })
