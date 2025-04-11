@@ -281,7 +281,7 @@ export function CuisineList({ cuisines, onSelectCuisine }) {
                   <label className="text-sm font-medium">Name</label>
                   <Input
                     name="name"
-                    placeholder="e.g., Thai, Mexican, Italian"
+                    placeholder="e.g., Mexican, American, Italian"
                     required
                   />
                 </div>
