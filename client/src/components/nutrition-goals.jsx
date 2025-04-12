@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Plus, Edit2, Loader2 } from "lucide-react"
+import { Plus, Edit2, Loader2, X, TrendingUp } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import {
   Dialog,
@@ -21,6 +21,7 @@ export function NutritionGoals() {
   const { user } = useAuth()
   const { toast } = useToast()
   const [showCreateDialog, setShowCreateDialog] = React.useState(false)
+  const [showWelcomeMessage, setShowWelcomeMessage] = React.useState(true)
   const [formData, setFormData] = React.useState({
     dailyCalories: "",
     dailyProtein: "",
@@ -214,6 +215,31 @@ export function NutritionGoals() {
               <CardTitle className="text-lg">Weekly Progress</CardTitle>
             </CardHeader>
             <CardContent>
+              {showWelcomeMessage && progress.length <= 2 && (
+                <div className="mb-4 relative">
+                  <Card className="bg-primary/5 border-primary/10">
+                    <CardContent className="pt-6">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2">
+                          <TrendingUp className="h-5 w-5 text-primary" />
+                          <h4 className="font-medium">Getting Started</h4>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => setShowWelcomeMessage(false)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Your progress graph will grow as you track your nutrition over time. Each point represents your daily nutrition data, and the line will connect them to show your progress.
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
               <LineChart
                 data={progress.slice(-7)}
                 categories={["calories", "protein", "carbs", "fat"]}
