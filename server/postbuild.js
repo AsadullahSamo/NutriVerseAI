@@ -187,22 +187,24 @@ function copyEnvFile() {
 }
 
 // Step 4: Fix specific issues that might cause problems in production
-function fixServerConfig() {
-  // Fix the server/index.js file for production
-  const serverIndexPath = path.join(serverDir, 'index.js');
+async function fixServerConfig() {
+  console.log("Starting server configuration fixes...");
   
-  if (fs.existsSync(serverIndexPath)) {
-    let indexContent = fs.readFileSync(serverIndexPath, 'utf8');
-    let modified = false;
-    
-    // Remove any imports from vite.js that might cause issues in production
-    const viteImportRegex = /import\s+(?:(?:{[^}]*}|\*\s+as\s+[^,]+)(?:\s*,\s*)?)?(?:[^,{}\s*]+)?(?:\s*,\s*(?:{[^}]*}|\*\s+as\s+[^,]+))?\s+from\s+['"]\.\/vite\.js['"];/;
-    
-    if (viteImportRegex.test(indexContent)) {
-      console.log('Detected vite.js import in server/index.js. Adding production-ready code...');
+  try {
+    // Handle index.js
+    const serverIndexPath = path.join(serverDir, 'index.js');
+    if (fs.existsSync(serverIndexPath)) {
+      let indexContent = fs.readFileSync(serverIndexPath, 'utf8');
+      let modified = false;
       
-      // Replace import with our own log function
-      indexContent = indexContent.replace(viteImportRegex, `
+      // Remove any imports from vite.js that might cause issues in production
+      const viteImportRegex = /import\s+(?:(?:{[^}]*}|\*\s+as\s+[^,]+)(?:\s*,\s*)?)?(?:[^,{}\s*]+)?(?:\s*,\s*(?:{[^}]*}|\*\s+as\s+[^,]+))?\s+from\s+['"]\.\/vite\.js['"];/;
+      
+      if (viteImportRegex.test(indexContent)) {
+        console.log('Detected vite.js import in server/index.js. Adding production-ready code...');
+        
+        // Replace import with our own log function
+        indexContent = indexContent.replace(viteImportRegex, `
 // Custom log function for production
 function log(message, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -215,14 +217,14 @@ function log(message, source = "express") {
   console.log(\`\${formattedTime} [\${source}] \${message}\`);
 }
 `);
-      modified = true;
-      
-      // Replace any calls to serveStatic or setupVite with direct static file serving
-      // This regex looks for the conditional serving section
-      const serveStaticRegex = /if\s*\(app\.get\("env"\)\s*===\s*"development"\)\s*{[^}]*}\s*else\s*{[^}]*}/;
-      
-      if (serveStaticRegex.test(indexContent)) {
-        indexContent = indexContent.replace(serveStaticRegex, `
+        modified = true;
+        
+        // Replace any calls to serveStatic or setupVite with direct static file serving
+        // This regex looks for the conditional serving section
+        const serveStaticRegex = /if\s*\(app\.get\("env"\)\s*===\s*"development"\)\s*{[^}]*}\s*else\s*{[^}]*}/;
+        
+        if (serveStaticRegex.test(indexContent)) {
+          indexContent = indexContent.replace(serveStaticRegex, `
 // Static file serving for production
 const publicPath = path.join(__dirname, '..', 'public');
 console.log('Serving static files from:', publicPath);
@@ -239,90 +241,326 @@ if (fs.existsSync(publicPath)) {
   console.error(\`Public directory not found at \${publicPath}\`);
 }
 `);
-        modified = true;
+          modified = true;
+        }
+        
+        // Ensure listen is on 0.0.0.0 not localhost
+        if (indexContent.includes('server.listen(PORT, "localhost"')) {
+          indexContent = indexContent.replace(/server\.listen\(PORT,\s*["']localhost["']/g, 'server.listen(PORT, "0.0.0.0"');
+          modified = true;
+        }
+        
+        if (modified) {
+          fs.writeFileSync(serverIndexPath, indexContent);
+          console.log('Updated server/index.js for production');
+        }
       }
-      
-      // Ensure listen is on 0.0.0.0 not localhost
-      if (indexContent.includes('server.listen(PORT, "localhost"')) {
-        indexContent = indexContent.replace(/server\.listen\(PORT,\s*["']localhost["']/g, 'server.listen(PORT, "0.0.0.0"');
-        modified = true;
-      }
-      
-      if (modified) {
-        fs.writeFileSync(serverIndexPath, indexContent);
-        console.log('Updated server/index.js for production');
-      }
-    }
-  } else {
-    console.warn('server/index.js not found');
-  }
-  
-  // Fix any specific auth.js issues
-  const authJsPath = path.join(serverDir, 'auth.js');
-  if (fs.existsSync(authJsPath)) {
-    let content = fs.readFileSync(authJsPath, 'utf8');
-    let modified = false;
-    
-    // Check for specific import that needs fixing
-    if (content.includes('import { storage } from "./storage"')) {
-      content = content.replace(
-        'import { storage } from "./storage"',
-        'import { storage } from "./storage.js"'
-      );
-      modified = true;
+    } else {
+      console.warn('server/index.js not found');
     }
     
-    // Fix session configuration
-    const sessionConfigRegex = /const sessionMiddleware = session\(\{[\s\S]*?\}\)/;
-    if (sessionConfigRegex.test(content)) {
-      content = content.replace(sessionConfigRegex, `const sessionMiddleware = session({
-    secret: process.env.SESSION_SECRET || "your_secure_session_secret",
-    resave: true,
-    saveUninitialized: true,
-    store: storage.sessionStore,
-    cookie: {
-      secure: false, // Set to false for http testing
-      httpOnly: true,
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      sameSite: "lax",
-      path: "/"
-    },
-    name: "sessionId"
-  })`);
-      modified = true;
-    }
-    
-    if (modified) {
-      fs.writeFileSync(authJsPath, content);
-      console.log('Fixed auth.js session configuration');
-    }
-  }
-  
-  // Handle any specific AI service imports
-  const aiServicesDir = path.join(serverDir, 'ai-services');
-  if (fs.existsSync(aiServicesDir)) {
-    const aiFiles = fs.readdirSync(aiServicesDir).filter(file => 
-      file.endsWith('.js') && !file.endsWith('.map.js'));
-      
-    for (const file of aiFiles) {
-      const filePath = path.join(aiServicesDir, file);
-      let content = fs.readFileSync(filePath, 'utf8');
+    // Fix any specific auth.js issues
+    const authJsPath = path.join(serverDir, 'auth.js');
+    if (fs.existsSync(authJsPath)) {
+      let content = fs.readFileSync(authJsPath, 'utf8');
       let modified = false;
       
-      // Fix specific imports in AI service files
-      if (content.includes('from "./gemini-client"')) {
+      // Check for specific import that needs fixing
+      if (content.includes('import { storage } from "./storage"')) {
         content = content.replace(
-          'from "./gemini-client"',
-          'from "./gemini-client.js"'
+          'import { storage } from "./storage"',
+          'import { storage } from "./storage.js"'
         );
         modified = true;
       }
       
+      // Fix session configuration
+      const sessionConfigRegex = /const sessionMiddleware = session\(\{[\s\S]*?\}\)/;
+      if (sessionConfigRegex.test(content)) {
+        content = content.replace(sessionConfigRegex, `const sessionMiddleware = session({
+      secret: process.env.SESSION_SECRET || "your_secure_session_secret",
+      resave: true,
+      saveUninitialized: true,
+      store: storage.sessionStore,
+      cookie: {
+        secure: false, // Set to false for http testing
+        httpOnly: true,
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+        sameSite: "lax",
+        path: "/"
+      },
+      name: "sessionId"
+    })`);
+        modified = true;
+      }
+      
       if (modified) {
-        fs.writeFileSync(filePath, content);
-        console.log(`Fixed imports in ${filePath}`);
+        fs.writeFileSync(authJsPath, content);
+        console.log('Fixed auth.js session configuration');
       }
     }
+    
+    // Handle any specific AI service imports
+    const aiServicesDir = path.join(serverDir, 'ai-services');
+    if (fs.existsSync(aiServicesDir)) {
+      const aiFiles = fs.readdirSync(aiServicesDir).filter(file => 
+        file.endsWith('.js') && !file.endsWith('.map.js'));
+        
+      for (const file of aiFiles) {
+        const filePath = path.join(aiServicesDir, file);
+        let content = fs.readFileSync(filePath, 'utf8');
+        let modified = false;
+        
+        // Fix specific imports in AI service files
+        if (content.includes('from "./gemini-client"')) {
+          content = content.replace(
+            'from "./gemini-client"',
+            'from "./gemini-client.js"'
+          );
+          modified = true;
+        }
+        
+        if (modified) {
+          fs.writeFileSync(filePath, content);
+          console.log(`Fixed imports in ${filePath}`);
+        }
+      }
+    }
+
+    // Fix component imports to ensure they have proper file extensions
+    // This will help ensure that components like Navbar can be found
+    await fixComponentImports(path.join(rootDir, 'public'));
+    
+    // Fix import paths to ensure proper resolution in production
+    await fixImportPaths(path.join(rootDir, 'public'));
+    
+    console.log("Server configuration fixed successfully!");
+  } catch (error) {
+    console.error("Error fixing server configuration:", error);
+  }
+}
+
+// Add these utility functions at the top of the file, before the main functions
+// Utility function to find all JS files in a directory recursively
+async function findJsFiles(dir) {
+  let results = [];
+  
+  if (!fs.existsSync(dir)) {
+    console.warn(`Directory not found: ${dir}`);
+    return results;
+  }
+  
+  const items = fs.readdirSync(dir, { withFileTypes: true });
+  
+  for (const item of items) {
+    const fullPath = path.join(dir, item.name);
+    
+    if (item.isDirectory()) {
+      const subDirResults = await findJsFiles(fullPath);
+      results = [...results, ...subDirResults];
+    } else if (item.isFile() && 
+              (fullPath.endsWith('.js') || fullPath.endsWith('.jsx') || fullPath.endsWith('.mjs')) && 
+              !fullPath.endsWith('.min.js') && 
+              !fullPath.endsWith('.map.js') && 
+              !fullPath.includes('node_modules')) {
+      results.push(fullPath);
+    }
+  }
+  
+  return results;
+}
+
+// Utility function to read a file - Promise-based wrapper
+function readFile(filePath, encoding) {
+  return new Promise((resolve, reject) => {
+    fs.readFile(filePath, encoding, (err, data) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve(data);
+    });
+  });
+}
+
+// Utility function to write a file - Promise-based wrapper
+function writeFile(filePath, content) {
+  return new Promise((resolve, reject) => {
+    fs.writeFile(filePath, content, err => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+// Function to calculate a relative path between two directories
+function calculateRelativePath(from, to) {
+  return path.relative(from, to).replace(/\\/g, '/');
+}
+
+// Fix relative path imports that use @ aliases
+async function fixImportPaths(dir) {
+  console.log(`Fixing import paths in ${dir}`);
+  const files = await findJsFiles(dir);
+  
+  for (const file of files) {
+    console.log(`Processing imports in ${file}`);
+    let content = await readFile(file, 'utf8');
+    let modified = false;
+
+    // Replace @ aliases with proper relative paths
+    const aliasImportRegex = /from\s+["']@\/([^"']+)["']/g;
+    content = content.replace(aliasImportRegex, (match, importPath) => {
+      modified = true;
+      // For components that should have .jsx extension
+      if (importPath.startsWith('components/') && 
+          importPath.split('/').pop().charAt(0).toUpperCase() === importPath.split('/').pop().charAt(0) &&
+          !importPath.endsWith('.jsx') && !importPath.endsWith('.js')) {
+        return match.replace(`@/${importPath}`, `@/${importPath}.jsx`);
+      }
+      return match;
+    });
+    
+    // Fix specific Navbar component import
+    content = content.replace(
+      /from\s+["']@\/components\/Navbar["']/g,
+      'from "@/components/Navbar.jsx"'
+    );
+
+    // Fix all PascalCase component imports to ensure they have .jsx extension
+    content = content.replace(
+      /from\s+["']([^"']+\/[A-Z][^"'\/.]*)["']/g,
+      (match, importPath) => {
+        // Only add .jsx if there's no file extension already
+        if (!importPath.match(/\.[a-z]+$/)) {
+          modified = true;
+          return match.replace(importPath, `${importPath}.jsx`);
+        }
+        return match;
+      }
+    );
+
+    if (modified) {
+      await writeFile(file, content);
+      console.log(`Fixed imports in ${file}`);
+    }
+  }
+}
+
+// Enhance the fixComponentImports function to specifically handle the Navbar component
+async function fixComponentImports(dir) {
+  console.log(`Ensuring component imports have file extensions in ${dir}`);
+  const files = await findJsFiles(dir);
+  
+  for (const file of files) {
+    console.log(`Processing component imports in ${file}`);
+    let content = await readFile(file, 'utf8');
+    let modified = false;
+
+    // Special handling for Navbar component which is causing the production error
+    if (content.includes('from "@/components/Navbar"') || 
+        content.includes("from '@/components/Navbar'") ||
+        content.includes('from "./components/Navbar"') ||
+        content.includes("from './components/Navbar'")) {
+      
+      content = content
+        .replace(/from\s+["']@\/components\/Navbar["']/g, 'from "@/components/Navbar.jsx"')
+        .replace(/from\s+["']\.\/components\/Navbar["']/g, 'from "./components/Navbar.jsx"');
+      modified = true;
+      console.log(`Fixed Navbar import in ${file}`);
+    }
+
+    // Add .jsx extension to PascalCase component imports if they don't have an extension
+    content = content.replace(
+      /from\s+["']([^"']+\/[A-Z][^"'\/.]*)["']/g,
+      (match, importPath) => {
+        // Only add .jsx if there's no file extension already
+        if (!importPath.match(/\.[a-z]+$/)) {
+          modified = true;
+          return match.replace(importPath, `${importPath}.jsx`);
+        }
+        return match;
+      }
+    );
+
+    // Also fix dynamic imports of components
+    content = content.replace(
+      /import\(['"]([^'"]+\/[A-Z][^'"\/.]*)['"][\),]/g,
+      (match, importPath) => {
+        // Only add .jsx if there's no file extension already
+        if (!importPath.match(/\.[a-z]+$/)) {
+          modified = true;
+          return match.replace(importPath, `${importPath}.jsx`);
+        }
+        return match;
+      }
+    );
+
+    if (modified) {
+      await writeFile(file, content);
+      console.log(`Updated component imports in ${file}`);
+    }
+  }
+}
+
+// Add this function to specifically address the Railway deployment issue
+async function fixRailwayPaths() {
+  console.log('Applying Railway-specific fixes...');
+  
+  // Check if we're running in Railway
+  const isRailway = process.env.RAILWAY_SERVICE_ID || process.env.RAILWAY;
+  if (isRailway) {
+    console.log('Railway environment detected, applying additional fixes');
+  }
+
+  // In Railway, the app is deployed to /app, not the original project path
+  // We need to handle any issues with the Navbar component specifically
+  // This will run for all environments to ensure consistency
+  
+  try {
+    // Find all JS and JSX files in the public directory (where the client build outputs)
+    const publicDir = path.join(distDir, 'public');
+    const files = await findJsFiles(publicDir);
+    
+    console.log(`Found ${files.length} files to check for Railway path fixes`);
+    
+    for (const file of files) {
+      let content = await readFile(file, 'utf8');
+      let modified = false;
+      
+      // Fix specific issue with Navbar component import
+      if (content.includes('/components/Navbar')) {
+        // Make sure all Navbar imports have the .jsx extension
+        content = content.replace(
+          /(['"])([^'"]*\/components\/Navbar)(['"])/g,
+          (match, quote1, path, quote2) => {
+            if (!path.endsWith('.jsx')) {
+              modified = true;
+              return `${quote1}${path}.jsx${quote2}`;
+            }
+            return match;
+          }
+        );
+        
+        // Also fix any explicit paths to /app/client/src/components/Navbar
+        content = content.replace(
+          /(['"])\/app\/client\/src\/components\/Navbar(['"])/g,
+          '$1/app/client/src/components/Navbar.jsx$2'
+        );
+        
+        if (modified) {
+          await writeFile(file, content);
+          console.log(`Fixed Navbar imports in ${file} for Railway deployment`);
+        }
+      }
+    }
+    
+    console.log('Railway-specific fixes completed.');
+  } catch (error) {
+    console.error('Error applying Railway fixes:', error);
   }
 }
 
@@ -331,7 +569,8 @@ try {
   copyIndexHtml();
   fixJsExtensions();
   copyEnvFile();
-  fixServerConfig();
+  await fixServerConfig();
+  await fixRailwayPaths();
   console.log('Post-build process completed successfully! The application is ready for production.');
 } catch (error) {
   console.error('Error during post-build process:', error);

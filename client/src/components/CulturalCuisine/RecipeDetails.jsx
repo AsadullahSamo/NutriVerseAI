@@ -207,7 +207,12 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
           significance: culturalData.significance || "",
           variations: culturalData.variations || ""
         }
-        handleUpdateRecipe({ culturalNotes: formattedCulturalData })
+        try {
+          await handleUpdateRecipe({ culturalNotes: formattedCulturalData }, false)
+        } catch (updateError) {
+          console.error("Error updating recipe with cultural notes:", updateError)
+          // Don't show error toast here since the etiquette was still generated successfully
+        }
       }
     } catch (error) {
       console.error("Error fetching etiquette:", error)
@@ -251,7 +256,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
     }
   }
 
-  const handleUpdateRecipe = async updatedData => {
+  const handleUpdateRecipe = async (updatedData, showErrorToast = true) => {
     try {
       // Format the data for the API
       const formattedData = {
@@ -291,11 +296,15 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
         description: "Recipe details have been updated successfully."
       })
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update recipe. Please try again.",
-        variant: "destructive"
-      })
+      console.error("Error updating recipe:", error)
+      if (showErrorToast) {
+        toast({
+          title: "Error",
+          description: "Failed to update recipe. Please try again.",
+          variant: "destructive"
+        })
+      }
+      throw error // Re-throw the error so it can be caught by the caller
     }
   }
 
