@@ -119,7 +119,12 @@ A smart nutrition and grocery management platform that helps users make healthy 
 
 ## Getting Started
 
-1. Clone the repository
+1. Clone the repository and navigate to the project directory:
+```bash
+git clone https://github.com/AsadullahSamo/NutriVerseAI.git
+cd NutriVerseAI
+```
+
 2. Install dependencies:
 ```bash
 npm install
