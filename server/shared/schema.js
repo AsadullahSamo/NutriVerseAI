@@ -10,7 +10,8 @@ import {
     varchar,
     json,
     real,
-    date
+    date,
+    doublePrecision
   } from "drizzle-orm/pg-core"
   import { createInsertSchema } from "drizzle-zod"
   import { z } from "zod"
@@ -541,5 +542,97 @@ import {
   export const userSchema = z.object({
     // ...existing user fields...
     moodJournal: z.array(moodEntrySchema).optional()
+  })
+  
+  // New tables for personalized recommendations
+  
+  export const recipeRecommendations = pgTable("recipe_recommendations", {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .references(() => users.id)
+      .notNull(),
+    recipeId: integer("recipe_id")
+      .references(() => recipes.id)
+      .notNull(),
+    matchScore: doublePrecision("match_score").notNull(),
+    reasonForRecommendation: text("reason_for_recommendation"),
+    seasonalRelevance: boolean("seasonal_relevance").default(false),
+    createdAt: timestamp("created_at")
+      .defaultNow()
+      .notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    isActive: boolean("is_active")
+      .default(true)
+      .notNull(),
+    userDataSnapshot: jsonb("user_data_snapshot").notNull(), // Store the user data used to generate this recommendation
+    recommendationGroup: text("recommendation_group").notNull(), // Group recommendations by generation batch
+    priority: integer("priority").default(0), // Higher priority recommendations shown first
+    lastShown: timestamp("last_shown"), // Track when this recommendation was last shown to the user
+    timesShown: integer("times_shown").default(0) // Track how many times this recommendation has been shown
+  })
+  
+  export const recommendationFeedback = pgTable("recommendation_feedback", {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .references(() => users.id)
+      .notNull(),
+    recommendationId: integer("recommendation_id")
+      .references(() => recipeRecommendations.id)
+      .notNull(),
+    rating: integer("rating").notNull(), // 1-5 rating
+    feedback: text("feedback"), // Optional text feedback
+    wasCooked: boolean("was_cooked").default(false),
+    wasSaved: boolean("was_saved").default(false),
+    wasShared: boolean("was_shared").default(false),
+    createdAt: timestamp("created_at")
+      .defaultNow()
+      .notNull(),
+    cookingNotes: text("cooking_notes"), // Notes from when the user cooked this recipe
+    modifications: jsonb("modifications"), // Any modifications the user made to the recipe
+    difficultyRating: integer("difficulty_rating"), // How difficult the user found the recipe
+    timeAccuracy: integer("time_accuracy"), // How accurate the prep time was (1-5)
+    tasteRating: integer("taste_rating"), // How much the user enjoyed the taste (1-5)
+    healthinessRating: integer("healthiness_rating") // How healthy the user found the recipe (1-5)
+  })
+  
+  export const recommendationTriggers = pgTable("recommendation_triggers", {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .references(() => users.id)
+      .notNull(),
+    triggerType: text("trigger_type").notNull(), // e.g., "pantry_update", "recipe_added", "feedback_received"
+    triggerData: jsonb("trigger_data").notNull(), // Data about what triggered the recommendation update
+    affectedRecommendations: jsonb("affected_recommendations").notNull(), // IDs of recommendations affected by this trigger
+    createdAt: timestamp("created_at")
+      .defaultNow()
+      .notNull(),
+    processedAt: timestamp("processed_at"), // When the trigger was processed
+    status: text("status").notNull() // "pending", "processed", "failed"
+  })
+  
+  export const seasonalIngredients = pgTable("seasonal_ingredients", {
+    id: serial("id").primaryKey(),
+    name: text("name").notNull(),
+    season: text("season").notNull(), // "spring", "summer", "fall", "winter"
+    peakMonths: jsonb("peak_months").notNull(), // Array of months when this ingredient is at its peak
+    nutritionalBenefits: jsonb("nutritional_benefits").notNull(),
+    sustainabilityInfo: jsonb("sustainability_info").notNull(),
+    storageTips: text("storage_tips"),
+    substitutionOptions: jsonb("substitution_options"), // Alternative ingredients when not in season
+    imageUrl: text("image_url"),
+    createdAt: timestamp("created_at")
+      .defaultNow()
+      .notNull()
+  })
+  
+  export const userPreferences = pgTable("user_preferences", {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id")
+      .references(() => users.id)
+      .notNull(),
+    preference: text("preference").notNull(),
+    createdAt: timestamp("created_at")
+      .defaultNow()
+      .notNull()
   })
   

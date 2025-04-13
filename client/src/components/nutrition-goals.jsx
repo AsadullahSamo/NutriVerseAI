@@ -234,7 +234,7 @@ export function NutritionGoals() {
                         </Button>
                       </div>
                       <p className="text-sm text-muted-foreground mt-2">
-                        Your progress graph will grow as you track your nutrition over time. Each point represents your daily nutrition data, and the line will connect them to show your progress. Create a recipe and consume it (using Consume button) of that recipe to get started with your first day of nutrition tracking.
+                      Your progress graph will grow as you track your nutrition over time. Each point represents your daily nutrition data, and the line will connect them to show your progress. Create a recipe and consume it (using Consume button) of that recipe to get started with your first day of nutrition tracking.
                       </p>
                     </CardContent>
                   </Card>

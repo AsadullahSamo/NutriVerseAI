@@ -35,14 +35,7 @@ export function AuthProvider({ children }) {
   // Login mutation
   const loginMutation = useMutation({
     mutationFn: async (credentials) => {
-      const response = await fetch("http://localhost:8000/api/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify(credentials),
-      })
+      const response = await apiRequest("POST", "/api/login", credentials);
 
       if (!response.ok) {
         const error = await response.json()
@@ -88,10 +81,7 @@ export function AuthProvider({ children }) {
   // Logout mutation
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch("http://localhost:8000/api/logout", {
-        method: "POST",
-        credentials: "include",
-      })
+      const response = await apiRequest("POST", "/api/logout");
       if (!response.ok) {
         throw new Error("Failed to logout")
       }

@@ -70,6 +70,11 @@ export async function safeJsonParse(response) {
     // Print debug info
     console.log("Attempting to parse response:", response)
 
+    // If response is already an object, return it
+    if (typeof response === 'object' && response !== null) {
+      return response;
+    }
+
     // Clean the response first
     const cleaned = cleanJsonString(response)
     console.log("Cleaned response:", cleaned)
@@ -136,6 +141,18 @@ export async function generateContent(prompt) {
   return retryWithExponentialBackoff(async () => {
     const result = await model.generateContent(prompt)
     lastRequestTime = Date.now()
-    return result
+    
+    // Extract the text content from the response
+    const response = result.response;
+    if (response && response.text) {
+      // If text is a function, call it to get the actual text
+      if (typeof response.text === 'function') {
+        return response.text();
+      }
+      return response.text;
+    }
+    
+    // If we can't get the text, return the raw response
+    return result;
   })
 }

@@ -3,7 +3,6 @@ const { Pool } = pkg;
 import * as dotenv from "dotenv";
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import fs from 'fs';
 
 // Get directory path for proper .env loading
 const __filename = fileURLToPath(import.meta.url);
@@ -18,7 +17,7 @@ if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = "postgresql://neondb_owner:npg_mQHh1L7rSziT@ep-aged-pond-a4ze298b-pooler.us-east-1.aws.neon.tech/neondb?sslmode=require";
 }
 
-async function runMigration(migrationFileName) {
+async function checkSchema() {
   // Create a new pool
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -32,34 +31,34 @@ async function runMigration(migrationFileName) {
     const client = await pool.connect();
     console.log('Database connection established successfully');
 
-    // Read the migration file
-    const migrationPath = resolve(__dirname, migrationFileName);
-    const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
+    // Query to get table information
+    const result = await client.query(`
+      SELECT column_name, data_type, is_nullable
+      FROM information_schema.columns
+      WHERE table_name = 'recipe_recommendations'
+      ORDER BY ordinal_position;
+    `);
 
-    // Split the SQL into individual statements
-    const statements = migrationSQL
-      .split(';')
-      .map(stmt => stmt.trim())
-      .filter(stmt => stmt.length > 0);
+    console.log('Recipe Recommendations Table Schema:');
+    console.log('-----------------------------------');
+    result.rows.forEach(row => {
+      console.log(`${row.column_name}: ${row.data_type} (${row.is_nullable === 'YES' ? 'nullable' : 'not nullable'})`);
+    });
 
-    console.log(`Running migration: ${migrationFileName}...`);
-    
-    // Execute each statement separately
-    for (const statement of statements) {
-      if (statement) {
-        await client.query(statement);
-      }
-    }
+    // Check if match_score column exists
+    const matchScoreExists = result.rows.some(row => row.column_name === 'match_score');
+    console.log('\nMatch Score Column Exists:', matchScoreExists);
 
-    console.log('Migration completed successfully');
+    // Check if score column exists
+    const scoreExists = result.rows.some(row => row.column_name === 'score');
+    console.log('Score Column Exists:', scoreExists);
+
     await client.release();
     await pool.end();
   } catch (error) {
-    console.error(`Error running migration ${migrationFileName}:`, error);
+    console.error('Error checking schema:', error);
     process.exit(1);
   }
 }
 
-// Get the migration filename from command line arguments
-const migrationFileName = process.argv[2] || '0034_recipe_recommendations.sql';
-runMigration(migrationFileName);
+checkSchema(); 

@@ -28,7 +28,8 @@ import {
   mealPlans,
   nutritionGoals,
   recipeConsumption,
-  recipe_likes
+  recipe_likes,
+  userPreferences
 } from "./shared/schema.js";
 
 // AI service imports
@@ -36,8 +37,13 @@ import {
   analyzeMoodSentiment, 
   generateMoodInsights, 
   generateAIMealPlan,
-  getNutritionRecommendations,
+  getNutritionRecommendations
 } from "./ai-services/recipe-ai.js";
+import {
+  getPersonalizedRecipeRecommendations,
+  recordRecommendationFeedback,
+  updateRecommendationDisplayStatus
+} from "./ai-services/recipe-recommendation-ai.js";
 import {
   analyzeCulturalCuisine,
   getRecipeAuthenticityScore,
@@ -1587,56 +1593,161 @@ export async function registerRoutes(app) {
   });
 
             // Add the personalized recipe recommendations endpoint
-  app.get('/api/recipes/personalized', async (req, res) => {
+  app.get('/api/recipes/personalized', isAuthenticated, async (req, res) => {
+    try {
+      console.log("Received request for personalized recommendations");
+      
+      if (!req.user || !req.user.id) {
+        console.error("User not authenticated");
+        return res.status(401).json({ error: "User not authenticated" });
+      }
+
+      const userId = req.user.id;
+      console.log("Processing request for user:", userId);
+
+      // Get user data
+      const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+      if (!user || user.length === 0) {
+        console.error("User not found:", userId);
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Get user's recipes
+      const userRecipes = await db.select()
+        .from(recipes)
+        .where(eq(recipes.createdBy, userId));
+
+      // Get user's preferences
+      const userPrefs = await db.select()
+        .from(userPreferences)
+        .where(eq(userPreferences.userId, userId));
+
+      // Get user's nutrition goals
+      let nutritionGoalsData = null;
+      try {
+        const goals = await db.select()
+          .from(nutritionGoals)
+          .where(eq(nutritionGoals.userId, userId))
+          .limit(1);
+        
+        if (goals && goals.length > 0) {
+          nutritionGoalsData = {
+            dailyCalories: goals[0].daily_calories,
+            dailyProtein: goals[0].daily_protein,
+            dailyCarbs: goals[0].daily_carbs,
+            dailyFat: goals[0].daily_fat
+          };
+        }
+      } catch (error) {
+        console.error("Error fetching nutrition goals:", error);
+        // Continue without nutrition goals
+      }
+
+      // Get personalized recommendations
+      console.log("Fetching personalized recommendations");
+      const recommendations = await getPersonalizedRecipeRecommendations({
+        userId,
+        userRecipes: userRecipes || [],
+        nutritionGoals: nutritionGoalsData || null,
+        dietaryPreferences: userPrefs?.map(p => p.preference) || [],
+        pantryItems: [], // TODO: Implement pantry items
+        cookingSkills: { level: "intermediate" }, // TODO: Get from user profile
+        userPreferences: userPrefs?.map(p => p.preference) || [],
+        triggerType: "manual",
+        triggerData: {}
+      });
+
+      if (!recommendations || recommendations.length === 0) {
+        console.log("No recommendations found for user:", userId);
+        return res.json({ recommendations: [] });
+      }
+
+      // Update display status for each recommendation
+      console.log("Updating display status for recommendations");
+      await Promise.all(
+        recommendations.map(rec => 
+          updateRecommendationDisplayStatus(rec.id, true)
+        )
+      );
+
+      // Return recommendations with their recipe data
+      const recommendationsWithData = recommendations.map(rec => {
+        // Parse the recipe data if it's a string
+        let recipeData = rec.recipeData;
+        if (typeof recipeData === 'string') {
+          try {
+            recipeData = JSON.parse(recipeData);
+          } catch (error) {
+            console.error("Error parsing recipe data:", error);
+            recipeData = {};
+          }
+        }
+        
+        return {
+          id: rec.id,
+          recommendationId: rec.id,
+          matchScore: rec.matchScore,
+          reasonForRecommendation: rec.reasonForRecommendation,
+          seasonalRelevance: rec.seasonalRelevance,
+          recipeData: recipeData // Use the parsed recipe data
+        };
+      });
+
+      console.log("Returning recommendations:", recommendationsWithData.length);
+      res.json({ recommendations: recommendationsWithData });
+    } catch (error) {
+      console.error("Error in /api/recipes/personalized:", error);
+      res.status(500).json({ 
+        error: "Failed to get personalized recommendations",
+        details: error.message
+      });
+    }
+  });
+
+  // Add endpoint for recording recommendation feedback
+  app.post('/api/recipes/recommendations/:id/feedback', async (req, res) => {
     try {
       const userId = req.user?.id;
       if (!userId) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
-      // Import schema tables using different variable names
-      const recipesTable = recipes;
-      const usersTable = users;
-      const pantryItemsTable = pantryItems;
-      const nutritionGoalsTable = nutritionGoals;
+      const recommendationId = parseInt(req.params.id);
+      const feedbackData = req.body;
 
-      // Get user's recipes
-      const userRecipes = await db.select()
-        .from(recipesTable)
-        .where(eq(recipesTable.createdBy, userId));
-
-      // Get user's preferences
-      const [user] = await db.select()
-        .from(usersTable)
-        .where(eq(usersTable.id, userId));
-
-      // Get user's pantry items
-      const userPantryItems = await db.select()
-        .from(pantryItemsTable)
-        .where(eq(pantryItemsTable.userId, userId));
-
-      // Get user's nutrition goals with a simpler query
-      const userNutritionGoals = await db.select()
-        .from(nutritionGoalsTable)
-        .where(eq(nutritionGoalsTable.userId, userId));
-
-      // Import our specialized AI service for recipe recommendations
-      const { getPersonalizedRecipeRecommendations } = await import('./ai-services/recipe-recommendation-ai.js');
-
-      // Call the AI service with all available user data
-      const recommendations = await getPersonalizedRecipeRecommendations({
-        userRecipes,
-        nutritionGoals: userNutritionGoals[0], // Get the first active nutrition goal
-        dietaryPreferences: user?.preferences?.dietaryRestrictions || [],
-        pantryItems: userPantryItems,
-        cookingSkills: user?.preferences?.cookingSkills || { level: "intermediate" },
-        userPreferences: user?.preferences?.favoriteIngredients || []
+      // Record the feedback
+      const feedback = await recordRecommendationFeedback({
+        userId,
+        recommendationId,
+        ...feedbackData
       });
 
-      res.json(recommendations);
+      res.status(201).json(feedback);
     } catch (error) {
-      console.error('Error getting personalized recipe recommendations:', error);
-      res.status(500).json({ error: 'Failed to get personalized recommendations' });
+      console.error('Error recording recommendation feedback:', error);
+      res.status(500).json({ error: 'Failed to record feedback' });
+    }
+  });
+
+  // Add endpoint for manually refreshing recommendations
+  app.post('/api/recipes/recommendations/refresh', async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      // Force a refresh of recommendations
+      const recommendations = await getPersonalizedRecipeRecommendations({
+        userId,
+        triggerType: 'manual_refresh',
+        triggerData: { source: 'user_request' }
+      });
+
+      res.json({ message: 'Recommendations refreshed successfully', count: recommendations.length });
+    } catch (error) {
+      console.error('Error refreshing recommendations:', error);
+      res.status(500).json({ error: 'Failed to refresh recommendations' });
     }
   });
 

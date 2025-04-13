@@ -352,4 +352,19 @@ export const userSchema = z.object({
     // ...existing user fields...
     moodJournal: z.array(moodEntrySchema).optional(),
 });
+export const recipeRecommendations = pgTable("recipe_recommendations", {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").references(() => users.id).notNull(),
+    recipeId: integer("recipe_id").references(() => recipes.id),
+    matchScore: integer("match_score").notNull(),
+    reasonForRecommendation: text("reason_for_recommendation").notNull(),
+    seasonalRelevance: boolean("seasonal_relevance").default(false).notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    isActive: boolean("is_active").default(true).notNull(),
+    userDataSnapshot: jsonb("user_data_snapshot"),
+    recommendationGroup: text("recommendation_group").notNull(),
+    priority: integer("priority").notNull(),
+    recipeData: jsonb("recipe_data"),
+    createdAt: timestamp("created_at").defaultNow().notNull()
+});
 //# sourceMappingURL=schema.js.map

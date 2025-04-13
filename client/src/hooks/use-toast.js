@@ -101,7 +101,7 @@ function dispatch(action) {
   })
 }
 
-function toast({ ...props }) {
+function toast({ title, description, variant = "default", ...props }) {
   const id = genId()
 
   const update = props =>
@@ -114,12 +114,15 @@ function toast({ ...props }) {
   dispatch({
     type: "ADD_TOAST",
     toast: {
-      ...props,
       id,
+      title,
+      description,
+      variant,
       open: true,
       onOpenChange: open => {
         if (!open) dismiss()
-      }
+      },
+      ...props
     }
   })
 
