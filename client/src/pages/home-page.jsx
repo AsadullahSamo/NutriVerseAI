@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { PersonalizedRecommendations } from "@/components/Home/PersonalizedRecommendations"
+import { FeatureShowcase } from "@/components/Home/FeatureShowcase"
 
 export default function HomePage() {
   const { user } = useAuth()
@@ -135,12 +136,19 @@ export default function HomePage() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6">
         <header className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">
-            {displayName ? `Welcome, ${displayName}!` : "Welcome!"}
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Your personalized nutrition dashboard
-          </p>
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">
+                {displayName ? `Welcome, ${displayName}!` : "Welcome!"}
+              </h1>
+              <p className="text-muted-foreground mt-2">
+                Your personalized nutrition dashboard
+              </p>
+            </div>
+            
+            {/* Feature Showcase - moved to header for better visibility */}
+            <FeatureShowcase />
+          </div>
         </header>
 
         <div className="grid gap-6 md:grid-cols-2">

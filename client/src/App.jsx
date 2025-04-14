@@ -19,6 +19,7 @@ import CulturalCuisinePage from "@/pages/cultural-cuisine-page"
 import KitchenStoragePage from "@/pages/kitchen-storage-page"
 import ProfilePage from "@/pages/profile-page"
 import UserSettings from "@/pages/user-settings"
+import FeaturesPage from "@/pages/features-page"
 
 function Router() {
   return (
@@ -50,6 +51,7 @@ function Router() {
                 />
                 <ProtectedRoute path="/profile" component={ProfilePage} />
                 <ProtectedRoute path="/settings" component={UserSettings} />
+                <ProtectedRoute path="/features" component={FeaturesPage} />
                 <Route component={NotFound} />
               </Switch>
             </main>
