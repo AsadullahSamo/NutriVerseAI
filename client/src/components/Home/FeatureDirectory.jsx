@@ -354,14 +354,14 @@ export function FeatureDirectory({ highlightedFeatureId }) {
   return (
     <>
       {/* Only render the directory content */}
-      <div className="w-full max-w-[1200px] mx-auto p-4">
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold tracking-tight">Feature Directory</h2>
-          <p className="text-muted-foreground">Explore all the powerful features of NutriVerse</p>
+      <div className="w-full max-w-[1200px] mx-auto p-2 sm:p-4">
+        <div className="text-center mb-4 sm:mb-6">
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Feature Directory</h2>
+          <p className="text-muted-foreground text-sm sm:text-base">Explore all the powerful features of NutriVerse</p>
         </div>
         
         {/* Search bar */}
-        <div className="relative mb-6">
+        <div className="relative mb-4 sm:mb-6">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search features..."
@@ -372,7 +372,7 @@ export function FeatureDirectory({ highlightedFeatureId }) {
         </div>
         
         {/* Feature categories */}
-        <div className="mb-6 flex flex-wrap gap-2">
+        <div className="mb-4 sm:mb-6 flex flex-wrap gap-2">
           {categories.map((category) => (
             <Button
               key={category.id}
@@ -387,12 +387,13 @@ export function FeatureDirectory({ highlightedFeatureId }) {
             </Button>
           ))}
         </div>
-
+        
+        {/* Main content wrapper with proper overflow handling */}
         <div className="bg-background rounded-lg border shadow-lg overflow-hidden max-h-[80vh] flex flex-col">
           <div className="flex flex-col md:flex-row h-full">
-            <div className="w-full md:w-1/3 border-r">
+            <div className="w-full md:w-1/3 border-r h-[35vh] md:h-auto">
               {/* Feature list */}
-              <ScrollArea className="h-[calc(80vh-8rem)]">
+              <ScrollArea className="h-full md:h-[calc(80vh-8rem)]">
                 <div className="p-2">
                   {filteredFeatures.length === 0 ? (
                     <div className="text-center p-8 text-muted-foreground">
@@ -485,7 +486,7 @@ export function FeatureDirectory({ highlightedFeatureId }) {
             <div className="w-full md:w-2/3 overflow-hidden">
               {selectedNestedFeature ? (
                 <ScrollArea className="h-[calc(80vh-8rem)]">
-                  <div className="p-6 pb-12">
+                  <div className="p-6 pb-20">
                     {/* Nested Feature header with back button */}
                     <div className="flex items-center gap-2 mb-6">
                       <Button 
@@ -577,7 +578,7 @@ export function FeatureDirectory({ highlightedFeatureId }) {
                 </ScrollArea>
               ) : selectedFeature ? (
                 <ScrollArea className="h-[calc(80vh-8rem)]">
-                  <div className="p-6 pb-12">
+                  <div className="p-6 pb-20">
                     {/* Feature header */}
                     <div className="flex items-center gap-3 mb-4">
                       <div className={`p-3 rounded-full ${selectedFeature.color} text-white`}>

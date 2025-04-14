@@ -136,7 +136,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-6">
         <header className="mb-8">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
               <h1 className="text-3xl font-bold tracking-tight">
                 {displayName ? `Welcome, ${displayName}!` : "Welcome!"}
@@ -147,7 +147,9 @@ export default function HomePage() {
             </div>
             
             {/* Feature Showcase - moved to header for better visibility */}
-            <FeatureShowcase />
+            <div className="self-end sm:self-auto mt-2 sm:mt-0">
+              <FeatureShowcase />
+            </div>
           </div>
         </header>
 
