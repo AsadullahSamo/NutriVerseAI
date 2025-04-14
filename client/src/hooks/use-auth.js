@@ -57,23 +57,9 @@ export function AuthProvider({ children }) {
       setError(null)
       queryClient.setQueryData(["/api/user"], data)
       queryClient.invalidateQueries({ queryKey: ["/api/user"] })
-      toast("Successfully logged in!", {
-        duration: 3000,
-        style: {
-          background: "#4CAF50",
-          color: "white",
-        },
-      })
     },
     onError: (error) => {
       setError(error.message)
-      toast(error.message, {
-        duration: 3000,
-        style: {
-          background: "#f44336",
-          color: "white",
-        },
-      })
       throw error
     },
   })

@@ -16,10 +16,10 @@ import {
   nutritionGoals, 
   recipeConsumption, 
   kitchenEquipment, 
-  kitchenStorageLocations, 
   culturalRecipes, 
   culturalCuisines,
-  insertUserSchema
+  insertUserSchema,
+  userPreferences
 } from "./shared/schema.js";  // Add .js extension for consistency
 
 const MemorySessionStore = MemoryStore(session);
@@ -135,7 +135,11 @@ class DatabaseStorage {
       await db.delete(culturalCuisines)
         .where(eq(culturalCuisines.createdBy, id));
 
-      // 13. Finally, delete the user account
+      // 13. Delete user preferences
+      await db.delete(userPreferences)
+        .where(eq(userPreferences.userId, id));
+
+      // 14. Finally, delete the user account
       await db.delete(users)
         .where(eq(users.id, id));
     } catch (error) {
