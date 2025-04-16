@@ -205,6 +205,7 @@ export async function generatePantryItemDetails(itemName, category) {
       "category": "string (e.g., Dairy, Produce, Grains, etc.)",
       "quantity": "string (standard quantity unit e.g., '1 lb', '500g', '1 container')",
       "expiryDays": number (typical shelf life in days from purchase),
+      "image_url": "string (URL to a representative image of the item)",
       "nutritionInfo": {
         "calories": number,
         "protein": number (in grams),

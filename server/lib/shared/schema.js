@@ -41,6 +41,7 @@ export const pantryItems = pgTable("pantry_items", {
     quantity: text("quantity").notNull(),
     expiryDate: timestamp("expiry_date"),
     category: text("category"),
+    image_url: text("image_url"),
     nutritionInfo: jsonb("nutrition_info").notNull(),
     sustainabilityInfo: jsonb("sustainability_info").notNull(),
 });
@@ -231,6 +232,7 @@ export const insertPantryItemSchema = createInsertSchema(pantryItems)
     quantity: z.string().min(1, "Quantity is required"),
     category: z.string().min(1, "Category is required"),
     expiryDate: z.date().optional(),
+    image_url: z.string().url().optional().nullable(),
     nutritionInfo: z.object({
         calories: z.number().min(0, "Calories must be positive"),
         protein: z.number().min(0, "Protein must be positive"),

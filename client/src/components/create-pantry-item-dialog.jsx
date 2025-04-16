@@ -54,6 +54,7 @@ export function CreatePantryItemDialog({ trigger }) {
     defaultValues: {
       userId: user?.id,
       name: "",
+      image_url: "",
       quantity: "",
       category: "",
       expiryDate: undefined,
@@ -243,6 +244,7 @@ export function CreatePantryItemDialog({ trigger }) {
       form.setValue("name", details.name)
       form.setValue("category", details.category)
       form.setValue("quantity", details.quantity)
+      form.setValue("image_url", details.image_url)
 
       // Set expiry date based on the expiryDays value
       if (details.expiryDays) {
@@ -367,6 +369,19 @@ export function CreatePantryItemDialog({ trigger }) {
                             )}
                           </Button>
                         </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="image_url"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Image URL</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="url" placeholder="https://..." />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}

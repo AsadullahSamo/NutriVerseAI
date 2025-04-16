@@ -418,7 +418,7 @@ export async function registerRoutes(app) {
     "/api/pantry",
     isAuthenticated,
     asyncHandler(async (req, res) => {
-                            if (!req.user) {
+      if (!req.user) {
         return res.status(401).json({ message: "Unauthorized" });
       }
       const data = {
@@ -431,6 +431,7 @@ export async function registerRoutes(app) {
         userId: req.user.id,
         expiryDate: validated.expiryDate ?? null,
         category: validated.category ?? null,
+        image_url: validated.image_url ?? null,
       });
       res.status(201).json(item);
     })
@@ -444,9 +445,10 @@ export async function registerRoutes(app) {
       const data = {
         ...req.body,
         expiryDate: req.body.expiryDate ? new Date(req.body.expiryDate) : null,
+        image_url: req.body.image_url ?? null,
       };
       const item = await storage.updatePantryItem(itemId, data);
-                            res.json(item);
+      res.json(item);
     })
   );
 

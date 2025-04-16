@@ -51,6 +51,7 @@ export function EditPantryItemDialog({ item, trigger }) {
       name: item.name,
       quantity: item.quantity,
       category: item.category || "",
+      image_url: item.image_url || "",
       expiryDate: item.expiryDate ? new Date(item.expiryDate) : undefined,
       nutritionInfo: item.nutritionInfo || {
         calories: 0,
@@ -243,6 +244,19 @@ export function EditPantryItemDialog({ item, trigger }) {
                         <FormLabel>Item Name</FormLabel>
                         <FormControl>
                           <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="image_url"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Image URL</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="url" placeholder="https://..." />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

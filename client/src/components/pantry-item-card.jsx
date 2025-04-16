@@ -6,6 +6,7 @@ import { EditPantryItemDialog } from "./edit-pantry-item-dialog";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 export function PantryItemCard({ item }) {
   const { toast } = useToast();
@@ -53,22 +54,40 @@ export function PantryItemCard({ item }) {
   const sustainabilityScore = item.sustainabilityInfo?.score || 0;
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+    <Card className="overflow-hidden flex flex-col">
+      {/* Title and buttons section */}
+      <div className="flex justify-between items-center p-4 pb-2">
         <CardTitle className="text-lg font-medium">{item.name}</CardTitle>
         <div className="flex space-x-2">
           <EditPantryItemDialog item={item} />
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon"
-            className="h-8 w-8"
+            className="h-8 w-8 opacity-100"
             onClick={() => deleteMutation.mutate()}
           >
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
-      </CardHeader>
-      <CardContent>
+      </div>
+
+      <CardContent className="p-4 pt-2 flex-grow">
+        {/* Image section */}
+        {item.image_url && (
+          <div className="relative aspect-[16/9] w-full overflow-hidden mb-4">
+            <img
+              src={item.image_url}
+              alt={item.name}
+              className="object-cover w-full h-full"
+              onError={(e) => {
+                e.currentTarget.src = `https://source.unsplash.com/1200x800/?${encodeURIComponent(
+                  item.name.toLowerCase() + " food"
+                )}`;
+              }}
+            />
+          </div>
+        )}
+
         <div className="grid gap-2">
           <div className="text-sm">
             <span className="text-muted-foreground">Quantity:</span> {item.quantity}

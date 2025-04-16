@@ -331,9 +331,10 @@ export function RecipeCard({
                           {recipe.instructions.map((instruction, index) => (
                             <li
                               key={index}
-                              className="text-sm text-muted-foreground"
+                              className="text-sm text-muted-foreground flex gap-2"
                             >
-                              {instruction}
+                              <span className="min-w-[1.5rem]">{index + 1}.</span>
+                              <span>{instruction}</span>
                             </li>
                           ))}
                         </ol>

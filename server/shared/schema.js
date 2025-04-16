@@ -71,6 +71,7 @@ import {
     quantity: text("quantity").notNull(),
     expiryDate: timestamp("expiry_date"),
     category: text("category"),
+    image_url: text("image_url"),
     nutritionInfo: jsonb("nutrition_info").notNull(),
     sustainabilityInfo: jsonb("sustainability_info").notNull()
   })

@@ -29,6 +29,7 @@ import { NutritionDisplay } from "@/components/nutrition-display"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { StatsDashboard } from "@/components/stats-dashboard"
+import { PantryItemCard } from "@/components/pantry-item-card"
 import {
   Collapsible,
   CollapsibleContent,
@@ -225,6 +226,22 @@ export default function PantryPage() {
               className="group hover:shadow-md transition-shadow"
             >
               <CardContent className="p-4">
+                {/* Image section */}
+                {item.image_url && (
+                  <div className="relative aspect-[16/9] w-full overflow-hidden mb-4">
+                    <img
+                      src={item.image_url}
+                      alt={item.name}
+                      className="object-cover w-full h-full"
+                      onError={(e) => {
+                        e.currentTarget.src = `https://source.unsplash.com/1200x800/?${encodeURIComponent(
+                          item.name.toLowerCase() + " food"
+                        )}`;
+                      }}
+                    />
+                  </div>
+                )}
+
                 <div className="flex justify-between items-start gap-4">
                   <div className="flex-1 min-w-0">
                     <h3 className="font-medium text-lg truncate">
@@ -254,7 +271,7 @@ export default function PantryPage() {
                         variant="ghost"
                         size="icon"
                         onClick={() => deleteMutation.mutate(item.id)}
-                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="h-8 w-8"
                       >
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
