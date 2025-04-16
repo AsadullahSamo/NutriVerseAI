@@ -139,20 +139,20 @@ export async function generateContent(prompt) {
   }
 
   return retryWithExponentialBackoff(async () => {
-    const result = await model.generateContent(prompt)
-    lastRequestTime = Date.now()
-    
-    // Extract the text content from the response
-    const response = result.response;
-    if (response && response.text) {
-      // If text is a function, call it to get the actual text
-      if (typeof response.text === 'function') {
-        return response.text();
+    try {
+      const result = await model.generateContent(prompt)
+      lastRequestTime = Date.now()
+      
+      // Check if result exists and has a response property
+      if (!result || !result.response) {
+        console.error("Invalid Gemini response structure:", result);
+        throw new Error("Invalid response from Gemini API");
       }
-      return response.text;
+      
+      return result;
+    } catch (error) {
+      console.error("Error generating content:", error);
+      throw error;
     }
-    
-    // If we can't get the text, return the raw response
-    return result;
   })
 }

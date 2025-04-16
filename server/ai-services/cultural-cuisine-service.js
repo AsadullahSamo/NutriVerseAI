@@ -40,10 +40,30 @@ STRICTLY FOLLOW THE EXACT FORMAT SHOWN ABOVE for keyIngredients and cookingTechn
 
     console.log("[Server] Sending prompt to Gemini:", prompt);
     const result = await generateContent(prompt)
-    const response = await result.response.text()
-    console.log("[Server] Raw Gemini response:", response);
     
-    const parsedResponse = await safeJsonParse(response)
+    // Handle the result properly
+    if (!result || !result.response) {
+      console.error("[Server] Invalid Gemini response structure:", result);
+      throw new Error("Invalid response from Gemini API");
+    }
+    
+    // Safely extract text content
+    let responseText;
+    try {
+      responseText = await result.response.text();
+    } catch (error) {
+      console.error("[Server] Error extracting text from Gemini response:", error);
+      throw new Error("Failed to extract text from AI response");
+    }
+    
+    if (!responseText) {
+      console.error("[Server] Empty response text from Gemini");
+      throw new Error("Received empty response from AI service");
+    }
+    
+    console.log("[Server] Raw Gemini response:", responseText);
+    
+    const parsedResponse = await safeJsonParse(responseText)
     console.log("[Server] Parsed Gemini response:", parsedResponse);
     
     // Validate the response structure and ensure formatting
@@ -92,8 +112,28 @@ export const getCulturalContext = async (recipe, cuisine) => {
 
   try {
     const result = await generateContent(prompt)
-    const response = await result.response.text()
-    const context = await safeJsonParse(response)
+    
+    // Handle the result properly
+    if (!result || !result.response) {
+      console.error("[Server] Invalid Gemini response structure:", result);
+      throw new Error("Invalid response from Gemini API");
+    }
+    
+    // Safely extract text content
+    let responseText;
+    try {
+      responseText = await result.response.text();
+    } catch (error) {
+      console.error("[Server] Error extracting text from Gemini response:", error);
+      throw new Error("Failed to extract text from AI response");
+    }
+    
+    if (!responseText) {
+      console.error("[Server] Empty response text from Gemini");
+      throw new Error("Received empty response from AI service");
+    }
+    
+    const context = await safeJsonParse(responseText)
 
     return {
       history: context.history || "",
@@ -117,9 +157,34 @@ export async function analyzeCulturalCuisine(cuisine) {
     - Modern adaptations
     - Regional variations`
 
-  const result = await generateContent(prompt)
-  const response = await result.response.text()
-  return await safeJsonParse(response)
+  try {
+    const result = await generateContent(prompt)
+    
+    // Handle the result properly
+    if (!result || !result.response) {
+      console.error("[Server] Invalid Gemini response structure:", result);
+      throw new Error("Invalid response from Gemini API");
+    }
+    
+    // Safely extract text content
+    let responseText;
+    try {
+      responseText = await result.response.text();
+    } catch (error) {
+      console.error("[Server] Error extracting text from Gemini response:", error);
+      throw new Error("Failed to extract text from AI response");
+    }
+    
+    if (!responseText) {
+      console.error("[Server] Empty response text from Gemini");
+      throw new Error("Received empty response from AI service");
+    }
+    
+    return await safeJsonParse(responseText)
+  } catch (error) {
+    console.error("Error analyzing cultural cuisine:", error)
+    throw new Error("Failed to analyze cultural cuisine")
+  }
 }
 
 export async function getRecipeAuthenticityScore(recipe, substitutions) {
@@ -144,9 +209,34 @@ export async function getTechniqueTips(technique, cuisine) {
     Technique: ${JSON.stringify(technique)}
     Cuisine: ${JSON.stringify(cuisine)}`
 
-  const result = await generateContent(prompt)
-  const response = await result.response.text()
-  return await safeJsonParse(response)
+  try {
+    const result = await generateContent(prompt)
+    
+    // Handle the result properly
+    if (!result || !result.response) {
+      console.error("[Server] Invalid Gemini response structure:", result);
+      throw new Error("Invalid response from Gemini API");
+    }
+    
+    // Safely extract text content
+    let responseText;
+    try {
+      responseText = await result.response.text();
+    } catch (error) {
+      console.error("[Server] Error extracting text from Gemini response:", error);
+      throw new Error("Failed to extract text from AI response");
+    }
+    
+    if (!responseText) {
+      console.error("[Server] Empty response text from Gemini");
+      throw new Error("Received empty response from AI service");
+    }
+    
+    return await safeJsonParse(responseText)
+  } catch (error) {
+    console.error("Error getting technique tips:", error)
+    throw new Error("Failed to get technique tips")
+  }
 }
 
 export async function generateCulturalDetails(cuisine) {
@@ -182,10 +272,31 @@ export async function generateCulturalDetails(cuisine) {
     }`;
 
     const result = await generateContent(prompt);
-    const response = await result.response.text();
-    const parsedResponse = await safeJsonParse(response);
+    
+    // Handle the result properly
+    if (!result || !result.response) {
+      console.error("[Server] Invalid Gemini response structure:", result);
+      throw new Error("Invalid response from Gemini API");
+    }
+    
+    // Safely extract text content
+    let responseText;
+    try {
+      responseText = await result.response.text();
+    } catch (error) {
+      console.error("[Server] Error extracting text from Gemini response:", error);
+      throw new Error("Failed to extract text from AI response");
+    }
+    
+    if (!responseText) {
+      console.error("[Server] Empty response text from Gemini");
+      throw new Error("Received empty response from AI service");
+    }
+    
+    const parsedResponse = await safeJsonParse(responseText);
 
     if (!parsedResponse || !parsedResponse.description) {
+      console.error("[Server] Invalid response structure:", parsedResponse);
       throw new Error("Invalid response from AI service");
     }
 
@@ -976,10 +1087,30 @@ export async function generateCulturalRecipeDetails(recipeName, cuisineName) {
     console.log("Sending prompt to AI:", prompt)
 
     const result = await generateContent(prompt)
-    const response = await result.response.text()
-    console.log("Raw AI response:", response)
+    
+    // Handle the result properly
+    if (!result || !result.response) {
+      console.error("[Server] Invalid Gemini response structure:", result);
+      throw new Error("Invalid response from Gemini API");
+    }
+    
+    // Safely extract text content
+    let responseText;
+    try {
+      responseText = await result.response.text();
+    } catch (error) {
+      console.error("[Server] Error extracting text from Gemini response:", error);
+      throw new Error("Failed to extract text from AI response");
+    }
+    
+    if (!responseText) {
+      console.error("[Server] Empty response text from Gemini");
+      throw new Error("Received empty response from AI service");
+    }
+    
+    console.log("Raw AI response:", responseText)
 
-    const data = await safeJsonParse(response)
+    const data = await safeJsonParse(responseText)
     console.log("Parsed AI response:", data)
 
     // Ensure the response matches our expected format

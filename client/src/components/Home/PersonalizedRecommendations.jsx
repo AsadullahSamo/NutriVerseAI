@@ -60,10 +60,6 @@ export function PersonalizedRecommendations() {
     healthinessRating: 0
   })
 
-  const { data: recipes } = useQuery({
-    queryKey: ["/api/recipes"]
-  })
-
   const { data: recommendedRecipes, isLoading: isLoadingRecipes, refetch: refetchRecommendations } = useQuery({
     queryKey: ["/api/recipes/personalized", user?.id],
     queryFn: async () => {
@@ -101,7 +97,7 @@ export function PersonalizedRecommendations() {
 
   // Listen for recipe changes and refresh recommendations
   useEffect(() => {
-    if (!user || !recipes?.length) return;
+    if (!user) return;
 
     // Setup an event listener for the recipes query changes
     const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
@@ -124,7 +120,7 @@ export function PersonalizedRecommendations() {
     return () => {
       unsubscribe();
     };
-  }, [queryClient, user, recipes?.length, refetchRecommendations, toast]);
+  }, [queryClient, user, refetchRecommendations, toast]);
 
   const handleManualRefresh = async () => {
     setIsRefreshing(true);
@@ -249,11 +245,7 @@ export function PersonalizedRecommendations() {
                 <div className="h-full bg-primary animate-[progress_2s_ease-in-out_infinite]"></div>
               </div>
             </div>
-          ) : !recipes?.length ? (
-            <p className="text-muted-foreground text-center py-8">
-              No personalized recommendations available yet. Create a recipe in Recipes tab to get started!
-            </p>
-          ) : recommendedRecipes?.recommendations?.length === 0 ? (
+          ) : (!recommendedRecipes?.recommendations || recommendedRecipes?.recommendations?.length === 0) ? (
             <p className="text-muted-foreground text-center py-8">
               No personalized recommendations available yet. Create a recipe in Recipes tab to get started!
             </p>

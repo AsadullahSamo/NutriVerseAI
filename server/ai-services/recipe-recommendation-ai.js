@@ -171,12 +171,12 @@ export async function getPersonalizedRecipeRecommendations(options) {
     // Fetch all available recipes from the database
     let availableRecipes = [];
     try {
-      availableRecipes = await db.select()
-        .from(recipes);
+      // Only fetch recipes created by the current user instead of all recipes in the database
+      availableRecipes = userRecipes;
       
-      console.log(`Fetched ${availableRecipes.length} recipes from database`);
+      console.log(`Using ${availableRecipes.length} user-created recipes for recommendations`);
     } catch (error) {
-      console.error("Error fetching available recipes:", error);
+      console.error("Error using user recipes:", error);
       return [];
     }
 
