@@ -33,7 +33,7 @@ export async function setupVite(app, server) {
         try {
             const clientTemplate = path.resolve(__dirname, "..", "client", "index.html");
             let template = await fs.promises.readFile(clientTemplate, "utf-8");
-            template = template.replace('src="/src/main.tsx"', `src="/src/main.tsx?v=${nanoid()}"`);
+            template = template.replace('src="/src/main.js"', `src="/src/main.js?v=${nanoid()}`);
             const page = await vite.transformIndexHtml(url, template);
             res.status(200).set({ "Content-Type": "text/html" }).end(page);
         }

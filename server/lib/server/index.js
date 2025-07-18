@@ -3,7 +3,7 @@ import express from "express";
 import { registerRoutes } from "./routes";
 import cors from "cors";
 import { sql } from 'drizzle-orm';
-import { culturalCuisines } from '../shared/schema';
+import { culturalCuisines } from '../../shared/schema';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';

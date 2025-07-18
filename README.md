@@ -119,7 +119,12 @@ A smart nutrition and grocery management platform that helps users make healthy 
 
 ## Getting Started
 
-1. Clone the repository
+1. Clone the repository and navigate to the project directory:
+```bash
+git clone https://github.com/AsadullahSamo/NutriVerseAI.git
+cd NutriVerseAI
+```
+
 2. Install dependencies:
 ```bash
 npm install
@@ -130,12 +135,19 @@ Create a `.env` file with:
 ```
 SESSION_SECRET=your_secret_key
 BACKEND_PORT=8000
-DATABASE_URL=your_database_url
+DATABASE_URL=your_neon_db_url (connection string)
+VITE_API_BASE_URL=http://localhost:8000
+VITE_GROQ_API_KEY=your_groq_api_key
+VITE_API_URL=http://localhost:8000
+NODE_ENV=development
+GEMINI_API_KEY=your_gemini_api_key
+VITE_GEMINI_API_KEY=your_gemini_api_key
+
 ```
 
 4. Initialize the database:
 ```bash
-npm run db:migrate
+npx tsx server/setup-database.ts
 ```
 
 5. Start the development server:

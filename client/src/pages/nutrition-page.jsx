@@ -1,12 +1,16 @@
-import { NutritionGoals } from "@/components/nutrition-goals";
-import { NutritionInsights } from "@/components/nutrition-insights";
-import { NutritionSummary } from "@/components/nutrition-summary";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { NutritionGoals } from "@/components/nutrition-goals"
+import { NutritionInsights } from "@/components/nutrition-insights"
+import { NutritionSummary } from "@/components/nutrition-summary"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
 export default function NutritionPage() {
-    return (<div className="container mx-auto p-6">
+  return (
+    <div className="container mx-auto p-6">
       <div className="space-y-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Nutrition Tracking</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Nutrition Tracking
+          </h1>
           <p className="text-muted-foreground mt-2">
             Track your nutritional goals and get AI-powered insights
           </p>
@@ -32,5 +36,6 @@ export default function NutritionPage() {
           </TabsContent>
         </Tabs>
       </div>
-    </div>);
+    </div>
+  )
 }

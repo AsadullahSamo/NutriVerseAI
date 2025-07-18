@@ -231,19 +231,33 @@ const KitchenEquipmentPage = () => {
     };
     const handleAddToShoppingList = async (rec) => {
         const recId = hashCode(`${rec.name}-${rec.category}`);
-        const listTitle = "Kitchen Equipment Shopping";
+        // Always use "Shopping" as the list title
+        const listTitle = "Shopping";
+        
         try {
             setAddingToList(recId);
-            // First check if a kitchen equipment list exists
+            
+            // First check if any lists exist
             const response = await apiRequest("GET", "/api/grocery-lists");
             const lists = await response.json();
-            // Find the kitchen equipment list by exact title match first
-            let kitchenList = lists.find((list) => list.title === listTitle);
-            // If no list found by title, check for a list that has kitchen equipment items
-            if (!kitchenList) {
-                kitchenList = lists.find((list) => Array.isArray(list.items) &&
-                    list.items.some((item) => item.category === "Kitchen Equipment"));
+            
+            // Ensure lists is always an array
+            const allLists = Array.isArray(lists) ? lists : [];
+            
+            // Try to find an existing Shopping list
+            let shoppingList = null;
+            
+            // First check for exact title match
+            shoppingList = allLists.find(list => 
+                list.title === listTitle && 
+                Array.isArray(list.items)
+            );
+            
+            // If no shopping list found, use any list with items array
+            if (!shoppingList && allLists.length > 0) {
+                shoppingList = allLists.find(list => Array.isArray(list.items));
             }
+            
             const newItem = {
                 id: crypto.randomUUID(),
                 name: rec.name,
@@ -254,10 +268,16 @@ const KitchenEquipmentPage = () => {
                 priority: rec.priority || "medium",
                 description: rec.reason || `Recommended kitchen equipment`
             };
-            if (kitchenList) {
-                // Check if item already exists using case-insensitive comparison
-                const itemExists = kitchenList.items.some((item) => item.name.toLowerCase() === rec.name.toLowerCase() &&
-                    item.category === "Kitchen Equipment");
+            
+            if (shoppingList) {
+                console.log("Found existing shopping list:", shoppingList.id);
+                
+                // Check if item already exists
+                const itemExists = shoppingList.items.some(item => 
+                    item.name.toLowerCase() === rec.name.toLowerCase() &&
+                    item.category === "Kitchen Equipment"
+                );
+                
                 if (itemExists) {
                     setNotification({
                         type: 'info',
@@ -266,36 +286,49 @@ const KitchenEquipmentPage = () => {
                     setAddingToList(null);
                     return;
                 }
-                // Add to existing list and maintain all existing items
-                const updatedItems = [...kitchenList.items, newItem];
-                // Ensure the title is set correctly when updating
-                await apiRequest("PATCH", `/api/grocery-lists/${kitchenList.id}`, Object.assign(Object.assign({}, kitchenList), { title: listTitle, items: updatedItems }));
-            }
-            else {
-                // Create new kitchen equipment list only if none exists
+                
+                // Add to existing list
+                const updatedItems = [...shoppingList.items, newItem];
+                
+                // Update existing list - keep the original title to avoid changing it
+                await apiRequest("PATCH", `/api/grocery-lists/${shoppingList.id}`, {
+                    ...shoppingList,
+                    items: updatedItems
+                });
+                
+                setNotification({
+                    type: 'success',
+                    message: `${rec.name} has been added to your shopping list`
+                });
+            } else {
+                console.log("No shopping list found, creating new one");
+                
+                // Create a new shopping list if none exists
                 const data = {
-                    userId: user === null || user === void 0 ? void 0 : user.id,
+                    userId: user?.id,
                     title: listTitle,
                     items: [newItem],
                     completed: false
                 };
-                await apiRequest("POST", "/api/grocery-lists", data);
+                
+                const result = await apiRequest("POST", "/api/grocery-lists", data);
+                console.log("Created new shopping list:", await result.json());
+                
+                setNotification({
+                    type: 'success',
+                    message: `Created new shopping list with ${rec.name}`
+                });
             }
+            
             // Invalidate queries to refresh the lists
             queryClient.invalidateQueries({ queryKey: ["/api/grocery-lists"] });
-            setNotification({
-                type: 'success',
-                message: `${rec.name} has been added to your kitchen equipment shopping list`
-            });
-        }
-        catch (error) {
+        } catch (error) {
             console.error('Error adding to shopping list:', error);
             setNotification({
                 type: 'error',
                 message: 'Failed to add item to shopping list. Please try again.'
             });
-        }
-        finally {
+        } finally {
             setAddingToList(null);
         }
     };

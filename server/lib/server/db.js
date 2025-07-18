@@ -3,7 +3,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { neon, neonConfig } from "@neondatabase/serverless";
 import { drizzle } from 'drizzle-orm/neon-http';
-import * as schema from "../shared/schema";
+import * as schema from "../../shared/schema";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 // Load environment variables

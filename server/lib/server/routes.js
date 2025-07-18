@@ -1,11 +1,11 @@
 import { createServer } from "http";
-import { setupAuth } from "./auth";
-import { storage } from "./storage";
-import { insertRecipeSchema, insertGroceryListSchema, insertPantryItemSchema, insertCommunityPostSchema, insertNutritionGoalSchema, culturalCuisines, culturalRecipes, culturalTechniques, pantryItems, kitchenEquipment, recipes } from "@shared/schema";
-import { analyzeMoodSentiment, generateMoodInsights, generateAIMealPlan, getNutritionRecommendations, } from "../ai-services/recipe-ai";
-import { getRecipeAuthenticityScore, getEtiquette, getPairings, getSubstitutions, generateCulturalRecipeDetails } from "../ai-services/cultural-cuisine-service";
+import { setupAuth } from "./auth.js";
+import { storage } from "./storage.js";
+import { users, recipes, groceryLists, pantryItems, communityPosts, mealPlans, nutritionGoals, recipeConsumption, kitchenEquipment, recipe_likes } from "../../shared/schema.js";
+import { analyzeMoodSentiment, generateMoodInsights, generateAIMealPlan, getNutritionRecommendations, } from "../../ai-services/recipe-ai.js";
+import { getRecipeAuthenticityScore, getEtiquette, getPairings, getSubstitutions, generateCulturalRecipeDetails } from "../../ai-services/cultural-cuisine-service.js";
 import { desc, eq, and } from "drizzle-orm";
-import { db } from "./db";
+import { db } from "./db.js";
 // Middleware to check if user is authenticated
 const isAuthenticated = (req, res, next) => {
     if (!req.isAuthenticated()) {
@@ -606,6 +606,8 @@ export async function registerRoutes(app) {
                     return cuisine;
                 }
             });
+            // Set explicit content-type to ensure client receives JSON
+            res.setHeader('Content-Type', 'application/json');
             res.json(processedCuisines);
         }
         catch (error) {
@@ -618,6 +620,8 @@ export async function registerRoutes(app) {
                     cause: error.cause
                 });
             }
+            // Set explicit content-type for error responses too
+            res.setHeader('Content-Type', 'application/json');
             res.status(500).json({
                 error: 'Failed to fetch cuisines',
                 details: error instanceof Error ? error.message : 'Unknown error',

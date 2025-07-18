@@ -41,6 +41,7 @@ export const pantryItems = pgTable("pantry_items", {
     quantity: text("quantity").notNull(),
     expiryDate: timestamp("expiry_date"),
     category: text("category"),
+    image_url: text("image_url"),
     nutritionInfo: jsonb("nutrition_info").notNull(),
     sustainabilityInfo: jsonb("sustainability_info").notNull(),
 });
@@ -231,6 +232,7 @@ export const insertPantryItemSchema = createInsertSchema(pantryItems)
     quantity: z.string().min(1, "Quantity is required"),
     category: z.string().min(1, "Category is required"),
     expiryDate: z.date().optional(),
+    image_url: z.string().url().optional().nullable(),
     nutritionInfo: z.object({
         calories: z.number().min(0, "Calories must be positive"),
         protein: z.number().min(0, "Protein must be positive"),
@@ -351,5 +353,20 @@ export const moodEntrySchema = z.object({
 export const userSchema = z.object({
     // ...existing user fields...
     moodJournal: z.array(moodEntrySchema).optional(),
+});
+export const recipeRecommendations = pgTable("recipe_recommendations", {
+    id: serial("id").primaryKey(),
+    userId: integer("user_id").references(() => users.id).notNull(),
+    recipeId: integer("recipe_id").references(() => recipes.id),
+    matchScore: integer("match_score").notNull(),
+    reasonForRecommendation: text("reason_for_recommendation").notNull(),
+    seasonalRelevance: boolean("seasonal_relevance").default(false).notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    isActive: boolean("is_active").default(true).notNull(),
+    userDataSnapshot: jsonb("user_data_snapshot"),
+    recommendationGroup: text("recommendation_group").notNull(),
+    priority: integer("priority").notNull(),
+    recipeData: jsonb("recipe_data"),
+    createdAt: timestamp("created_at").defaultNow().notNull()
 });
 //# sourceMappingURL=schema.js.map
