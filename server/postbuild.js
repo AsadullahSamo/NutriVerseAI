@@ -328,7 +328,6 @@ if (fs.existsSync(publicPath)) {
     }
 
     // Fix component imports to ensure they have proper file extensions
-    // This will help ensure that components like Navbar can be found
     await fixComponentImports(path.join(rootDir, 'public'));
     
     // Fix import paths to ensure proper resolution in production
@@ -424,11 +423,7 @@ async function fixImportPaths(dir) {
       return match;
     });
     
-    // Fix specific Navbar component import
-    content = content.replace(
-      /from\s+["']@\/components\/Navbar["']/g,
-      'from "@/components/Navbar.jsx"'
-    );
+
 
     // Fix all PascalCase component imports to ensure they have .jsx extension
     content = content.replace(
@@ -450,7 +445,7 @@ async function fixImportPaths(dir) {
   }
 }
 
-// Enhance the fixComponentImports function to specifically handle the Navbar component
+// Fix component imports to ensure they have proper file extensions
 async function fixComponentImports(dir) {
   console.log(`Ensuring component imports have file extensions in ${dir}`);
   const files = await findJsFiles(dir);
@@ -460,18 +455,7 @@ async function fixComponentImports(dir) {
     let content = await readFile(file, 'utf8');
     let modified = false;
 
-    // Special handling for Navbar component which is causing the production error
-    if (content.includes('from "@/components/Navbar"') || 
-        content.includes("from '@/components/Navbar'") ||
-        content.includes('from "./components/Navbar"') ||
-        content.includes("from './components/Navbar'")) {
-      
-      content = content
-        .replace(/from\s+["']@\/components\/Navbar["']/g, 'from "@/components/Navbar.jsx"')
-        .replace(/from\s+["']\.\/components\/Navbar["']/g, 'from "./components/Navbar.jsx"');
-      modified = true;
-      console.log(`Fixed Navbar import in ${file}`);
-    }
+
 
     // Add .jsx extension to PascalCase component imports if they don't have an extension
     content = content.replace(
@@ -517,7 +501,7 @@ async function fixRailwayPaths() {
   }
 
   // In Railway, the app is deployed to /app, not the original project path
-  // We need to handle any issues with the Navbar component specifically
+  // We need to handle component import issues
   // This will run for all environments to ensure consistency
   
   try {
@@ -531,31 +515,7 @@ async function fixRailwayPaths() {
       let content = await readFile(file, 'utf8');
       let modified = false;
       
-      // Fix specific issue with Navbar component import
-      if (content.includes('/components/Navbar')) {
-        // Make sure all Navbar imports have the .jsx extension
-        content = content.replace(
-          /(['"])([^'"]*\/components\/Navbar)(['"])/g,
-          (match, quote1, path, quote2) => {
-            if (!path.endsWith('.jsx')) {
-              modified = true;
-              return `${quote1}${path}.jsx${quote2}`;
-            }
-            return match;
-          }
-        );
-        
-        // Also fix any explicit paths to /app/client/src/components/Navbar
-        content = content.replace(
-          /(['"])\/app\/client\/src\/components\/Navbar(['"])/g,
-          '$1/app/client/src/components/Navbar.jsx$2'
-        );
-        
-        if (modified) {
-          await writeFile(file, content);
-          console.log(`Fixed Navbar imports in ${file} for Railway deployment`);
-        }
-      }
+
     }
     
     console.log('Railway-specific fixes completed.');
