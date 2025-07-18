@@ -1,0 +1,72 @@
+@import "./styles/theme.css";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --base-font-size: 0.95rem;  /* 95% of default */
+    --content-width: 85.5rem;   /* Scaled width for content */
+    --container-padding: 1.425rem;  /* 1.5rem * 0.95 */
+  }
+
+  html {
+    font-size: var(--base-font-size);
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    background-image: var(--gradient-background);
+    font-size: 0.95rem;  /* 95% of 1rem */
+    line-height: 1.5;
+  }
+
+  .container {
+    @apply mx-auto px-4;
+    max-width: min(var(--content-width), 95% - 2 * var(--container-padding));
+  }
+
+  /* Adjust common text sizes */
+  h1 { @apply text-[1.9rem] font-semibold; }  /* 2rem * 0.95 */
+  h2 { @apply text-[1.425rem] font-semibold; } /* 1.5rem * 0.95 */
+  h3 { @apply text-[1.1875rem] font-semibold; } /* 1.25rem * 0.95 */
+  h4 { @apply text-[1.0925rem] font-medium; } /* 1.15rem * 0.95 */
+
+  /* Adjust spacing for UI components */
+  .btn, .button, button:not(.unstyled) {
+    @apply px-[0.95rem] py-[0.475rem] text-sm;
+  }
+
+  /* Adjust card and container padding */
+  .card-content, [class*="card-content"] {
+    @apply p-[1.1875rem];  /* 1.25rem * 0.95 */
+  }
+
+  /* Adjust input and form controls */
+  input, select, textarea {
+    @apply text-[0.95rem];  /* 1rem * 0.95 */
+  }
+
+  /* Navigation and menu items */
+  .nav-item, .menu-item {
+    @apply text-[0.855rem];  /* 0.9rem * 0.95 */
+  }
+
+  /* Adjust link spacing */
+  a:not(.unstyled) {
+    @apply px-[0.475rem] py-[0.2375rem];  /* 0.5rem/0.25rem * 0.95 */
+  }
+
+  .card, 
+  .bg-card {
+    background-image: var(--gradient-card);
+  }
+
+  .bg-muted {
+    background-image: var(--gradient-surface);
+  }
+}

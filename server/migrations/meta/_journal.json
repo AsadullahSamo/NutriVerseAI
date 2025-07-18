@@ -1,0 +1,59 @@
+{
+  "version": "5",
+  "dialect": "pg",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1699887741000,
+      "tag": "0000_nervous_ghost_rider",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1699887742000,
+      "tag": "0001_session"
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1699887743000,
+      "tag": "0002_session_neon"
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1699887744000,
+      "tag": "0003_meal_plans"
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1740501400968,
+      "tag": "0004_robust_malcolm_colcord",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1740579932679,
+      "tag": "0005_worried_gamora",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1741021252271,
+      "tag": "0006_cold_meltdown",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1741444575100,
+      "tag": "0007_watery_expediter",
+      "breakpoints": true
+    }
+  ]
+}
