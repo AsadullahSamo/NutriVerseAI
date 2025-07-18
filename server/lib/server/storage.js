@@ -9,8 +9,8 @@ var __rest = (this && this.__rest) || function (s, e) {
         }
     return t;
 };
-import { culturalRecipes } from "@shared/schema";
-import { users, recipes, groceryLists, pantryItems, communityPosts, recipe_likes, mealPlans, nutritionGoals, recipeConsumption, kitchenEquipment, kitchenStorageLocations, culturalCuisines } from "@shared/schema";
+import { culturalRecipes } from "../../shared/schema";
+import { users, recipes, groceryLists, pantryItems, communityPosts, recipe_likes, mealPlans, nutritionGoals, recipeConsumption, kitchenEquipment, kitchenStorageLocations, culturalCuisines } from "../../shared/schema";
 import { db } from "./db";
 import { eq, and, gte, lte, desc, count } from "drizzle-orm";
 import session from "express-session";
@@ -50,69 +50,39 @@ export class DatabaseStorage {
     }
     async deleteUser(id) {
         try {
-            // Order matters - delete dependent tables first before their references
+            // Delete all user-related data in the correct order to avoid foreign key constraint violations
             // 1. Delete recipe consumption history
-            await db.delete(recipeConsumption)
-                .where(eq(recipeConsumption.userId, id));
-            // 2. Delete recipe likes by user
-            await db.delete(recipe_likes)
-                .where(eq(recipe_likes.userId, id));
-            // 3. Update community posts to remove references to user's recipes
-            // This step is important to avoid foreign key constraint violations
-            const userRecipes = await db.select({ id: recipes.id })
-                .from(recipes)
-                .where(eq(recipes.createdBy, id));
-            const recipeIds = userRecipes.map(recipe => recipe.id);
-            // If user has recipes, update community posts to remove references
-            if (recipeIds.length > 0) {
-                // Update each recipe reference individually to avoid using sql.join
-                for (const recipeId of recipeIds) {
-                    await db.update(communityPosts)
-                        .set({ recipeId: null })
-                        .where(eq(communityPosts.recipeId, recipeId));
-                }
-            }
-            // 4. Delete community posts by user
-            await db.delete(communityPosts)
-                .where(eq(communityPosts.userId, id));
-            // 5. Now we can delete user recipes safely
-            await db.delete(recipes)
-                .where(eq(recipes.createdBy, id));
-            // 6. Delete grocery lists
-            await db.delete(groceryLists)
-                .where(eq(groceryLists.userId, id));
-            // 7. Delete pantry items
-            await db.delete(pantryItems)
-                .where(eq(pantryItems.userId, id));
-            // 8. Delete meal plans
-            await db.delete(mealPlans)
-                .where(eq(mealPlans.userId, id));
-            // 9. Delete nutrition goals
-            await db.delete(nutritionGoals)
-                .where(eq(nutritionGoals.userId, id));
-            // 10. Delete kitchen equipment
-            await db.delete(kitchenEquipment)
-                .where(eq(kitchenEquipment.userId, id));
-            // 11. Delete kitchen storage locations if they exist in schema
-            try {
-                await db.delete(kitchenStorageLocations)
-                    .where(eq(kitchenStorageLocations.userId, id));
-            }
-            catch (error) {
-                // Silently ignore errors for this table - it might not exist in all environments
-                console.log("Note: Skip kitchenStorageLocations if table doesn't exist");
-            }
-            // 12. Delete cultural recipes and cuisines
-            await db.delete(culturalRecipes)
-                .where(eq(culturalRecipes.createdBy, id));
-            await db.delete(culturalCuisines)
-                .where(eq(culturalCuisines.createdBy, id));
-            // 13. Finally, delete the user account
-            await db.delete(users)
-                .where(eq(users.id, id));
+            await db.delete(recipeConsumption).where(eq(recipeConsumption.userId, id));
+
+            // 2. Delete recipe likes
+            await db.delete(recipe_likes).where(eq(recipe_likes.userId, id));
+
+            // 3. Delete community posts
+            await db.delete(communityPosts).where(eq(communityPosts.userId, id));
+
+            // 4. Delete user's recipes
+            await db.delete(recipes).where(eq(recipes.createdBy, id));
+
+            // 5. Delete grocery lists
+            await db.delete(groceryLists).where(eq(groceryLists.userId, id));
+
+            // 6. Delete pantry items
+            await db.delete(pantryItems).where(eq(pantryItems.userId, id));
+
+            // 7. Delete meal plans
+            await db.delete(mealPlans).where(eq(mealPlans.userId, id));
+
+            // 8. Delete nutrition goals
+            await db.delete(nutritionGoals).where(eq(nutritionGoals.userId, id));
+
+            // 9. Delete kitchen equipment
+            await db.delete(kitchenEquipment).where(eq(kitchenEquipment.userId, id));
+
+            // Finally, delete the user account
+            await db.delete(users).where(eq(users.id, id));
         }
         catch (error) {
-            console.error("Error in deleteUser:", error);
+            console.error("Error deleting user:", error);
             throw error;
         }
     }

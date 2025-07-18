@@ -1,0 +1,7 @@
+- organize ai-services directory
+- organize components directory
+- organize contexts directory
+- delete src/utils/geminiUtils.js (cause of no use anywhere in the app)
+- organize hooks directory
+- organize app directory
+- organize lib directory

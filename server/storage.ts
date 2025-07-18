@@ -1,23 +1,39 @@
-import { IStorage } from "./types";
-import { User, Recipe, GroceryList, PantryItem, CommunityPost, culturalRecipes } from "@shared/schema";
-import { users, recipes, groceryLists, pantryItems, communityPosts, recipe_likes, mealPlans, nutritionGoals, type NutritionGoal, recipeConsumption, type RecipeConsumption, kitchenEquipment, kitchenStorageLocations, culturalCuisines } from "@shared/schema";
-import { db, sql, pool } from "./db";
-import { eq, and, gte, lte, desc, count } from "drizzle-orm";
+// Import external dependencies first
 import session from "express-session";
 import MemoryStore from "memorystore";
+import { eq, and, gte, lte, desc, count } from "drizzle-orm";
+
+// Import local modules after
+import { db, sql, pool } from "./db";  // sql is exported from db now
+import {
+  users,
+  recipes,
+  groceryLists,
+  pantryItems,
+  communityPosts,
+  recipe_likes,
+  mealPlans,
+  nutritionGoals,
+  recipeConsumption,
+  kitchenEquipment,
+  culturalRecipes,
+  culturalCuisines,
+  insertUserSchema,
+  userPreferences,
+  kitchenStorageLocations
+} from "./shared/schema";  // Remove .js extension for TypeScript
 
 const MemorySessionStore = MemoryStore(session);
 
-export class DatabaseStorage implements IStorage {
-  readonly sessionStore: session.Store;
-
+class DatabaseStorage {
+  sessionStore: any;
   constructor() {
     this.sessionStore = new MemorySessionStore({
       checkPeriod: 86400000 // Prune expired entries every 24h
     });
   }
 
-  private convertDatesToISOString(data: any) {
+  convertDatesToISOString(data) {
     if (data && data.expiryDate) {
       return {
         ...data,
@@ -27,22 +43,22 @@ export class DatabaseStorage implements IStorage {
     return data;
   }
 
-  async getUser(id: number): Promise<User | undefined> {
+  async getUser(id) {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
+  async getUserByUsername(username) {
     const [user] = await db.select().from(users).where(eq(users.username, username));
     return user;
   }
 
-  async createUser(user: { username: string; password: string; preferences?: unknown }): Promise<User> {
+  async createUser(user) {
     const [newUser] = await db.insert(users).values(user).returning();
     return newUser;
   }
 
-  async updateUser(id: number, data: Partial<User>): Promise<User> {
+  async updateUser(id, data) {
     const [user] = await db
       .update(users)
       .set(data)
@@ -51,7 +67,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async deleteUser(id: number): Promise<void> {
+  async deleteUser(id) {
     try {
       // Order matters - delete dependent tables first before their references
       
@@ -64,16 +80,13 @@ export class DatabaseStorage implements IStorage {
         .where(eq(recipe_likes.userId, id));
       
       // 3. Update community posts to remove references to user's recipes
-      // This step is important to avoid foreign key constraint violations
       const userRecipes = await db.select({ id: recipes.id })
         .from(recipes)
         .where(eq(recipes.createdBy, id));
       
       const recipeIds = userRecipes.map(recipe => recipe.id);
       
-      // If user has recipes, update community posts to remove references
       if (recipeIds.length > 0) {
-        // Update each recipe reference individually to avoid using sql.join
         for (const recipeId of recipeIds) {
           await db.update(communityPosts)
             .set({ recipeId: null })
@@ -114,7 +127,6 @@ export class DatabaseStorage implements IStorage {
         await db.delete(kitchenStorageLocations)
           .where(eq(kitchenStorageLocations.userId, id));
       } catch (error) {
-        // Silently ignore errors for this table - it might not exist in all environments
         console.log("Note: Skip kitchenStorageLocations if table doesn't exist");
       }
       
@@ -125,7 +137,11 @@ export class DatabaseStorage implements IStorage {
       await db.delete(culturalCuisines)
         .where(eq(culturalCuisines.createdBy, id));
 
-      // 13. Finally, delete the user account
+      // 13. Delete user preferences
+      await db.delete(userPreferences)
+        .where(eq(userPreferences.userId, id));
+
+      // 14. Finally, delete the user account
       await db.delete(users)
         .where(eq(users.id, id));
     } catch (error) {
@@ -134,12 +150,9 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getRecipes(): Promise<Recipe[]> {
-    const recipesList = await db
-      .select()
-      .from(recipes);
+  async getRecipes() {
+    const recipesList = await db.select().from(recipes);
 
-    // For each recipe, get the likes count
     const recipesWithLikes = await Promise.all(
       recipesList.map(async (recipe) => {
         const likeCount = await this.getRecipeLikesCount(recipe.id);
@@ -151,29 +164,27 @@ export class DatabaseStorage implements IStorage {
       })
     );
 
-    return recipesWithLikes as Recipe[];
+    return recipesWithLikes;
   }
 
-  async getRecipe(id: number): Promise<Recipe | undefined> {
+  async getRecipe(id) {
     const [recipe] = await db
       .select()
       .from(recipes)
       .where(eq(recipes.id, id));
 
     if (recipe) {
-      // Get the likes count
       const likeCount = await this.getRecipeLikesCount(id);
       return {
         ...recipe,
         createdAt: new Date(recipe.createdAt),
         likes: likeCount // Add likes count to the recipe
-      } as Recipe;
+      };
     }
     return undefined;
   }
 
-  async getRecipeLikesCount(recipeId: number): Promise<number> {
-    // Get count of likes for a recipe
+  async getRecipeLikesCount(recipeId) {
     const result = await db
       .select({ count: count() })
       .from(recipe_likes)
@@ -182,7 +193,7 @@ export class DatabaseStorage implements IStorage {
     return result[0]?.count || 0;
   }
 
-  async createRecipe(recipe: Omit<Recipe, "id">): Promise<Recipe> {
+  async createRecipe(recipe) {
     const [newRecipe] = await db
       .insert(recipes)
       .values(recipe)
@@ -206,12 +217,11 @@ export class DatabaseStorage implements IStorage {
       ...newRecipe,
       createdAt: new Date(newRecipe.createdAt),
       likes: 0 // New recipes start with 0 likes
-    } as Recipe;
+    };
   }
 
-  async likeRecipe(recipeId: number, userId: number): Promise<Recipe> {
+  async likeRecipe(recipeId, userId) {
     try {
-      // Check if user has already liked this recipe
       const existingLikes = await db
         .select()
         .from(recipe_likes)
@@ -223,7 +233,6 @@ export class DatabaseStorage implements IStorage {
         );
 
       if (existingLikes.length > 0) {
-        // Unlike: Remove the like
         await db
           .delete(recipe_likes)
           .where(
@@ -233,7 +242,6 @@ export class DatabaseStorage implements IStorage {
             )
           );
       } else {
-        // Add like
         await db
           .insert(recipe_likes)
           .values({
@@ -242,7 +250,6 @@ export class DatabaseStorage implements IStorage {
           });
       }
 
-      // Get updated recipe with like count
       const recipe = await this.getRecipe(recipeId);
 
       if (!recipe) {
@@ -256,7 +263,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async hasUserLikedRecipe(recipeId: number, userId: number): Promise<boolean> {
+  async hasUserLikedRecipe(recipeId, userId) {
     const likes = await db
       .select()
       .from(recipe_likes)
@@ -269,8 +276,7 @@ export class DatabaseStorage implements IStorage {
     return likes.length > 0;
   }
 
-  async forkRecipe(id: number, userId: number): Promise<Recipe> {
-    // Get original recipe
+  async forkRecipe(id, userId) {
     const originalRecipe = await this.getRecipe(id);
 
     if (!originalRecipe) throw new Error("Recipe not found");
@@ -278,7 +284,6 @@ export class DatabaseStorage implements IStorage {
     // Remove likes and other fields we don't want to copy
     const { id: _, likes: __, ...recipeToCopy } = originalRecipe;
 
-    // Insert forked recipe
     const forkedRecipe = await db
       .insert(recipes)
       .values({
@@ -293,11 +298,10 @@ export class DatabaseStorage implements IStorage {
       ...forkedRecipe[0],
       createdAt: new Date(forkedRecipe[0].createdAt),
       likes: 0 // New forked recipe starts with 0 likes
-    } as Recipe;
+    };
   }
 
-  async updateRecipe(id: number, data: Partial<Recipe>): Promise<Recipe> {
-    // Remove likes field if it exists in data to prevent issues
+  async updateRecipe(id, data) {
     const { likes, ...updateData } = data;
 
     const [recipe] = await db
@@ -320,26 +324,25 @@ export class DatabaseStorage implements IStorage {
         wastageReduction: recipes.wastageReduction
       });
 
-    // Get the likes count
     const likeCount = await this.getRecipeLikesCount(id);
 
     return {
       ...recipe,
       createdAt: new Date(recipe.createdAt),
       likes: likeCount
-    } as Recipe;
+    };
   }
 
-  async getGroceryListsByUser(userId: number): Promise<GroceryList[]> {
+  async getGroceryListsByUser(userId) {
     return db.select().from(groceryLists).where(eq(groceryLists.userId, userId));
   }
 
-  async createGroceryList(list: Omit<GroceryList, "id">): Promise<GroceryList> {
+  async createGroceryList(list) {
     const [newList] = await db.insert(groceryLists).values(list).returning();
     return newList;
   }
 
-  async updateGroceryList(id: number, data: Partial<GroceryList>): Promise<GroceryList> {
+  async updateGroceryList(id, data) {
     const [list] = await db
       .update(groceryLists)
       .set(data)
@@ -348,16 +351,16 @@ export class DatabaseStorage implements IStorage {
     return list;
   }
 
-  async getPantryItemsByUser(userId: number): Promise<PantryItem[]> {
+  async getPantryItemsByUser(userId) {
     return db.select().from(pantryItems).where(eq(pantryItems.userId, userId));
   }
 
-  async createPantryItem(item: Omit<PantryItem, "id">): Promise<PantryItem> {
+  async createPantryItem(item) {
     const [newItem] = await db.insert(pantryItems).values(item).returning();
     return newItem;
   }
 
-  async updatePantryItem(id: number, data: Partial<PantryItem>): Promise<PantryItem> {
+  async updatePantryItem(id, data) {
     const [item] = await db
       .update(pantryItems)
       .set(data)
@@ -366,14 +369,13 @@ export class DatabaseStorage implements IStorage {
     return item;
   }
 
-  async deletePantryItem(id: number): Promise<void> {
+  async deletePantryItem(id) {
     await db.delete(pantryItems).where(eq(pantryItems.id, id));
   }
 
-  async getCommunityPosts(userId?: number): Promise<CommunityPost[]> {
+  async getCommunityPosts(userId) {
     const posts = await db.select().from(communityPosts);
     
-    // Filter out posts that are hidden for the current user
     const filteredPosts = userId 
       ? posts.filter(post => {
           const hiddenFor = Array.isArray(post.hiddenFor) ? post.hiddenFor : [];
@@ -384,17 +386,17 @@ export class DatabaseStorage implements IStorage {
     return filteredPosts;
   }
 
-  async createCommunityPost(post: Omit<CommunityPost, "id">): Promise<CommunityPost> {
+  async createCommunityPost(post) {
     const [newPost] = await db.insert(communityPosts).values(post).returning();
     return newPost;
   }
 
-  async getCommunityPost(id: number): Promise<CommunityPost | undefined> {
+  async getCommunityPost(id) {
     const [post] = await db.select().from(communityPosts).where(eq(communityPosts.id, id));
     return post;
   }
 
-  async updateCommunityPost(id: number, data: Partial<CommunityPost>): Promise<CommunityPost> {
+  async updateCommunityPost(id, data) {
     const [post] = await db
       .update(communityPosts)
       .set(data)
@@ -403,45 +405,40 @@ export class DatabaseStorage implements IStorage {
     return post;
   }
 
-  async deleteGroceryList(id: number): Promise<void> {
+  async deleteGroceryList(id) {
     await db.delete(groceryLists).where(eq(groceryLists.id, id));
   }
 
-  async deleteCommunityPost(id: number): Promise<void> {
+  async deleteCommunityPost(id) {
     await db.delete(communityPosts).where(eq(communityPosts.id, id));
   }
 
-  async deleteRecipeConsumption(recipeId: number): Promise<void> {
+  async deleteRecipeConsumption(recipeId) {
     await db.delete(recipeConsumption)
       .where(eq(recipeConsumption.recipeId, recipeId));
   }
 
-  async deleteRecipe(id: number): Promise<void> {
+  async deleteRecipe(id) {
     try {
       // Sequential cleanup operations
-      // 1. Update any recipes that were forked from this one to remove the reference
       await db
         .update(recipes)
         .set({ forkedFrom: null })
         .where(eq(recipes.forkedFrom, id));
 
-      // 2. Update any community posts that reference this recipe to mark it as deleted
       await db
         .update(communityPosts)
         .set({ recipeId: null })
         .where(eq(communityPosts.recipeId, id));
 
-      // 3. Clean up any consumption records for this recipe
       await db
         .delete(recipeConsumption)
         .where(eq(recipeConsumption.recipeId, id));
 
-      // 4. Clean up any likes for this recipe
       await db
         .delete(recipe_likes)
         .where(eq(recipe_likes.recipeId, id));
 
-      // 5. Finally delete the recipe
       await db
         .delete(recipes)
         .where(eq(recipes.id, id));
@@ -451,7 +448,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async getMealPlansByUser(userId: number) {
+  async getMealPlansByUser(userId) {
     return db
       .select()
       .from(mealPlans)
@@ -459,7 +456,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(mealPlans.createdAt));
   }
 
-  async createMealPlan(plan: Omit<typeof mealPlans.$inferInsert, "id">) {
+  async createMealPlan(plan) {
     const [newPlan] = await db
       .insert(mealPlans)
       .values(plan)
@@ -467,7 +464,7 @@ export class DatabaseStorage implements IStorage {
     return newPlan;
   }
 
-  async updateMealPlan(id: number, data: Partial<typeof mealPlans.$inferSelect>) {
+  async updateMealPlan(id, data) {
     const [plan] = await db
       .update(mealPlans)
       .set(data)
@@ -476,11 +473,11 @@ export class DatabaseStorage implements IStorage {
     return plan;
   }
 
-  async deleteMealPlan(id: number): Promise<void> {
+  async deleteMealPlan(id) {
     await db.delete(mealPlans).where(eq(mealPlans.id, id));
   }
 
-  async getCurrentNutritionGoal(userId: number): Promise<NutritionGoal | null> {
+  async getCurrentNutritionGoal(userId) {
     const [goal] = await db
       .select()
       .from(nutritionGoals)
@@ -493,7 +490,7 @@ export class DatabaseStorage implements IStorage {
     return goal || null;
   }
 
-  async createNutritionGoal(goal: Omit<NutritionGoal, "id">): Promise<NutritionGoal> {
+  async createNutritionGoal(goal) {
     const [newGoal] = await db
       .insert(nutritionGoals)
       .values(goal)
@@ -501,7 +498,7 @@ export class DatabaseStorage implements IStorage {
     return newGoal;
   }
 
-  async deactivateNutritionGoals(userId: number): Promise<void> {
+  async deactivateNutritionGoals(userId) {
     await db
       .update(nutritionGoals)
       .set({ isActive: false })
@@ -513,10 +510,7 @@ export class DatabaseStorage implements IStorage {
       );
   }
 
-  async updateNutritionProgress(
-    goalId: number, 
-    progress: NutritionGoal["progress"]
-  ): Promise<NutritionGoal> {
+  async updateNutritionProgress(goalId, progress) {
     const [updated] = await db
       .update(nutritionGoals)
       .set({ progress })
@@ -525,7 +519,7 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async trackRecipeConsumption(data: Omit<RecipeConsumption, "id">): Promise<RecipeConsumption> {
+  async trackRecipeConsumption(data) {
     const [consumption] = await db
       .insert(recipeConsumption)
       .values(data)
@@ -533,11 +527,7 @@ export class DatabaseStorage implements IStorage {
     return consumption;
   }
 
-  async getRecipeConsumptionHistory(
-    userId: number,
-    startDate?: Date,
-    endDate?: Date
-  ): Promise<RecipeConsumption[]> {
+  async getRecipeConsumptionHistory(userId, startDate, endDate) {
     let conditions = [eq(recipeConsumption.userId, userId)];
 
     if (startDate) {
@@ -554,12 +544,7 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(recipeConsumption.consumedAt));
   }
 
-  async getRecipeConsumptionWithDetails(
-    userId: number,
-    startDate?: Date,
-    endDate?: Date,
-    mealType?: string
-  ): Promise<any[]> {
+  async getRecipeConsumptionWithDetails(userId, startDate, endDate, mealType) {
     let conditions = [eq(recipeConsumption.userId, userId)];
 
     if (startDate) {
@@ -588,25 +573,23 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async hidePostForUser(postId: number, userId: number): Promise<void> {
+  async hidePostForUser(postId, userId) {
     const post = await this.getCommunityPost(postId);
     if (!post) {
       throw new Error("Post not found");
     }
 
-    // Ensure hiddenFor is an array and add the user ID if not already present
     const hiddenFor = Array.isArray(post.hiddenFor) ? [...post.hiddenFor] : [];
     if (!hiddenFor.includes(userId)) {
       hiddenFor.push(userId);
     }
 
-    // Update the post with the new hiddenFor array
     await db.update(communityPosts)
       .set({ hiddenFor: hiddenFor })
       .where(eq(communityPosts.id, postId));
   }
 
-  async addCulturalRecipe(recipe: Omit<typeof culturalRecipes.$inferInsert, "id">): Promise<typeof culturalRecipes.$inferSelect> {
+  async addCulturalRecipe(recipe) {
     const now = new Date();
     const [newRecipe] = await db
       .insert(culturalRecipes)
@@ -616,9 +599,23 @@ export class DatabaseStorage implements IStorage {
         updatedAt: now
       })
       .returning();
-
     return newRecipe;
+  }
+
+  async updateCulturalRecipe(id, updates) {
+    const now = new Date();
+    const [updatedRecipe] = await db
+      .update(culturalRecipes)
+      .set({
+        ...updates,
+        updatedAt: now
+      })
+      .where(eq(culturalRecipes.id, id))
+      .returning();
+    return updatedRecipe;
   }
 }
 
+// Create and export a singleton instance
 export const storage = new DatabaseStorage();
+  

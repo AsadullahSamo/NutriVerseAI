@@ -1,7 +1,10 @@
-import { KitchenStorageProvider } from "@/components/KitchenStorage/KitchenStorageContext";
-import { KitchenStorage } from "@/components/KitchenStorage/KitchenStorage";
+import { KitchenStorageProvider } from "@/components/KitchenStorage/KitchenStorageContext"
+import { KitchenStorage } from "@/components/KitchenStorage/KitchenStorage"
+
 export default function KitchenStoragePage() {
-    return (<KitchenStorageProvider>
+  return (
+    <KitchenStorageProvider>
       <KitchenStorage />
-    </KitchenStorageProvider>);
+    </KitchenStorageProvider>
+  )
 }

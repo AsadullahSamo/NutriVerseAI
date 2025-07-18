@@ -1,6 +1,9 @@
-import { MealPlanner } from "@/components/meal-planner";
+import { MealPlanner } from "@/components/meal-planner"
+
 export default function MealPlanPage() {
-    return (<div className="py-6">
+  return (
+    <div className="py-6">
       <MealPlanner />
-    </div>);
+    </div>
+  )
 }
