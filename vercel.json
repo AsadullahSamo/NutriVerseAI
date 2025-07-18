@@ -1,14 +1,9 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "client/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    }
-  ],
+  "buildCommand": "npm run build:client:vercel",
+  "outputDirectory": "dist",
+  "installCommand": "npm install",
+  "framework": "vite",
   "routes": [
     {
       "handle": "filesystem"
@@ -17,13 +12,5 @@
       "src": "/(.*)",
       "dest": "/index.html"
     }
-  ],
-  "buildCommand": "cd client && npm install && npm run build",
-  "outputDirectory": "client/dist",
-  "installCommand": "npm install",
-  "framework": "vite",
-  "env": {
-    "VITE_API_URL": "https://nutriverse-ai.onrender.com",
-    "VITE_API_BASE_URL": "https://nutriverse-ai.onrender.com"
-  }
+  ]
 }
