@@ -25,11 +25,7 @@ function fixComponentImports() {
         }
       );
       
-      // Specifically handle Navbar imports
-      modified = modified.replace(
-        /from\s+["']@\/components\/Navbar["']/g,
-        'from "@/components/Navbar.jsx"'
-      );
+
       
       if (modified !== code) {
         return { code: modified, map: null };
