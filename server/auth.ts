@@ -331,14 +331,7 @@ export function setupAuth(app) {
     });
 
     if (!req.isAuthenticated()) {
-      // Temporary bypass for testing
-      return res.json({
-        id: 'test-user-123',
-        username: 'testuser',
-        email: 'test@example.com',
-        preferences: {},
-        debug: 'Authentication bypassed for testing'
-      });
+      return res.status(401).json({ message: "Not authenticated" })
     }
     res.json(req.user)
   })
