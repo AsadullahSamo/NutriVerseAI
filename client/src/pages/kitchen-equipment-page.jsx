@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { getEquipmentRecommendations, generateMaintenanceSchedule, getRecipesByEquipment } from '@/ai-services/kitchen-ai';
 import { analyzeKitchenInventory, getMaintenanceTips } from '@/ai-services/kitchen-inventory-ai';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
