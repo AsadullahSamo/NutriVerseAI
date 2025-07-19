@@ -49,11 +49,12 @@ export function setupAuth(app) {
     saveUninitialized: true,
     store: (storage as any).sessionStore,
     cookie: {
-      secure: true, // MUST be true for sameSite: "none"
-      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      httpOnly: false, // Allow client-side access for debugging
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      sameSite: "none", // Allow cross-domain cookies
-      path: "/"
+      sameSite: process.env.NODE_ENV === 'production' ? "none" : "lax",
+      path: "/",
+      domain: process.env.NODE_ENV === 'production' ? undefined : 'localhost'
     },
     name: "sessionId"
   })
@@ -183,8 +184,17 @@ export function setupAuth(app) {
         const safeUser = sanitizeUser(user)
         req.login(safeUser, err => {
           if (err) {
+            console.error('Login error:', err);
             return res.status(500).json({ message: "Login failed. Please try again later." })
           }
+
+          console.log('Login successful:', {
+            userId: safeUser.id,
+            sessionId: req.sessionID,
+            cookies: req.headers.cookie,
+            origin: req.headers.origin
+          });
+
           res.json(safeUser)
         })
       } catch (err) {
