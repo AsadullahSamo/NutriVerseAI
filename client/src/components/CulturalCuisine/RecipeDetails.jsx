@@ -285,8 +285,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
         headers: {
           "Content-Type": "application/json"
         },
-        body: JSON.stringify(formattedData),
-        credentials: "include"
+        body: JSON.stringify(formattedData)
       })
 
       if (!response.ok) {
