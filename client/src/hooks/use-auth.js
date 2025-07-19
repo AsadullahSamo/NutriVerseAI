@@ -57,8 +57,12 @@ export function AuthProvider({ children }) {
       setError(null)
 
       // Store token for cross-domain authentication
+      console.log('Login response data:', data);
       if (data.token) {
         localStorage.setItem('authToken', data.token);
+        console.log('Token stored in localStorage:', data.token);
+      } else {
+        console.log('No token in login response');
       }
 
       queryClient.setQueryData(["/api/user"], data)
