@@ -51,6 +51,7 @@ export async function getRecipeAuthenticityScore(recipe, substitutions) {
   const response = await fetch(apiUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({ substitutions })
   });
   if (!response.ok) throw new Error("Failed to get authenticity score");
@@ -59,7 +60,9 @@ export async function getRecipeAuthenticityScore(recipe, substitutions) {
 
 export async function getTechniqueTips(technique, cuisine) {
   const apiUrl = `${config.apiBaseUrl}/api/cultural-cuisines/${cuisine.id}/techniques/${technique.id}/tips`;
-  const response = await fetch(apiUrl);
+  const response = await fetch(apiUrl, {
+    credentials: "include"
+  });
   if (!response.ok) throw new Error("Failed to get technique tips");
   return await response.json();
 }

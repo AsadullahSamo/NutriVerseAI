@@ -8,12 +8,16 @@ const app = express();
 // Middleware
 app.use(cors({
     origin: process.env.NODE_ENV === 'production'
-        ? ['https://nutriverseai.web.app', 'https://nutriverseai.firebaseapp.com']
+        ? [
+            'https://nutriverse-ai.vercel.app',
+            'https://nutriverseai.web.app',
+            'https://nutriverseai.firebaseapp.com'
+          ]
         : 'http://localhost:5173',
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'Pragma', 'Expires'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range', 'Set-Cookie'],
     maxAge: 24 * 60 * 60 // 24 hours
 }));
 app.use(express.json());

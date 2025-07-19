@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/hooks/use-auth"
 import { useToast } from "@/hooks/use-toast"
+import config from "@/lib/config"
 
 export function useCuisines() {
   const { user } = useAuth()
@@ -12,7 +13,7 @@ export function useCuisines() {
     queryFn: async () => {
       // Add timestamp to prevent caching issues
       const timestamp = new Date().getTime()
-      const response = await fetch(`/api/cultural-cuisines?t=${timestamp}`, {
+      const response = await fetch(`${config.apiBaseUrl}/api/cultural-cuisines?t=${timestamp}`, {
         credentials: "include",
         headers: {
           "Cache-Control":
@@ -66,7 +67,7 @@ export function useCuisine(id) {
   return useQuery({
     queryKey: ["cuisine", id, user?.id],
     queryFn: async () => {
-      const response = await fetch(`/api/cultural-cuisines/${id}`, {
+      const response = await fetch(`${config.apiBaseUrl}/api/cultural-cuisines/${id}`, {
         credentials: "include" // Ensure auth cookies are sent
       })
       if (!response.ok) throw new Error("Failed to fetch cuisine")
@@ -85,7 +86,7 @@ export function useRecipesByCuisine(cuisineId) {
     queryKey: ["recipes", cuisineId, user?.id],
     queryFn: async () => {
       const response = await fetch(
-        `/api/cultural-recipes?cuisineId=${cuisineId}`,
+        `${config.apiBaseUrl}/api/cultural-recipes?cuisineId=${cuisineId}`,
         {
           credentials: "include" // Ensure auth cookies are sent
         }
@@ -104,7 +105,7 @@ export function useRecipe(id) {
   return useQuery({
     queryKey: ["recipe", id, user?.id],
     queryFn: async () => {
-      const response = await fetch(`/api/cultural-recipes/${id}`, {
+      const response = await fetch(`${config.apiBaseUrl}/api/cultural-recipes/${id}`, {
         credentials: "include" // Ensure auth cookies are sent
       })
       if (!response.ok) throw new Error("Failed to fetch recipe")
