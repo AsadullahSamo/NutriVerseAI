@@ -18,6 +18,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { useForm } from "react-hook-form"
 import { useToast } from "@/hooks/use-toast"
+import config from "@/lib/config"
 
 const EQUIPMENT_CATEGORIES = [
   "Cookware",
@@ -56,8 +57,9 @@ export function AddEquipmentDialog({
 
   const onSubmit = async data => {
     try {
-      const response = await fetch("/api/kitchen-equipment", {
+      const response = await fetch(`${config.apiBaseUrl}/api/kitchen-equipment`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json"
         },

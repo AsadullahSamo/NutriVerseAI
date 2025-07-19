@@ -52,6 +52,7 @@ import {
 } from "@ai-services/cultural-cuisine-service"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { generateCulturalRecipeDetails } from "@ai-services/cultural-cuisine-service"
+import config from "@/lib/config"
 
 export function RecipeDetails({ recipe, cuisine, onBack }) {
   const { toast } = useToast()
@@ -103,7 +104,9 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
   const { data: recipeDetails, refetch } = useQuery({
     queryKey: ["recipe", recipe.id],
     queryFn: async () => {
-      const response = await fetch(`/api/cultural-recipes/${recipe.id}`)
+      const response = await fetch(`${config.apiBaseUrl}/api/cultural-recipes/${recipe.id}`, {
+        credentials: "include"
+      })
       if (!response.ok) {
         throw new Error("Failed to fetch recipe details")
       }
@@ -276,8 +279,9 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
           : updatedData.authenticIngredients
       }
 
-      const response = await fetch(`/api/cultural-recipes/${recipe.id}`, {
+      const response = await fetch(`${config.apiBaseUrl}/api/cultural-recipes/${recipe.id}`, {
         method: "PATCH",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json"
         },
@@ -319,7 +323,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
       console.log(
         `[Delete] Attempting to hide/delete recipe ${recipe.id} by user ${currentUserId}`
       )
-      const response = await fetch(`/api/cultural-recipes/${recipe.id}/hide`, {
+      const response = await fetch(`${config.apiBaseUrl}/api/cultural-recipes/${recipe.id}/hide`, {
         method: "POST",
         credentials: "include",
         headers: {

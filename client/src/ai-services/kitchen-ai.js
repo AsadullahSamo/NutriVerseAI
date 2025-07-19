@@ -1,4 +1,5 @@
 import { model, safeJsonParse } from "@ai-services/gemini-client"
+import config from "@/lib/config"
 
 export async function getEquipmentRecommendations(
   currentEquipment,
@@ -37,11 +38,12 @@ async function fallbackToBackendRecommendations(
   budget
 ) {
   try {
-    const response = await fetch("/api/kitchen-equipment/recommendations", {
+    const response = await fetch(`${config.apiBaseUrl}/api/kitchen-equipment/recommendations`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
+      credentials: "include",
       body: JSON.stringify({ currentEquipment, cookingPreferences, budget })
     })
 
@@ -291,11 +293,12 @@ export async function getRecipesByEquipment(equipment, userPreferences) {
 
 async function fallbackToBackendRecipeMatches(equipment, userPreferences) {
   try {
-    const response = await fetch("/api/kitchen-equipment/recipe-matches", {
+    const response = await fetch(`${config.apiBaseUrl}/api/kitchen-equipment/recipe-matches`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
+      credentials: "include",
       body: JSON.stringify({ equipment, userPreferences })
     })
 

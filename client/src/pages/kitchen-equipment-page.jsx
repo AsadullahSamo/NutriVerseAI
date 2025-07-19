@@ -17,6 +17,7 @@ import { format } from 'date-fns';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useAuth } from "@/hooks/use-auth";
 import { NutritionDisplay } from "@/components/nutrition-display";
+import config from "@/lib/config";
 // Add hashCode function to generate consistent IDs for recommendations
 const hashCode = (str) => {
     let hash = 0;
@@ -77,7 +78,9 @@ const KitchenEquipmentPage = () => {
                     return;
                 }
                 // If no local storage data, fetch from backend
-                const equipmentData = await fetch('/api/kitchen-equipment').then(res => res.json())
+                const equipmentData = await fetch(`${config.apiBaseUrl}/api/kitchen-equipment`, {
+                    credentials: "include"
+                }).then(res => res.json())
                     .catch(err => {
                     console.log('Using sample equipment data for AI analysis');
                     return sampleEquipment; // Use sample data if API fails, but still use real AI

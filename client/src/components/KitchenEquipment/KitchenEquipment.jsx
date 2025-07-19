@@ -16,6 +16,7 @@ import { AddEquipmentDialog } from "./AddEquipmentDialog"
 import { MaintenanceScheduleView } from "./MaintenanceScheduleView"
 import { EquipmentList } from "./EquipmentList"
 import { RecommendationsView } from "./RecommendationsView"
+import config from "@/lib/config"
 
 export function KitchenEquipment() {
   const [equipment, setEquipment] = useState([])
@@ -33,7 +34,9 @@ export function KitchenEquipment() {
 
   const fetchEquipment = async () => {
     try {
-      const response = await fetch("/api/kitchen-equipment")
+      const response = await fetch(`${config.apiBaseUrl}/api/kitchen-equipment`, {
+        credentials: "include"
+      })
       const data = await response.json()
       setEquipment(data)
     } catch (error) {
