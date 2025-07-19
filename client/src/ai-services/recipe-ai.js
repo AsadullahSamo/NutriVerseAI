@@ -191,6 +191,47 @@ export async function generateRecipeDetails(recipeName) {
   }
 }
 
+export async function getRecipeRecommendations(ingredients, dietaryPreferences) {
+  try {
+    const prompt = `You are a professional chef creating recipes. Please create 3 recipes using some or all of these ingredients: ${ingredients.join(", ")}
+
+    ${dietaryPreferences ? `Consider these dietary preferences: ${dietaryPreferences.join(", ")}` : ""}
+
+    Return EXACTLY this JSON structure with no additional text:
+    {
+      "recipes": [
+        {
+          "name": "Recipe Name",
+          "description": "Brief description",
+          "ingredients": ["ingredient 1", "ingredient 2"],
+          "instructions": ["step 1", "step 2"],
+          "cookingTime": "30 minutes",
+          "difficulty": "Easy",
+          "servings": 4
+        }
+      ]
+    }`
+
+    const completion = await groq.chat.completions.create({
+      messages: [{ role: "user", content: prompt }],
+      model: "llama3-8b-8192",
+      temperature: 0.7,
+      max_tokens: 2000
+    })
+
+    const response = completion.choices[0]?.message?.content
+    if (!response) {
+      throw new Error("No response from AI")
+    }
+
+    const parsed = JSON.parse(response)
+    return parsed.recipes || []
+  } catch (error) {
+    console.error("Error getting recipe recommendations:", error)
+    throw new Error("Failed to get recipe recommendations")
+  }
+}
+
 export async function generatePantryItemDetails(itemName, category) {
   try {
     const prompt = `Generate detailed pantry item information for "${itemName}"${

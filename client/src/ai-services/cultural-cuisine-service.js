@@ -64,6 +64,53 @@ export async function getTechniqueTips(technique, cuisine) {
   return await response.json();
 }
 
+export async function getSubstitutions(ingredient, cuisine) {
+  const apiUrl = `${config.apiBaseUrl}/api/cultural-cuisines/${cuisine.id}/ingredients/${ingredient.id}/substitutions`;
+  const response = await fetch(apiUrl);
+  if (!response.ok) throw new Error("Failed to get substitutions");
+  return await response.json();
+}
+
+export async function getPairings(ingredient, cuisine) {
+  const apiUrl = `${config.apiBaseUrl}/api/cultural-cuisines/${cuisine.id}/ingredients/${ingredient.id}/pairings`;
+  const response = await fetch(apiUrl);
+  if (!response.ok) throw new Error("Failed to get pairings");
+  return await response.json();
+}
+
+export async function getEtiquette(cuisine) {
+  const apiUrl = `${config.apiBaseUrl}/api/cultural-cuisines/${cuisine.id}/etiquette`;
+  const response = await fetch(apiUrl);
+  if (!response.ok) throw new Error("Failed to get etiquette");
+  return await response.json();
+}
+
+export async function generateCulturalRecipeDetails(recipeName, cuisine) {
+  try {
+    console.log("[Client] Generating cultural recipe details for:", { recipeName, cuisine });
+    const apiUrl = `${config.apiBaseUrl}/api/ai/generate-cultural-recipe-details`;
+
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ recipeName, cuisine }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log("[Client] Generated cultural recipe details:", result);
+    return result;
+  } catch (error) {
+    console.error("[Client] Error generating cultural recipe details:", error);
+    throw error;
+  }
+}
+
 export async function generateCulturalDetails(cuisine) {
   try {
     console.log("[Client] Generating cultural details for cuisine:", cuisine);
