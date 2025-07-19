@@ -13,6 +13,7 @@ window.fetch = function(url, options = {}) {
 
   // Get token from localStorage for cross-domain auth
   const token = localStorage.getItem('authToken');
+  console.log('API request - token from localStorage:', token);
 
   // Add default credentials and headers for API calls
   const defaultOptions = {
@@ -24,6 +25,10 @@ window.fetch = function(url, options = {}) {
       ...options.headers
     }
   };
+
+  if (token) {
+    console.log('Including Authorization header:', `Bearer ${token}`);
+  }
 
   // Merge options for API calls
   const finalOptions = url.startsWith('/api') || url.includes('/api') ? {
