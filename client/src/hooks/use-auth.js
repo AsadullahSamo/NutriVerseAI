@@ -55,6 +55,12 @@ export function AuthProvider({ children }) {
     },
     onSuccess: (data) => {
       setError(null)
+
+      // Store token for cross-domain authentication
+      if (data.token) {
+        localStorage.setItem('authToken', data.token);
+      }
+
       queryClient.setQueryData(["/api/user"], data)
       queryClient.invalidateQueries({ queryKey: ["/api/user"] })
     },
