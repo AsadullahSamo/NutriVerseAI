@@ -1,7 +1,7 @@
 import * as React from "react"
 import { Link } from "wouter"
-import { UserButton } from "./UserButton"
-import { ThemeToggle } from "./ThemeToggle"
+import { UserButton } from "./UserButton.jsx"
+import { ThemeToggle } from "./ThemeToggle.jsx"
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 import {
