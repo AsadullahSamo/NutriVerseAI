@@ -4,6 +4,8 @@ import { QueryClientProvider } from "@tanstack/react-query"
 import { Toaster } from "@/components/ui/toaster"
 import { AuthProvider } from "@/hooks/use-auth"
 import { UserPreferencesProvider } from "@/contexts/UserPreferencesContext"
+// Import global fetch override to fix all API calls automatically
+import "@/lib/api"
 import NotFound from "@/pages/not-found.jsx"
 import HomePage from "@/pages/home-page.jsx"
 import AuthPage from "@/pages/auth-page.jsx"
