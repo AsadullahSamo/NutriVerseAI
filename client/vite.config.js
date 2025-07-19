@@ -85,7 +85,7 @@ export default defineConfig(({ mode }) => {
       extensions: ['.js', '.jsx', '.json', '.ts'],
     },
     build: {
-      outDir: '../dist/public',
+      outDir: 'dist',
       sourcemap: true,
       // Ensure component imports are handled correctly
       commonjsOptions: {

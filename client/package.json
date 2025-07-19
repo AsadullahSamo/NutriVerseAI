@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build": "vite build --outDir ../dist/public --emptyOutDir",
+    "build": "vite build",
     "dev": "vite",
     "preview": "vite preview"
   },
