@@ -49,10 +49,10 @@ export function setupAuth(app) {
     saveUninitialized: true,
     store: (storage as any).sessionStore,
     cookie: {
-      secure: false, // Set to false for http testing
+      secure: false, // Set to false to allow cross-domain cookies
       httpOnly: true,
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-      sameSite: "lax",
+      sameSite: "none", // Allow cross-domain cookies
       path: "/"
     },
     name: "sessionId"

@@ -36,30 +36,24 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Updated CORS configuration to handle credentials and auth routes
+// Simplified CORS configuration for production debugging
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? [
-        'https://nutriverse-ai.vercel.app',
-        'https://nutri-cart-frontend.onrender.com',
-        'http://localhost:5173',
-        'http://localhost:8000'
-      ]
-    : ['http://localhost:5173', 'http://localhost:8000'],
+  origin: true, // Allow all origins temporarily for debugging
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: [
-    'Content-Type',
-    'Authorization',
-    'Accept',
-    'Cache-Control',
-    'Pragma',
-    'Expires',
-    'X-Requested-With'
-  ],
+  allowedHeaders: ['*'],
   exposedHeaders: ['Set-Cookie'],
-  maxAge: 86400 // CORS preflight cache time - 24 hours
+  optionsSuccessStatus: 200
 }));
+
+// Explicit OPTIONS handler for all routes
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin);
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, Cache-Control, Pragma, Expires, X-Requested-With');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.sendStatus(200);
+});
 
 app.set('trust proxy', 1); // trust first proxy
 
