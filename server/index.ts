@@ -90,9 +90,14 @@ app.use((req, res, next) => {
 
 (async () => {
   try {
-    // Add a health check endpoint that doesn't depend on the database
+    // Add a health check endpoint that doesn't depend on the database - CORS FIXED
     app.get('/api/health/check', (req, res) => {
-      res.json({ status: 'ok', timestamp: new Date().toISOString() });
+      res.json({
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        cors: 'fixed',
+        version: '2.0'
+      });
     });
 
     // Continue with server initialization even if DB is unavailable
