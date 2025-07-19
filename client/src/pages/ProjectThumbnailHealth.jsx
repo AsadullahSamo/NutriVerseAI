@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { FaHeart, FaChartLine, FaAppleAlt, FaBalanceScale, FaRunning, FaBrain, FaLeaf, FaCalendarAlt, FaUtensils, FaClipboardList } from 'react-icons/fa';
 import { FaPlay } from 'react-icons/fa';
 
