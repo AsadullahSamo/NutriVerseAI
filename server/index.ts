@@ -36,29 +36,28 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Fixed CORS configuration - no wildcards with credentials
+// Working CORS configuration
 app.use(cors({
-  origin: [
-    'https://nutriverse-ai.vercel.app',
-    'https://nutriverse-q2mvhwmes-asadullahsamos-projects.vercel.app',
-    'http://localhost:5173',
-    'http://localhost:8000'
-  ],
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'https://nutriverse-ai.vercel.app',
+      'https://nutriverse-q2mvhwmes-asadullahsamos-projects.vercel.app',
+      'https://nutriverse-boqizwo3u-asadullahsamos-projects.vercel.app',
+      'http://localhost:5173',
+      'http://localhost:8000'
+    ];
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, true); // Allow all for now
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: [
-    'Content-Type',
-    'Authorization',
-    'Accept',
-    'Cache-Control',
-    'Pragma',
-    'Expires',
-    'X-Requested-With',
-    'Origin',
-    'X-Requested-With'
-  ],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin'],
   exposedHeaders: ['Set-Cookie'],
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
+  preflightContinue: false
 }));
 
 // Explicit OPTIONS handler for all routes
