@@ -195,7 +195,11 @@ export function setupAuth(app) {
             origin: req.headers.origin
           });
 
-          res.json(safeUser)
+          // Return user data with token for cross-domain auth
+          res.json({
+            ...safeUser,
+            token: safeUser.id // Simple token = user ID
+          })
         })
       } catch (err) {
         next(err)
@@ -321,19 +325,38 @@ export function setupAuth(app) {
     })
   })
 
-  // Get user endpoint - with debugging
-  app.get("/api/user", (req, res) => {
+  // Get user endpoint - with debugging and token fallback
+  app.get("/api/user", async (req, res) => {
     console.log('User endpoint hit:', {
       isAuthenticated: req.isAuthenticated(),
       session: req.session?.passport,
       cookies: req.headers.cookie,
+      authorization: req.headers.authorization,
       origin: req.headers.origin
     });
 
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" })
+    // Try session authentication first
+    if (req.isAuthenticated()) {
+      return res.json(req.user)
     }
-    res.json(req.user)
+
+    // Fallback to token authentication
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      try {
+        // Simple token validation (user ID)
+        const user = await storage.getUser(token);
+        if (user) {
+          const { password, dnaProfile, moodJournal, secretKey, ...safeUser } = user;
+          return res.json(safeUser);
+        }
+      } catch (error) {
+        console.error('Token validation error:', error);
+      }
+    }
+
+    return res.status(401).json({ message: "Not authenticated" })
   })
 
   // Update account profile endpoint
