@@ -16,6 +16,7 @@ app.use(cors({
     origin: process.env.NODE_ENV === 'production'
         ? [
             'https://nutriverse-ai.vercel.app',
+            'https://nutriverse-q2mvhwmes-asadullahsamos-projects.vercel.app',
             'https://nutri-cart-frontend.onrender.com',
             'http://localhost:5173',
             'https://healthcheck.railway.app',
