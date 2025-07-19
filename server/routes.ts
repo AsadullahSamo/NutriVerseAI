@@ -59,13 +59,6 @@ import { VisibilityError } from "./lib/content-visibility";
 
 // Middleware to check if user is authenticated
 const isAuthenticated = (req, res, next) => {
-    console.log('Auth check:', {
-        isAuthenticated: req.isAuthenticated(),
-        session: req.session?.passport,
-        cookies: req.headers.cookie,
-        origin: req.headers.origin
-    });
-
     if (!req.isAuthenticated()) {
         return res.status(401).json({ message: "Unauthorized" });
     }
