@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardHeader } from "@/components/ui/card"
 import {
   Clock,

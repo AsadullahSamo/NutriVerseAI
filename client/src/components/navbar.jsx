@@ -1,4 +1,3 @@
-import * as React from "react"
 import { Link } from "wouter"
 import { UserButton } from "./UserButton.jsx"
 import { ThemeToggle } from "./ThemeToggle.jsx"
