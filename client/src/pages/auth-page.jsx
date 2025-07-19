@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { insertUserSchema } from "@shared/schema"
+import { insertUserSchema, forgotPasswordSchema } from "@/lib/schemas"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,13 +26,7 @@ import {
 import { Loader2 } from "lucide-react"
 import { Redirect } from "wouter"
 import { useToast } from "@/hooks/use-toast"
-import { z } from "zod"
 
-const forgotPasswordSchema = z.object({
-  username: z.string().min(1, "Username is required"),
-  secretKey: z.string().min(1, "Secret key is required"),
-  newPassword: z.string().min(6, "Password must be at least 6 characters")
-})
 
 export default function AuthPage() {
   const {
