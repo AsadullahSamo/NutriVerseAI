@@ -38,14 +38,19 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Updated CORS configuration to handle credentials and auth routes
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://nutri-cart-frontend.onrender.com', 'http://localhost:5173', 'http://localhost:8000']
+  origin: process.env.NODE_ENV === 'production'
+    ? [
+        'https://nutriverse-ai.vercel.app',
+        'https://nutri-cart-frontend.onrender.com',
+        'http://localhost:5173',
+        'http://localhost:8000'
+      ]
     : ['http://localhost:5173', 'http://localhost:8000'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: [
     'Content-Type',
-    'Authorization', 
+    'Authorization',
     'Accept',
     'Cache-Control',
     'Pragma',

@@ -15,6 +15,7 @@ const app = express();
 app.use(cors({
     origin: process.env.NODE_ENV === 'production'
         ? [
+            'https://nutriverse-ai.vercel.app',
             'https://nutri-cart-frontend.onrender.com',
             'http://localhost:5173',
             'https://healthcheck.railway.app',
@@ -23,7 +24,7 @@ app.use(cors({
         : 'http://localhost:5173',
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Cache-Control', 'Pragma', 'Expires', 'X-Requested-With'],
     exposedHeaders: ['Set-Cookie'],
     maxAge: 86400
 }));
