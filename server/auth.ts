@@ -188,18 +188,21 @@ export function setupAuth(app) {
             return res.status(500).json({ message: "Login failed. Please try again later." })
           }
 
+          const responseData = {
+            ...safeUser,
+            token: safeUser.id // Simple token = user ID
+          };
+
           console.log('Login successful:', {
             userId: safeUser.id,
             sessionId: req.sessionID,
             cookies: req.headers.cookie,
-            origin: req.headers.origin
+            origin: req.headers.origin,
+            responseIncludesToken: !!responseData.token
           });
 
           // Return user data with token for cross-domain auth
-          res.json({
-            ...safeUser,
-            token: safeUser.id // Simple token = user ID
-          })
+          res.json(responseData)
         })
       } catch (err) {
         next(err)
@@ -226,7 +229,21 @@ export function setupAuth(app) {
           if (err) {
             return res.status(500).json({ message: "Login failed. Please try again later." })
           }
-          res.json(user)
+
+          const responseData = {
+            ...user,
+            token: user.id // Simple token = user ID
+          };
+
+          console.log('Regular login successful:', {
+            userId: user.id,
+            sessionId: req.sessionID,
+            cookies: req.headers.cookie,
+            origin: req.headers.origin,
+            responseIncludesToken: !!responseData.token
+          });
+
+          res.json(responseData)
         })
       })(req, res, next)
     }
