@@ -102,13 +102,27 @@ export function Navbar() {
               </Link>
             ))}
 
-            {/* Dropdown Menus */}
+            {/* Dropdown Menus with fallback */}
             {Object.entries(menuGroups).map(([key, group]) => (
               <DropdownMenu key={key}>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     className="flex items-center gap-2 px-3 py-2"
+                    onClick={(e) => {
+                      // Fallback: if dropdown doesn't work, navigate to first item
+                      if (e.detail === 2) { // double click
+                        window.location.href = group.items[0].href;
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      // Keyboard navigation fallback
+                      if (e.key === 'Enter' && e.shiftKey) {
+                        e.preventDefault();
+                        window.location.href = group.items[0].href;
+                      }
+                    }}
+                    title={`${group.label} - Double click or Shift+Enter to go to ${group.items[0].label}`}
                   >
                     <group.icon className="h-4 w-4" />
                     <span>{group.label}</span>
