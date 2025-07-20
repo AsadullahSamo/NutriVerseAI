@@ -20,17 +20,12 @@ import {
   ChefHat,
   Clock
 } from "lucide-react"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu"
+
 
 export function Navbar() {
   const { user } = useAuth()
   const [isOpen, setIsOpen] = React.useState(false)
+  const [activeDropdown, setActiveDropdown] = React.useState(null)
 
   React.useEffect(() => {
     if (isOpen) {
@@ -42,6 +37,18 @@ export function Navbar() {
       document.body.style.overflow = "unset"
     }
   }, [isOpen])
+
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (activeDropdown && !event.target.closest('.relative.group')) {
+        setActiveDropdown(null);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [activeDropdown])
 
   const mainLinks = [
     { href: "/", icon: Home, label: "Home" },
@@ -102,49 +109,53 @@ export function Navbar() {
               </Link>
             ))}
 
-            {/* Dropdown Menus with fallback */}
+            {/* Hybrid Hover/Click Dropdown Menus */}
             {Object.entries(menuGroups).map(([key, group]) => (
-              <DropdownMenu key={key}>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="flex items-center gap-2 px-3 py-2"
-                    onClick={(e) => {
-                      // Fallback: if dropdown doesn't work, navigate to first item
-                      if (e.detail === 2) { // double click
-                        window.location.href = group.items[0].href;
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      // Keyboard navigation fallback
-                      if (e.key === 'Enter' && e.shiftKey) {
-                        e.preventDefault();
-                        window.location.href = group.items[0].href;
-                      }
-                    }}
-                    title={`${group.label} - Double click or Shift+Enter to go to ${group.items[0].label}`}
-                  >
-                    <group.icon className="h-4 w-4" />
-                    <span>{group.label}</span>
-                    <ChevronDown className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                  <DropdownMenuGroup>
+              <div key={key} className="relative group">
+                <Button
+                  variant="ghost"
+                  className="flex items-center gap-2 px-3 py-2"
+                  onClick={(e) => {
+                    // Toggle dropdown on click for mobile/touch devices
+                    if (activeDropdown === key) {
+                      setActiveDropdown(null);
+                    } else {
+                      setActiveDropdown(key);
+                    }
+
+                    // Fallback: double click navigates to first item
+                    if (e.detail === 2) {
+                      window.location.href = group.items[0].href;
+                    }
+                  }}
+                  title={`${group.label} - Click to toggle menu, double click to go to ${group.items[0].label}`}
+                >
+                  <group.icon className="h-4 w-4" />
+                  <span>{group.label}</span>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${activeDropdown === key ? 'rotate-180' : ''}`} />
+                </Button>
+
+                {/* Hybrid dropdown menu - shows on hover OR click */}
+                <div className={`absolute left-0 top-full mt-1 w-48 bg-background border border-border rounded-md shadow-lg transition-all duration-200 z-50 ${
+                  activeDropdown === key
+                    ? 'opacity-100 visible'
+                    : 'opacity-0 invisible group-hover:opacity-100 group-hover:visible'
+                }`}>
+                  <div className="py-1">
                     {group.items.map(item => (
-                      <DropdownMenuItem key={item.href} asChild>
-                        <Link
-                          href={item.href}
-                          className="flex items-center gap-2 w-full hover:cursor-pointer"
-                        >
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.label}</span>
-                        </Link>
-                      </DropdownMenuItem>
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                        onClick={() => setActiveDropdown(null)}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </Link>
                     ))}
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  </div>
+                </div>
+              </div>
             ))}
           </nav>
 
