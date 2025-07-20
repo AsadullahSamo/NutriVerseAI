@@ -70,3 +70,36 @@
     background-image: var(--gradient-surface);
   }
 }
+
+/* Ensure modal overlays work in production */
+[data-radix-portal] {
+  z-index: 50 !important;
+}
+
+[data-radix-portal] [data-state="open"] {
+  animation: fadeIn 0.2s ease-out;
+}
+
+[data-radix-portal] [data-state="closed"] {
+  animation: fadeOut 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* Force overlay visibility */
+.dialog-overlay,
+.alert-dialog-overlay,
+.sheet-overlay,
+.drawer-overlay {
+  background-color: rgba(0, 0, 0, 0.8) !important;
+  backdrop-filter: blur(2px) !important;
+  z-index: 50 !important;
+}
