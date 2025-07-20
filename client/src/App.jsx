@@ -42,7 +42,7 @@ function Router() {
         <Route path="/thumbnail/culture" component={ProjectThumbnailCulture} />
         <Route path="/thumbnail/sustainability" component={ProjectThumbnailSustainability} />
         <Route path="/thumbnail/youtube" component={ProjectThumbnailYouTube} />
-        <Route>
+        <Route path="*">
           <div className="min-h-screen flex flex-col">
             <Navbar />
             <main className="flex-1 pt-16">
