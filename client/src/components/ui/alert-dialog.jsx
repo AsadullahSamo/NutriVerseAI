@@ -28,6 +28,20 @@ AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName
 
 const AlertDialogContent = React.forwardRef(({ className, ...props }, ref) => (
   <AlertDialogPortal>
+    {/* Force overlay to render */}
+    <div
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm"
+      style={{
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        backdropFilter: 'blur(2px)',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 50
+      }}
+    />
     <AlertDialogOverlay />
     <AlertDialogPrimitive.Content
       ref={ref}
@@ -36,7 +50,11 @@ const AlertDialogContent = React.forwardRef(({ className, ...props }, ref) => (
         className
       )}
       style={{
-        zIndex: 60
+        zIndex: 60,
+        position: 'fixed',
+        left: '50%',
+        top: '50%',
+        transform: 'translate(-50%, -50%)'
       }}
       {...props}
     />

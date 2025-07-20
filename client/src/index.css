@@ -103,3 +103,23 @@
   backdrop-filter: blur(2px) !important;
   z-index: 50 !important;
 }
+
+/* Lock body scroll when modal is open */
+body.modal-open {
+  overflow: hidden !important;
+}
+
+/* Force all modal overlays to be visible */
+[data-state="open"] {
+  display: block !important;
+}
+
+/* Ensure backdrop is always visible */
+[data-radix-dialog-overlay],
+[data-radix-alert-dialog-overlay] {
+  background-color: rgba(0, 0, 0, 0.8) !important;
+  backdrop-filter: blur(2px) !important;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 50 !important;
+}
