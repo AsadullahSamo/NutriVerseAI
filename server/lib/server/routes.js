@@ -8,28 +8,33 @@ import { desc, eq, and } from "drizzle-orm";
 import { db } from "./db.js";
 // Middleware to check if user is authenticated (session OR token)
 const isAuthenticated = async (req, res, next) => {
-    // Try session authentication first
-    if (req.isAuthenticated()) {
-        return next();
-    }
-
-    // Fallback to token authentication
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-        const token = authHeader.substring(7);
-        try {
-            const user = await storage.getUser(token);
-            if (user) {
-                const { password, dnaProfile, moodJournal, secretKey, ...safeUser } = user;
-                req.user = safeUser;
-                return next();
-            }
-        } catch (error) {
-            console.error('Token validation error:', error);
+    try {
+        // Try session authentication first
+        if (req.isAuthenticated && req.isAuthenticated()) {
+            return next();
         }
-    }
 
-    return res.status(401).json({ message: "Unauthorized" });
+        // Fallback to token authentication
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.substring(7);
+            try {
+                const user = await storage.getUser(token);
+                if (user) {
+                    const { password, dnaProfile, moodJournal, secretKey, ...safeUser } = user;
+                    req.user = safeUser;
+                    return next();
+                }
+            } catch (error) {
+                console.error('Token validation error:', error);
+            }
+        }
+
+        return res.status(401).json({ message: "Unauthorized" });
+    } catch (error) {
+        console.error('Authentication middleware error:', error);
+        return res.status(500).json({ message: "Internal server error" });
+    }
 };
 // Middleware to check if user is authenticated and owns the resource
 const isResourceOwner = (resourceType) => async (req, res, next) => {
