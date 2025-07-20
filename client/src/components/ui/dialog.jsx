@@ -31,6 +31,20 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 const DialogContent = React.forwardRef(
   ({ className, children, ...props }, ref) => (
     <DialogPortal>
+      {/* Force overlay to render */}
+      <div
+        className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm"
+        style={{
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(2px)',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 50
+        }}
+      />
       <DialogOverlay />
       <DialogPrimitive.Content
         ref={ref}
@@ -39,7 +53,11 @@ const DialogContent = React.forwardRef(
           className
         )}
         style={{
-          zIndex: 60
+          zIndex: 60,
+          position: 'fixed',
+          left: '50%',
+          top: '50%',
+          transform: 'translate(-50%, -50%)'
         }}
         {...props}
       >
