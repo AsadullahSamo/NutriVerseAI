@@ -57,12 +57,30 @@ import {
 
 import { VisibilityError } from "./lib/content-visibility";
 
-// Middleware to check if user is authenticated
-const isAuthenticated = (req, res, next) => {
-    if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: "Unauthorized" });
+// Middleware to check if user is authenticated (session OR token)
+const isAuthenticated = async (req, res, next) => {
+    // Try session authentication first
+    if (req.isAuthenticated()) {
+        return next();
     }
-    next();
+
+    // Fallback to token authentication
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        try {
+            const user = await storage.getUser(token);
+            if (user) {
+                const { password, dnaProfile, moodJournal, secretKey, ...safeUser } = user;
+                req.user = safeUser;
+                return next();
+            }
+        } catch (error) {
+            console.error('Token validation error:', error);
+        }
+    }
+
+    return res.status(401).json({ message: "Unauthorized" });
 };
 
 // Middleware to check if user is authenticated and owns the resource
