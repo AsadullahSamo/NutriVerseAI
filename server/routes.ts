@@ -857,7 +857,7 @@ export async function registerRoutes(app) {
   );
 
   // ----------------- Kitchen Equipment Routes -----------------
-  app.get('/api/kitchen-equipment', async (req, res) => {
+  app.get('/api/kitchen-equipment', isAuthenticated, async (req, res) => {
     try {
       const equipment = await db.select().from(kitchenEquipment)
         .where(eq(kitchenEquipment.userId, req.user.id));
@@ -868,7 +868,7 @@ export async function registerRoutes(app) {
     }
   });
 
-  app.post('/api/kitchen-equipment', async (req, res) => {
+  app.post('/api/kitchen-equipment', isAuthenticated, async (req, res) => {
     try {
       const data = {
         ...req.body,
@@ -885,7 +885,7 @@ export async function registerRoutes(app) {
     }
   });
 
-  app.delete('/api/kitchen-equipment/:id', async (req, res) => {
+  app.delete('/api/kitchen-equipment/:id', isAuthenticated, async (req, res) => {
     try {
       await db.delete(kitchenEquipment)
         .where(and(
@@ -899,7 +899,7 @@ export async function registerRoutes(app) {
     }
   });
 
-  app.post('/api/kitchen-equipment/:id/maintenance', async (req, res) => {
+  app.post('/api/kitchen-equipment/:id/maintenance', isAuthenticated, async (req, res) => {
     try {
       const [equipment] = await db.update(kitchenEquipment)
                                     .set({
@@ -1727,7 +1727,7 @@ export async function registerRoutes(app) {
   });
 
   // Add endpoint for recording recommendation feedback
-  app.post('/api/recipes/recommendations/:id/feedback', async (req, res) => {
+  app.post('/api/recipes/recommendations/:id/feedback', isAuthenticated, async (req, res) => {
     try {
       const userId = req.user?.id;
       if (!userId) {
@@ -1752,7 +1752,7 @@ export async function registerRoutes(app) {
   });
 
   // Add endpoint for manually refreshing recommendations
-  app.post('/api/recipes/recommendations/refresh', async (req, res) => {
+  app.post('/api/recipes/recommendations/refresh', isAuthenticated, async (req, res) => {
     try {
       const userId = req.user?.id;
       if (!userId) {

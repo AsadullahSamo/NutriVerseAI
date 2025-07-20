@@ -550,7 +550,7 @@ export async function registerRoutes(app) {
         res.sendStatus(204);
     }));
     // Kitchen Equipment Routes
-    app.get('/api/kitchen-equipment', async (req, res) => {
+    app.get('/api/kitchen-equipment', isAuthenticated, async (req, res) => {
         var _a;
         try {
             const equipment = await db.select().from(kitchenEquipment)
@@ -562,7 +562,7 @@ export async function registerRoutes(app) {
             res.status(500).json({ error: 'Failed to fetch kitchen equipment' });
         }
     });
-    app.post('/api/kitchen-equipment', async (req, res) => {
+    app.post('/api/kitchen-equipment', isAuthenticated, async (req, res) => {
         var _a;
         try {
             const data = Object.assign(Object.assign({}, req.body), { userId: (_a = req.user) === null || _a === void 0 ? void 0 : _a.id, createdAt: new Date(), updatedAt: new Date() });
@@ -574,7 +574,7 @@ export async function registerRoutes(app) {
             res.status(500).json({ error: 'Failed to add kitchen equipment' });
         }
     });
-    app.delete('/api/kitchen-equipment/:id', async (req, res) => {
+    app.delete('/api/kitchen-equipment/:id', isAuthenticated, async (req, res) => {
         var _a;
         try {
             await db.delete(kitchenEquipment)
@@ -586,7 +586,7 @@ export async function registerRoutes(app) {
             res.status(500).json({ error: 'Failed to delete kitchen equipment' });
         }
     });
-    app.post('/api/kitchen-equipment/:id/maintenance', async (req, res) => {
+    app.post('/api/kitchen-equipment/:id/maintenance', isAuthenticated, async (req, res) => {
         var _a;
         try {
             const [equipment] = await db.update(kitchenEquipment)
