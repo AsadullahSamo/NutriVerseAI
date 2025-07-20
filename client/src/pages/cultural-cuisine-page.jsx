@@ -32,9 +32,6 @@ export default function CulturalCuisinePage() {
         const response = await fetch(apiUrl, {
           credentials: "include",
           headers: {
-            "Cache-Control":
-              "no-store, no-cache, must-revalidate, proxy-revalidate",
-            Pragma: "no-cache",
             "Accept": "application/json"
           }
         })
