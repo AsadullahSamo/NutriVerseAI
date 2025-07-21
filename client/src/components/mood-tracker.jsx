@@ -4,7 +4,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/hooks/use-auth"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiRequest } from "@/lib/queryClient"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import {
   SmilePlus,
   ChartLine,
@@ -44,7 +44,6 @@ export function MoodTracker({ recipeId }) {
   const [entry, setEntry] = useState("")
   const [showInsights, setShowInsights] = useState(false)
   const { user } = useAuth()
-  const { toast } = useToast()
   const queryClient = useQueryClient()
 
   const moodEntriesQuery = useQuery({
@@ -86,16 +85,13 @@ export function MoodTracker({ recipeId }) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["moodEntries", recipeId] })
-      toast({
-        title: "Entry deleted",
+      toast.success("Entry deleted", {
         description: "Your cooking experience entry has been deleted."
       })
     },
     onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to delete entry. Please try again.",
-        variant: "destructive"
+      toast.error("Error", {
+        description: "Failed to delete entry. Please try again."
       })
     }
   })
@@ -122,10 +118,8 @@ export function MoodTracker({ recipeId }) {
   // Handle showing insights with proper error handling and caching
   const handleShowInsights = () => {
     if (!moodEntriesQuery.data?.length) {
-      toast({
-        title: "No entries",
-        description: "Add some cooking experiences first to view insights.",
-        variant: "default"
+      toast("No entries", {
+        description: "Add some cooking experiences first to view insights."
       })
       return
     }

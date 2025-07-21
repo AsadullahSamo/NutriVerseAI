@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { useAuth } from "@/hooks/use-auth"
 import { useQuery } from "@tanstack/react-query"
 import {
@@ -55,7 +55,6 @@ import { generateCulturalRecipeDetails } from "@ai-services/cultural-cuisine-ser
 import config from "@/lib/config"
 
 export function RecipeDetails({ recipe, cuisine, onBack }) {
-  const { toast } = useToast()
   const { user } = useAuth()
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [isEditingInstructions, setIsEditingInstructions] = useState(false)
@@ -377,13 +376,11 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
       onBack()
     } catch (error) {
       console.error("[Delete] Error:", error)
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description:
           error instanceof Error
             ? error.message
-            : "Failed to process recipe. Please try again.",
-        variant: "destructive"
+            : "Failed to process recipe. Please try again."
       })
     }
   }

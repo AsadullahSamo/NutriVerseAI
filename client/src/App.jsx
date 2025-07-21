@@ -1,7 +1,7 @@
 import { Switch, Route } from "wouter"
 import { queryClient } from "@/lib/queryClient"
 import { QueryClientProvider } from "@tanstack/react-query"
-import { Toaster } from "@/components/ui/toaster"
+import { Toaster } from "sonner"
 import { AuthProvider } from "@/hooks/use-auth"
 import { UserPreferencesProvider } from "@/contexts/UserPreferencesContext"
 // Import global fetch override to fix all API calls automatically
@@ -84,7 +84,19 @@ function App() {
       <AuthProvider>
         <UserPreferencesProvider>
           <Router />
-          <Toaster />
+          <Toaster
+            position="top-right"
+            richColors
+            closeButton
+            duration={4000}
+            toastOptions={{
+              style: {
+                background: 'hsl(var(--background))',
+                border: '1px solid hsl(var(--border))',
+                color: 'hsl(var(--foreground))',
+              },
+            }}
+          />
         </UserPreferencesProvider>
       </AuthProvider>
     </QueryClientProvider>

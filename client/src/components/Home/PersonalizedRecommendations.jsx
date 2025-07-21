@@ -24,7 +24,7 @@ import {
 import { useEffect, useState } from "react"
 import { apiRequest } from "@/lib/queryClient"
 import { Button } from "@/components/ui/button"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import {
   Dialog,
   DialogContent,
@@ -42,7 +42,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 export function PersonalizedRecommendations() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
-  const { toast } = useToast()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false)
   const [selectedRecipe, setSelectedRecipe] = useState(null)
@@ -105,9 +104,8 @@ export function PersonalizedRecommendations() {
       if (event?.type === 'updated' && event?.query?.queryKey?.[0] === "/api/recipes") {
         console.log("Recipe change detected, refreshing recommendations");
         setIsRefreshing(true);
-        toast({
-          title: "Updating Recommendations",
-          description: "Your personalized recommendations are being updated...",
+        toast("Updating Recommendations", {
+          description: "Your personalized recommendations are being updated..."
         });
         // Mark the personalized recommendations as stale
         queryClient.invalidateQueries({ queryKey: ["/api/recipes/personalized"] });
@@ -195,10 +193,8 @@ export function PersonalizedRecommendations() {
       queryClient.invalidateQueries({ queryKey: ["/api/recipes/personalized"] });
     } catch (error) {
       console.error("Error submitting feedback:", error);
-      toast({
-        title: "Error",
-        description: "Failed to submit feedback. Please try again.",
-        variant: "destructive"
+      toast.error("Error", {
+        description: "Failed to submit feedback. Please try again."
       });
     }
   };
