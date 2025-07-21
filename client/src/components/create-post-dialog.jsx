@@ -18,7 +18,7 @@ import {
 import { useAuth } from "@/hooks/use-auth"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { apiRequest, queryClient } from "@/lib/queryClient"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { Share2 } from "lucide-react"
 
 export function CreatePostDialog({ trigger }) {
@@ -26,7 +26,6 @@ export function CreatePostDialog({ trigger }) {
   const [content, setContent] = useState("")
   const [type, setType] = useState("RECIPE_SHARE")
   const { user } = useAuth()
-  const { toast } = useToast()
 
   const { data: recipes } = useQuery({
     queryKey: ["/api/recipes"],
@@ -65,27 +64,22 @@ export function CreatePostDialog({ trigger }) {
       setOpen(false)
       setContent("")
       setSelectedRecipeId("")
-      toast({
-        title: "Post created!",
+      toast.success("Post created!", {
         description: "Your post has been shared with the community."
       })
     },
     onError: error => {
-      toast({
-        title: "Error",
+      toast.error("Error", {
         description:
-          error.message || "Failed to create post. Please try again.",
-        variant: "destructive"
+          error.message || "Failed to create post. Please try again."
       })
     }
   })
 
   const handleCreatePost = () => {
     if (type === "RECIPE_SHARE" && !selectedRecipeId) {
-      toast({
-        title: "Error",
-        description: "Please select a recipe to share",
-        variant: "destructive"
+      toast.error("Error", {
+        description: "Please select a recipe to share"
       })
       return
     }

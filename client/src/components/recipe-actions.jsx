@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/use-auth"
 import { useMutation } from "@tanstack/react-query"
 import { apiRequest, queryClient } from "@/lib/queryClient"
 import { GitFork, Trash2, Pencil } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { useState } from "react"
 import { EditRecipeDialog } from "./edit-recipe-dialog"
 
@@ -14,7 +14,6 @@ export function RecipeActions({
   hideEditDelete = false
 }) {
   const { user } = useAuth()
-  const { toast } = useToast()
   const [isDeleting, setIsDeleting] = useState(false)
 
   const deleteRecipeMutation = useMutation({
@@ -27,10 +26,8 @@ export function RecipeActions({
         }
         return { success: true }
       } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to delete recipe. Please try again.",
-          variant: "destructive"
+        toast.error("Error", {
+          description: "Failed to delete recipe. Please try again."
         })
         throw error
       } finally {
@@ -41,8 +38,7 @@ export function RecipeActions({
       queryClient.invalidateQueries({ queryKey: ["/api/recipes"] })
       queryClient.invalidateQueries({ queryKey: ["/api/community"] })
       queryClient.invalidateQueries({ queryKey: ["recommendedRecipes"] })
-      toast({
-        title: "Recipe deleted",
+      toast.success("Recipe deleted", {
         description: "Recipe has been deleted successfully."
       })
     }

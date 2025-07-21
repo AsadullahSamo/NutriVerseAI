@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { useUserPreferences } from "@/contexts/UserPreferencesContext"
 import {
   Card,
@@ -47,7 +47,6 @@ export default function ProfilePage() {
     logoutMutation,
     deleteAccountMutation
   } = useAuth()
-  const { toast } = useToast()
   const {
     preferences,
     updateAccentColor,
@@ -288,10 +287,8 @@ export default function ProfilePage() {
   // Handle account deletion
   const handleDeleteAccount = async () => {
     if (!deleteAccountPassword) {
-      toast({
-        title: "Error",
-        description: "Please enter your password to confirm account deletion",
-        variant: "destructive"
+      toast.error("Error", {
+        description: "Please enter your password to confirm account deletion"
       })
       return
     }
@@ -300,8 +297,7 @@ export default function ProfilePage() {
       await deleteAccountMutation.mutateAsync({ password: deleteAccountPassword })
       
       // Show success message
-      toast({
-        title: "Account Deleted",
+      toast.success("Account Deleted", {
         description: "Your account has been deleted successfully."
       })
     } catch (error) {

@@ -22,7 +22,7 @@ import {
 import { useAuth } from "@/hooks/use-auth"
 import { useMutation } from "@tanstack/react-query"
 import { apiRequest, queryClient } from "@/lib/queryClient"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import {
   Plus,
   Loader2,
@@ -47,7 +47,6 @@ export function CreatePantryItemDialog({ trigger }) {
   const [open, setOpen] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const { user } = useAuth()
-  const { toast } = useToast()
 
   const form = useForm({
     resolver: zodResolver(insertPantryItemSchema),
@@ -226,10 +225,8 @@ export function CreatePantryItemDialog({ trigger }) {
 
   const generateAIDetails = async () => {
     if (!form.getValues("name")) {
-      toast({
-        title: "Item Name Required",
-        description: "Please enter an item name first to generate details.",
-        variant: "destructive"
+      toast.error("Item Name Required", {
+        description: "Please enter an item name first to generate details."
       })
       return
     }
@@ -283,18 +280,15 @@ export function CreatePantryItemDialog({ trigger }) {
         score: currentSustainabilityScore
       })
 
-      toast({
-        title: "Item Details Generated",
+      toast.success("Item Details Generated", {
         description:
           "AI has generated item details including packaging type and carbon footprint."
       })
     } catch (error) {
       console.error("Error generating pantry item details:", error)
-      toast({
-        title: "Generation Failed",
+      toast.error("Generation Failed", {
         description:
-          "Failed to generate item details. Please try again or enter manually.",
-        variant: "destructive"
+          "Failed to generate item details. Please try again or enter manually."
       })
     } finally {
       setIsGenerating(false)

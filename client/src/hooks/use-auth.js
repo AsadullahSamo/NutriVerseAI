@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useToast } from "@/hooks/use-toast"
 import { apiRequest } from "@/lib/queryClient"
 import { useLocation } from "wouter"
 import { toast } from "sonner"
@@ -10,7 +9,6 @@ const AuthContext = createContext(undefined)
 export function AuthProvider({ children }) {
   const [error, setError] = useState(null)
   const queryClient = useQueryClient()
-  const { toast } = useToast()
   const [, setLocation] = useLocation()
 
   // Fetch user on component mount
@@ -123,10 +121,8 @@ export function AuthProvider({ children }) {
     },
     onError: err => {
       setError(err.message)
-      toast({
-        title: "Registration failed",
-        description: err.message,
-        variant: "destructive"
+      toast.error("Registration failed", {
+        description: err.message
       })
     }
   })
@@ -201,10 +197,8 @@ export function AuthProvider({ children }) {
     },
     onError: err => {
       setError(err.message)
-      toast({
-        title: "Delete account failed",
-        description: err.message,
-        variant: "destructive"
+      toast.error("Delete account failed", {
+        description: err.message
       })
     }
   })
@@ -224,10 +218,8 @@ export function AuthProvider({ children }) {
     },
     onError: err => {
       setError(err.message)
-      toast({
-        title: "Password reset failed",
-        description: err.message,
-        variant: "destructive"
+      toast.error("Password reset failed", {
+        description: err.message
       })
     }
   })
