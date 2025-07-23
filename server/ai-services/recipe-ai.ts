@@ -1,51 +1,5 @@
 import { model, safeJsonParse } from "./gemini-client"
 
-export async function generateRecipeDetails(recipeName, cuisine, preferences) {
-  const prompt = `Generate detailed recipe information for "${recipeName}"${
-    cuisine ? ` from ${cuisine} cuisine` : ""
-  }.
-  ${
-    preferences ? `Consider these preferences: ${preferences.join(", ")}` : ""
-  }
-
-  Return EXACTLY this JSON structure with no additional text:
-  {
-    "description": "string (a short description of the recipe maybe 2 - 3 lines)",
-    "ingredients": [
-      {
-        "item": "string",
-        "amount": "string",
-        "notes": "string (optional)"
-      }
-    ],
-    "instructions": ["string"],
-    "nutritionInfo": {
-      "calories": number,
-      "protein": number (in grams),
-      "carbs": number (in grams),
-      "fat": number (in grams)
-    },
-    "prepTime": number (in minutes),
-    "cookingTips": ["string"],
-    "substitutes": [
-      {
-        "ingredient": "string",
-        "alternatives": ["string"]
-      }
-    ]
-  }`
-
-  try {
-    console.log("[Server] Generating recipe details with Gemini for:", recipeName)
-    const result = await model.generateContent(prompt)
-    const response = await result.response.text()
-    return await safeJsonParse(response)
-  } catch (error) {
-    console.error("[Server] Error generating recipe details:", error)
-    throw new Error("Failed to generate recipe details")
-  }
-}
-
 export async function getRecipeRecommendations(
   ingredients,
   dietaryPreferences
