@@ -61,10 +61,12 @@ export default function AuthPage() {
 
   const handleLogin = async data => {
     try {
-      await loginMutation.mutateAsync(data)
+      console.log("Auth page - starting login with data:", data)
+      const result = await loginMutation.mutateAsync(data)
+      console.log("Auth page - login successful, result:", result)
     } catch (error) {
       // Error is handled by mutation
-      console.error("Login error:", error)
+      console.error("Auth page - login error:", error)
     }
   }
 
