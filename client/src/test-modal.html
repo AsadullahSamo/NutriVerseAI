@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modal Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            position: relative;
+        }
+        
+        .close-btn {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        
+        .test-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        .test-btn:hover {
+            background: #0056b3;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        select {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        
+        select option {
+            background-color: white !important;
+            color: black !important;
+            padding: 8px 12px !important;
+        }
+        
+        select option:hover {
+            background-color: #f0f0f0 !important;
+        }
+    </style>
+</head>
+<body>
+    <h1>Modal and Dropdown Test</h1>
+    
+    <button class="test-btn" onclick="openModal()">Test Modal (Should Work)</button>
+    
+    <div>
+        <label>Test Dropdown Styling:</label>
+        <select>
+            <option value="1">Option 1 - Should have consistent styling</option>
+            <option value="2">Option 2 - Should have hover effect</option>
+            <option value="3">Option 3 - Should look the same</option>
+        </select>
+    </div>
+    
+    <div id="modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeModal()">&times;</button>
+            <h2>Test Modal</h2>
+            <p>If you can see this modal, the basic modal functionality works!</p>
+            
+            <div>
+                <label>Test Dropdown in Modal:</label>
+                <select>
+                    <option value="recipe">Recipe Share</option>
+                    <option value="rescue">Food Rescue</option>
+                    <option value="tip">Cooking Tip</option>
+                </select>
+            </div>
+            
+            <button class="test-btn" onclick="testCommunityPost()">Test Community Post</button>
+            <button class="test-btn" onclick="closeModal()">Close</button>
+        </div>
+    </div>
+    
+    <script>
+        function openModal() {
+            document.getElementById('modal').classList.remove('hidden');
+        }
+        
+        function closeModal() {
+            document.getElementById('modal').classList.add('hidden');
+        }
+        
+        function testCommunityPost() {
+            alert('Community post test - this would call the API');
+        }
+        
+        // Test if modal opens on page load
+        console.log('Modal test page loaded');
+    </script>
+</body>
+</html>

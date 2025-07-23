@@ -1,11 +1,4 @@
-import { useState } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
-} from "@/components/ui/dialog"
+import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 
@@ -96,20 +89,45 @@ export function CreatePostDialog({ trigger }) {
     createPostMutation.mutate(postData)
   }
 
+  // Simple modal component
+  const Modal = ({ isOpen, onClose, children }) => {
+    if (!isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+        <div className="relative bg-background border rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+          <div className="flex items-center justify-between p-6 border-b">
+            <h2 className="text-lg font-semibold">Create Post</h2>
+            <button
+              onClick={onClose}
+              className="h-8 w-8 rounded-full hover:bg-accent hover:text-accent-foreground flex items-center justify-center text-xl font-bold"
+            >
+              ×
+            </button>
+          </div>
+          <div className="p-6 max-h-[calc(90vh-120px)] overflow-y-auto">
+            {children}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button>
-            <Share2 className="h-4 w-4 mr-2" />
-            Share with Community
-          </Button>
-        )}
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create Post</DialogTitle>
-        </DialogHeader>
+    <>
+      {trigger ? (
+        React.cloneElement(trigger, {
+          onClick: () => setOpen(true)
+        })
+      ) : (
+        <Button onClick={() => setOpen(true)}>
+          <Share2 className="h-4 w-4 mr-2" />
+          Share with Community
+        </Button>
+      )}
+
+      <Modal isOpen={open} onClose={() => setOpen(false)}>
         <div className="space-y-4 mt-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Post Type</label>
@@ -192,7 +210,7 @@ export function CreatePostDialog({ trigger }) {
             {createPostMutation.isPending ? "Creating..." : "Post"}
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </Modal>
+    </>
   )
 }
