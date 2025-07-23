@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { LineChart } from "@/components/ui/chart"
+import config from "@/lib/config"
 
 export function NutritionGoals() {
   const { user } = useAuth()
@@ -67,9 +68,20 @@ export function NutritionGoals() {
         progress: []
       }
 
-      const res = await apiRequest("POST", "/api/nutrition-goals", data)
+      const token = localStorage.getItem('authToken')
+      const res = await fetch(`${config.apiBaseUrl}/api/nutrition-goals`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          ...(token && { "Authorization": `Bearer ${token}` })
+        },
+        body: JSON.stringify(data),
+        credentials: "include"
+      })
+
       if (!res.ok) {
-        const error = await res.json()
+        const error = await res.json().catch(() => ({}))
         throw new Error(error.message || "Failed to set nutrition goals")
       }
       return res.json()
@@ -85,10 +97,11 @@ export function NutritionGoals() {
         description: "Nutrition goals have been set!"
       })
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("Nutrition goals error:", error)
       toast({
         title: "Error",
-        description: "Failed to set nutrition goals. Please try again.",
+        description: error.message || "Failed to set nutrition goals. Please try again.",
         variant: "destructive"
       })
     }

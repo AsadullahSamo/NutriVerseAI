@@ -3,7 +3,7 @@ import { Link } from "wouter"
 import { UserDropdown } from "./UserDropdown.jsx"
 import { UserDropdownBasic } from "./UserDropdownBasic.jsx"
 import { UserDropdownFinal } from "./UserDropdownFinal.jsx"
-import { ThemeToggle } from "./ThemeToggle.jsx"
+
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 import {
@@ -178,7 +178,6 @@ export function Navbar() {
               )}
             </Button>
 
-            <ThemeToggle />
             {user ? (
               <UserDropdownFinal />
             ) : (
