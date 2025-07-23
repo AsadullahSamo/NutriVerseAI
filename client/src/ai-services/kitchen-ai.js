@@ -6,28 +6,11 @@ export async function getEquipmentRecommendations(
   cookingPreferences,
   budget
 ) {
-  const prompt = `You are a JSON API that must return a valid JSON array of kitchen equipment recommendations.
-  Current Equipment: ${JSON.stringify(currentEquipment)}
-  Cooking Preferences: ${cookingPreferences.join(", ")}
-  ${budget ? `Budget: $${budget}` : ""}
-  
-  Return EXACTLY this JSON structure with no additional text:
-  [
-    {
-      "name": "string",
-      "reason": "string",
-      "priority": "high|medium|low",
-      "estimatedCost": "string",
-      "alternativeOptions": ["string"]
-    }
-  ]`
-
   try {
-    const result = await model.generateContent(prompt)
-    const response = await result.response.text()
-    return await safeJsonParse(response)
+    // Try server endpoint first
+    return await fallbackToBackendRecommendations(currentEquipment, cookingPreferences, budget)
   } catch (error) {
-    console.error("Error getting equipment recommendations:", error)
+    console.error("Server endpoint failed, using mock data:", error)
     return getMockRecommendations(currentEquipment, cookingPreferences)
   }
 }

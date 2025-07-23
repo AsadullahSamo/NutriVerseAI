@@ -132,62 +132,36 @@ export async function generateAIMealPlan(
   }
 }
 
-export async function generateRecipeDetails(recipeName) {
+export async function generateRecipeDetails(recipeName, cuisine, preferences) {
   try {
-    const prompt = `Generate detailed recipe information for "${recipeName}".
+    console.log("[Client] Generating recipe details for:", { recipeName, cuisine, preferences });
+    const apiUrl = `${config.apiBaseUrl}/api/ai/generate-recipe`;
 
-    Return EXACTLY this JSON structure with no additional text:
-    {
-      "description": "string (a short description of the recipe)",
-      "ingredients": [
-        {
-          "item": "string",
-          "amount": "string",
-          "notes": "string (optional)"
-        }
-      ],
-      "instructions": ["string"],
-      "nutritionInfo": {
-        "calories": number,
-        "protein": number (in grams),
-        "carbs": number (in grams),
-        "fat": number (in grams)
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
       },
-      "prepTime": number (in minutes)
-    }`
+      credentials: "include",
+      body: JSON.stringify({
+        title: recipeName,
+        cuisine,
+        preferences
+      })
+    });
 
-    console.log("Sending recipe generation request to Groq API...")
-    const response = await groq.chat.completions.create({
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a professional chef. Always provide accurate nutritional information and detailed recipes."
-        },
-        { role: "user", content: prompt }
-      ],
-      model: "llama-3.3-70b-versatile",
-      temperature: 0.7,
-      max_tokens: 1500
-    })
-
-    const content = response.choices[0]?.message?.content
-    if (!content) {
-      throw new Error("No response from recipe generation")
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || errorData.error || "Failed to generate recipe details");
     }
 
-    try {
-      // Clean JSON content
-      const jsonStr = content.replace(/```json\n?|\n?```/g, "").trim()
-      const data = JSON.parse(jsonStr)
-      return data
-    } catch (error) {
-      console.error("Failed to parse recipe details:", error)
-      throw new Error("Invalid recipe format received")
-    }
+    const result = await response.json();
+    console.log("[Client] Generated recipe details:", result);
+    return result;
   } catch (error) {
-    console.error("Error with Groq API:", error)
-    throw new Error("Failed to generate recipe details")
+    console.error("[Client] Error generating recipe details:", error);
+    throw error;
   }
 }
 
