@@ -8,13 +8,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select"
+
 import { useAuth } from "@/hooks/use-auth"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { apiRequest, queryClient } from "@/lib/queryClient"
@@ -111,34 +105,36 @@ export function CreatePostDialog({ trigger }) {
           <DialogTitle>Create Post</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 mt-4">
-          <Select value={type} onValueChange={setType}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select post type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="RECIPE_SHARE">Share Recipe</SelectItem>
-              <SelectItem value="FOOD_RESCUE">Food Rescue</SelectItem>
-              <SelectItem value="COOKING_TIP">Cooking Tip</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Post Type</label>
+            <select
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+            >
+              <option value="RECIPE_SHARE">Share Recipe</option>
+              <option value="FOOD_RESCUE">Food Rescue</option>
+              <option value="COOKING_TIP">Cooking Tip</option>
+            </select>
+          </div>
 
           {type === "RECIPE_SHARE" && (
-            <Select
-              value={selectedRecipeId}
-              onValueChange={setSelectedRecipeId}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a recipe to share" />
-              </SelectTrigger>
-              <SelectContent>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Select Recipe</label>
+              <select
+                value={selectedRecipeId}
+                onChange={(e) => setSelectedRecipeId(e.target.value)}
+                className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+              >
+                <option value="">Select a recipe to share</option>
                 {recipes &&
                   recipes.map(recipe => (
-                    <SelectItem key={recipe.id} value={recipe.id.toString()}>
+                    <option key={recipe.id} value={recipe.id.toString()}>
                       {recipe.title}
-                    </SelectItem>
+                    </option>
                   ))}
-              </SelectContent>
-            </Select>
+              </select>
+            </div>
           )}
 
           <Textarea
