@@ -22,62 +22,101 @@ export function LineChart({
 }) {
   const isClient = useIsClient()
   const [RechartsComponents, setRechartsComponents] = React.useState(null)
+  const [error, setError] = React.useState(null)
 
   React.useEffect(() => {
     if (isClient) {
-      import('recharts').then((recharts) => {
-        setRechartsComponents(recharts)
-      }).catch(console.error)
+      // Try to import recharts with better error handling
+      import('recharts')
+        .then((recharts) => {
+          console.log('[Chart] Recharts loaded successfully:', recharts)
+          setRechartsComponents(recharts)
+        })
+        .catch((err) => {
+          console.error('[Chart] Failed to load recharts:', err)
+          setError(err)
+        })
     }
   }, [isClient])
 
-  if (!isClient || !RechartsComponents) {
+  if (!isClient) {
     return (
       <div className={cn("h-[200px] w-full flex items-center justify-center bg-muted/50 rounded-lg", className)}>
-        <div className="text-sm text-muted-foreground animate-pulse">Loading chart...</div>
+        <div className="text-sm text-muted-foreground animate-pulse">Initializing chart...</div>
       </div>
     )
   }
 
-  const { LineChart: RechartsLineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } = RechartsComponents
+  if (error) {
+    return (
+      <div className={cn("h-[200px] w-full flex items-center justify-center bg-muted/50 rounded-lg border-2 border-dashed", className)}>
+        <div className="text-center">
+          <div className="text-sm text-muted-foreground mb-2">Chart unavailable</div>
+          <div className="text-xs text-muted-foreground">Data: {data?.length || 0} points</div>
+        </div>
+      </div>
+    )
+  }
 
-  return (
-    <div className={cn("h-[200px] w-full", className)}>
-      <ResponsiveContainer width="100%" height="100%">
-        <RechartsLineChart data={data}>
-          <XAxis
-            dataKey={index}
-            tick={{ fontSize: 12 }}
-            tickLine={{ stroke: '#374151' }}
-          />
-          <YAxis
-            tick={{ fontSize: 12 }}
-            tickLine={{ stroke: '#374151' }}
-            tickFormatter={valueFormatter}
-          />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: 'hsl(var(--background))',
-              border: '1px solid hsl(var(--border))',
-              borderRadius: '6px'
-            }}
-            formatter={valueFormatter}
-          />
-          <Legend />
-          {categories.map((category, idx) => (
-            <Line
-              key={category}
-              type="monotone"
-              dataKey={category}
-              stroke={colors[idx % colors.length]}
-              strokeWidth={2}
-              dot={{ fill: colors[idx % colors.length], strokeWidth: 2, r: 4 }}
+  if (!RechartsComponents) {
+    return (
+      <div className={cn("h-[200px] w-full flex items-center justify-center bg-muted/50 rounded-lg", className)}>
+        <div className="text-sm text-muted-foreground animate-pulse">Loading chart library...</div>
+      </div>
+    )
+  }
+
+  try {
+    const { LineChart: RechartsLineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } = RechartsComponents
+
+    return (
+      <div className={cn("h-[200px] w-full", className)}>
+        <ResponsiveContainer width="100%" height="100%">
+          <RechartsLineChart data={data}>
+            <XAxis
+              dataKey={index}
+              tick={{ fontSize: 12 }}
+              tickLine={{ stroke: '#374151' }}
             />
-          ))}
-        </RechartsLineChart>
-      </ResponsiveContainer>
-    </div>
-  )
+            <YAxis
+              tick={{ fontSize: 12 }}
+              tickLine={{ stroke: '#374151' }}
+              tickFormatter={valueFormatter}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'hsl(var(--background))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '6px'
+              }}
+              formatter={valueFormatter}
+            />
+            <Legend />
+            {categories.map((category, idx) => (
+              <Line
+                key={category}
+                type="monotone"
+                dataKey={category}
+                stroke={colors[idx % colors.length]}
+                strokeWidth={2}
+                dot={{ fill: colors[idx % colors.length], strokeWidth: 2, r: 4 }}
+              />
+            ))}
+          </RechartsLineChart>
+        </ResponsiveContainer>
+      </div>
+    )
+  } catch (renderError) {
+    console.error('[Chart] Error rendering chart:', renderError)
+    return (
+      <div className={cn("h-[200px] w-full flex items-center justify-center bg-muted/50 rounded-lg border-2 border-dashed", className)}>
+        <div className="text-center">
+          <div className="text-sm text-muted-foreground mb-2">Chart render error</div>
+          <div className="text-xs text-muted-foreground">Data: {data?.length || 0} points</div>
+        </div>
+      </div>
+    )
+  }
 }
 
 export function PieChart({

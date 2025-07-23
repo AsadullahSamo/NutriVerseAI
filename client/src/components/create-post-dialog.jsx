@@ -31,23 +31,29 @@ export function CreatePostDialog({ trigger }) {
   const createPostMutation = useMutation({
     mutationFn: async data => {
       try {
+        console.log('[Client] Creating post with data:', data);
+
         const payload = {
           content: data.content,
-          type: data.type,
-          userId: data.userId,
-          username: user?.username || user?.name || "Anonymous"
+          type: data.type
+          // Don't send userId - let server get it from req.user
         }
 
         if (data.type === "RECIPE_SHARE" && data.recipeId) {
-          payload.recipeId = data.recipeId
+          payload.recipeId = parseInt(data.recipeId)
         }
+
+        console.log('[Client] Sending payload:', payload);
 
         const res = await apiRequest("POST", "/api/community", payload)
         if (!res.ok) {
           const errorData = await res.json()
+          console.error('[Client] Server error response:', errorData);
           throw new Error(errorData.message || "Failed to create post")
         }
-        return res.json()
+        const result = await res.json()
+        console.log('[Client] Post created successfully:', result);
+        return result
       } catch (error) {
         console.error("Create post error:", error)
         throw error
@@ -81,7 +87,7 @@ export function CreatePostDialog({ trigger }) {
     const postData = {
       content,
       type,
-      userId: user?.id,
+      // Don't send userId - let server get it from req.user
       ...(type === "RECIPE_SHARE" && selectedRecipeId
         ? { recipeId: parseInt(selectedRecipeId) }
         : {})
@@ -111,10 +117,41 @@ export function CreatePostDialog({ trigger }) {
               value={type}
               onChange={(e) => setType(e.target.value)}
               className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+              style={{
+                backgroundColor: 'hsl(var(--background))',
+                color: 'hsl(var(--foreground))'
+              }}
             >
-              <option value="RECIPE_SHARE" className="hover:bg-accent hover:text-accent-foreground">Share Recipe</option>
-              <option value="FOOD_RESCUE" className="hover:bg-accent hover:text-accent-foreground">Food Rescue</option>
-              <option value="COOKING_TIP" className="hover:bg-accent hover:text-accent-foreground">Cooking Tip</option>
+              <option
+                value="RECIPE_SHARE"
+                style={{
+                  backgroundColor: 'hsl(var(--background))',
+                  color: 'hsl(var(--foreground))',
+                  padding: '8px 12px'
+                }}
+              >
+                Share Recipe
+              </option>
+              <option
+                value="FOOD_RESCUE"
+                style={{
+                  backgroundColor: 'hsl(var(--background))',
+                  color: 'hsl(var(--foreground))',
+                  padding: '8px 12px'
+                }}
+              >
+                Food Rescue
+              </option>
+              <option
+                value="COOKING_TIP"
+                style={{
+                  backgroundColor: 'hsl(var(--background))',
+                  color: 'hsl(var(--foreground))',
+                  padding: '8px 12px'
+                }}
+              >
+                Cooking Tip
+              </option>
             </select>
           </div>
 

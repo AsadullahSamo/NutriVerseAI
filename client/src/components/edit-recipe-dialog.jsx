@@ -188,9 +188,9 @@ export function EditRecipeDialog({ recipe, trigger }) {
   return (
     <>
       {trigger ? (
-        <button onClick={() => setOpen(true)} className="w-full">
-          {trigger}
-        </button>
+        React.cloneElement(trigger, {
+          onClick: () => setOpen(true)
+        })
       ) : (
         <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
           <Pencil className="h-4 w-4 mr-2" />
