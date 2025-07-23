@@ -100,13 +100,14 @@ export default defineConfig(({ mode }) => {
           warn(warning);
         },
         output: {
-          // Ensure file extensions are preserved in chunk names
-          entryFileNames: 'assets/[name].[hash].js',
-          chunkFileNames: 'assets/[name].[hash].js',
-          assetFileNames: 'assets/[name].[hash].[ext]',
+          // Force cache busting with timestamp
+          entryFileNames: `assets/[name].[hash].${Date.now()}.js`,
+          chunkFileNames: `assets/[name].[hash].${Date.now()}.js`,
+          assetFileNames: `assets/[name].[hash].${Date.now()}.[ext]`,
           manualChunks: {
             vendor: ['react', 'react-dom', 'wouter'],
             ui: ['framer-motion', 'react-icons'],
+            charts: ['recharts'],
           },
         },
       },
