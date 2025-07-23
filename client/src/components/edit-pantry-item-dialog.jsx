@@ -1,11 +1,4 @@
-import { useState, useMemo } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
-} from "@/components/ui/dialog"
+import React, { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useForm } from "react-hook-form"
@@ -203,19 +196,44 @@ export function EditPantryItemDialog({ item, trigger }) {
     }
   })
 
+  // Simple modal component
+  const Modal = ({ isOpen, onClose, children }) => {
+    if (!isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+        <div className="relative bg-background border rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+          <div className="flex items-center justify-between p-6 border-b">
+            <h2 className="text-lg font-semibold">Edit Pantry Item</h2>
+            <button
+              onClick={onClose}
+              className="h-8 w-8 rounded-full hover:bg-accent hover:text-accent-foreground flex items-center justify-center text-xl font-bold"
+            >
+              ×
+            </button>
+          </div>
+          <div className="p-6 max-h-[calc(90vh-120px)] overflow-y-auto">
+            {children}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <Pencil className="h-4 w-4" />
-          </Button>
-        )}
-      </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Edit Pantry Item</DialogTitle>
-        </DialogHeader>
+    <>
+      {trigger ? (
+        React.cloneElement(trigger, {
+          onClick: () => setOpen(true)
+        })
+      ) : (
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setOpen(true)}>
+          <Pencil className="h-4 w-4" />
+        </Button>
+      )}
+
+      <Modal isOpen={open} onClose={() => setOpen(false)}>
         <div className="px-1 pb-6">
           <Form {...form}>
             <form
@@ -552,7 +570,7 @@ export function EditPantryItemDialog({ item, trigger }) {
             </form>
           </Form>
         </div>
-      </DialogContent>
-    </Dialog>
+      </Modal>
+    </>
   )
 }
