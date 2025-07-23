@@ -16,11 +16,12 @@ export function AuthProvider({ children }) {
     queryKey: ["/api/user"],
     queryFn: async () => {
       try {
-        const response = await apiRequest("GET", "/api/user")
-        if (!response.ok) return null
-        return response.json()
+        const userData = await apiRequest("GET", "/api/user")
+        console.log("User query result:", userData)
+        return userData
       } catch (error) {
-        if (error instanceof Error && error.message.includes("401")) {
+        console.log("User query error:", error.message)
+        if (error instanceof Error && (error.message.includes("401") || error.message.includes("Authentication required"))) {
           return null
         }
         return null
@@ -33,23 +34,19 @@ export function AuthProvider({ children }) {
   // Login mutation
   const loginMutation = useMutation({
     mutationFn: async (credentials) => {
-      const response = await apiRequest("POST", "/api/login", credentials);
-
-      if (!response.ok) {
-        const error = await response.json()
-        if (response.status === 401) {
-          if (error.message.includes("User does not exist")) {
-            throw new Error("User does not exist. Please register an account.")
-          } else if (error.message.includes("Incorrect password")) {
-            throw new Error("Incorrect password. Please try again.")
-          }
-          throw new Error(error.message || "Invalid credentials")
+      try {
+        const data = await apiRequest("POST", "/api/login", credentials)
+        console.log("Login successful, data:", data)
+        return data
+      } catch (error) {
+        console.error("Login error:", error)
+        if (error.message.includes("User does not exist")) {
+          throw new Error("User does not exist. Please register an account.")
+        } else if (error.message.includes("Incorrect password")) {
+          throw new Error("Incorrect password. Please try again.")
         }
-        throw new Error(error.message || "Failed to login")
+        throw error
       }
-
-      const data = await response.json()
-      return data
     },
     onSuccess: (data) => {
       setError(null)
@@ -75,22 +72,27 @@ export function AuthProvider({ children }) {
   // Logout mutation
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/logout");
-      if (!response.ok) {
-        throw new Error("Failed to logout")
+      try {
+        const result = await apiRequest("POST", "/api/logout")
+        return result
+      } catch (error) {
+        // Even if logout fails on server, we should clear local state
+        console.warn("Server logout failed, but clearing local state:", error)
+        return null
       }
-      return response.json()
     },
     onSuccess: () => {
+      // Clear all query cache and user data
       queryClient.setQueryData(["/api/user"], null)
       queryClient.clear()
-      toast("Successfully logged out!", {
-        duration: 3000,
-        style: {
-          background: "#4CAF50",
-          color: "white",
-        },
-      })
+
+      // Clear localStorage including auth token
+      localStorage.removeItem("authToken")
+      localStorage.removeItem("userProfile")
+      localStorage.removeItem("userPreferences")
+
+      // Force page reload to ensure clean state
+      window.location.href = "/auth"
     },
     onError: (error) => {
       setError(error.message)
@@ -176,16 +178,20 @@ export function AuthProvider({ children }) {
   // Delete account mutation
   const deleteAccountMutation = useMutation({
     mutationFn: async passwordData => {
-      const response = await apiRequest(
-        "POST",
-        "/api/account/delete",
-        passwordData
-      )
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || "Failed to delete account")
+      try {
+        console.log("Delete account request - passwordData:", passwordData)
+        console.log("Current auth token:", localStorage.getItem('authToken'))
+        const result = await apiRequest(
+          "POST",
+          "/api/account/delete",
+          passwordData
+        )
+        console.log("Delete account success:", result)
+        return result
+      } catch (error) {
+        console.error("Delete account error:", error)
+        throw error
       }
-      return response.json()
     },
     onSuccess: () => {
       setError(null)
