@@ -11,9 +11,12 @@ window.fetch = function(url, options = {}) {
     fullUrl = `${config.apiBaseUrl}${url}`;
   }
 
-  // Get token from localStorage for cross-domain auth
-  const token = localStorage.getItem('authToken');
-  console.log('API request - token from localStorage:', token);
+  // Check if this is an auth endpoint that shouldn't include tokens
+  const isAuthEndpoint = url.includes('/api/login') || url.includes('/api/register');
+
+  // Get token from localStorage for cross-domain auth (but not for auth endpoints)
+  const token = !isAuthEndpoint ? localStorage.getItem('authToken') : null;
+  console.log('API request - URL:', url, 'isAuthEndpoint:', isAuthEndpoint, 'token:', token);
 
   // Add default credentials and headers for API calls
   const defaultOptions = {

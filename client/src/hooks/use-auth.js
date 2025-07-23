@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiRequest } from "@/lib/queryClient"
 import { useLocation } from "wouter"
 import { toast } from "sonner"
+import { config } from "@/lib/config"
 
 const AuthContext = createContext(undefined)
 
@@ -34,19 +35,38 @@ export function AuthProvider({ children }) {
   // Login mutation
   const loginMutation = useMutation({
     mutationFn: async (credentials) => {
-      try {
-        const data = await apiRequest("POST", "/api/login", credentials)
-        console.log("Login successful, data:", data)
-        return data
-      } catch (error) {
-        console.error("Login error:", error)
-        if (error.message.includes("User does not exist")) {
-          throw new Error("User does not exist. Please register an account.")
-        } else if (error.message.includes("Incorrect password")) {
-          throw new Error("Incorrect password. Please try again.")
+      console.log("Starting login with credentials:", { username: credentials.username })
+
+      const response = await fetch(`${config.apiBaseUrl}/api/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(credentials),
+        credentials: "include"
+      })
+
+      console.log("Login response status:", response.status)
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        console.error("Login failed with error:", error)
+
+        if (response.status === 401) {
+          if (error.message && error.message.includes("User does not exist")) {
+            throw new Error("User does not exist. Please register an account.")
+          } else if (error.message && error.message.includes("Incorrect password")) {
+            throw new Error("Incorrect password. Please try again.")
+          }
+          throw new Error(error.message || "Invalid credentials")
         }
-        throw error
+        throw new Error(error.message || "Failed to login")
       }
+
+      const data = await response.json()
+      console.log("Login successful, received data:", data)
+      return data
     },
     onSuccess: (data) => {
       setError(null)
@@ -109,12 +129,28 @@ export function AuthProvider({ children }) {
   // Register mutation
   const registerMutation = useMutation({
     mutationFn: async userData => {
-      const response = await apiRequest("POST", "/api/register", userData)
+      console.log("Starting registration with userData:", { username: userData.username, email: userData.email })
+
+      const response = await fetch(`${config.apiBaseUrl}/api/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify(userData),
+        credentials: "include"
+      })
+
+      console.log("Registration response status:", response.status)
+
       if (!response.ok) {
-        const error = await response.json()
+        const error = await response.json().catch(() => ({}))
+        console.error("Registration failed with error:", error)
         throw new Error(error.message || "Registration failed")
       }
+
       const data = await response.json()
+      console.log("Registration successful, received data:", data)
       return data // Return the full response which includes both user and secretKey
     },
     onSuccess: data => {
