@@ -156,14 +156,16 @@ export function EditRecipeDialog({ recipe, trigger }) {
 
   return (
     <>
-      <div onClick={() => setOpen(true)}>
-        {trigger || (
-          <Button variant="ghost" size="sm">
-            <Pencil className="h-4 w-4 mr-2" />
-            Edit Recipe
-          </Button>
-        )}
-      </div>
+      {trigger ? (
+        <div onClick={() => setOpen(true)}>
+          {trigger}
+        </div>
+      ) : (
+        <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
+          <Pencil className="h-4 w-4 mr-2" />
+          Edit Recipe
+        </Button>
+      )}
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">

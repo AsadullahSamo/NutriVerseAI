@@ -31,13 +31,7 @@ import {
   AlertTriangle
 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select"
+import { CustomSelect, CustomSelectItem } from "@/components/ui/custom-select"
 import { Badge } from "@/components/ui/badge"
 
 export function EditPantryItemDialog({ item, trigger }) {
@@ -463,28 +457,24 @@ export function EditPantryItemDialog({ item, trigger }) {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Packaging Type</FormLabel>
-                          <Select
-                            value={field.value}
-                            onValueChange={value => field.onChange(value)}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select packaging type" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="recyclable">
+                          <FormControl>
+                            <CustomSelect
+                              value={field.value}
+                              onValueChange={value => field.onChange(value)}
+                              placeholder="Select packaging type"
+                            >
+                              <CustomSelectItem value="recyclable">
                                 Recyclable
-                              </SelectItem>
-                              <SelectItem value="biodegradable">
+                              </CustomSelectItem>
+                              <CustomSelectItem value="biodegradable">
                                 Biodegradable
-                              </SelectItem>
-                              <SelectItem value="plastic">Plastic</SelectItem>
-                              <SelectItem value="mixed">
-                                Mixed Materials
-                              </SelectItem>
-                            </SelectContent>
-                          </Select>
+                              </CustomSelectItem>
+                              <CustomSelectItem value="reusable">Reusable</CustomSelectItem>
+                              <CustomSelectItem value="non-recyclable">
+                                Non-Recyclable
+                              </CustomSelectItem>
+                            </CustomSelect>
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -496,21 +486,17 @@ export function EditPantryItemDialog({ item, trigger }) {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Carbon Footprint</FormLabel>
-                          <Select
-                            value={field.value}
-                            onValueChange={value => field.onChange(value)}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select carbon footprint" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="low">Low</SelectItem>
-                              <SelectItem value="medium">Medium</SelectItem>
-                              <SelectItem value="high">High</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <FormControl>
+                            <CustomSelect
+                              value={field.value}
+                              onValueChange={value => field.onChange(value)}
+                              placeholder="Select carbon footprint"
+                            >
+                              <CustomSelectItem value="low">Low</CustomSelectItem>
+                              <CustomSelectItem value="medium">Medium</CustomSelectItem>
+                              <CustomSelectItem value="high">High</CustomSelectItem>
+                            </CustomSelect>
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
