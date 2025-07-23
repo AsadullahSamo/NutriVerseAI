@@ -1558,6 +1558,54 @@ export async function registerRoutes(app) {
     }
   });
 
+  // Add recipe recommendations endpoint
+  app.post('/api/ai/recipe-recommendations', async (req, res) => {
+    try {
+      const { ingredients, dietaryPreferences } = req.body;
+      console.log('[Server] Received request for recipe recommendations:', { ingredients, dietaryPreferences });
+
+      if (!ingredients || !Array.isArray(ingredients)) {
+        return res.status(400).json({ error: 'Ingredients array is required' });
+      }
+
+      const { getRecipeRecommendations } = await import('./ai-services/recipe-ai');
+      const recommendations = await getRecipeRecommendations(ingredients, dietaryPreferences);
+
+      console.log('[Server] Generated recipe recommendations successfully');
+      res.json(recommendations);
+    } catch (error) {
+      console.error('[Server] Error generating recipe recommendations:', error);
+      res.status(500).json({
+        error: 'Failed to generate recipe recommendations',
+        message: error.message
+      });
+    }
+  });
+
+  // Add pantry item details generation endpoint
+  app.post('/api/ai/generate-pantry-item', async (req, res) => {
+    try {
+      const { itemName, category } = req.body;
+      console.log('[Server] Received request to generate pantry item details:', { itemName, category });
+
+      if (!itemName) {
+        return res.status(400).json({ error: 'Item name is required' });
+      }
+
+      const { generatePantryItemDetails } = await import('./ai-services/recipe-ai');
+      const details = await generatePantryItemDetails(itemName, category);
+
+      console.log('[Server] Generated pantry item details successfully');
+      res.json(details);
+    } catch (error) {
+      console.error('[Server] Error generating pantry item details:', error);
+      res.status(500).json({
+        error: 'Failed to generate pantry item details',
+        message: error.message
+      });
+    }
+  });
+
   // Add the generate-cuisine-details endpoint
   app.post('/api/ai/generate-cuisine-details', async (req, res) => {
     try {

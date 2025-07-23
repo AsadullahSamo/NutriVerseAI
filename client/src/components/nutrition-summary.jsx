@@ -1,12 +1,6 @@
 import * as React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select"
+
 import { LineChart } from "@/components/ui/chart"
 import { useQuery } from "@tanstack/react-query"
 import { apiRequest } from "@/lib/queryClient"
@@ -159,27 +153,25 @@ export function NutritionSummary() {
           {period === "week" ? "Weekly" : "Monthly"} Summary
         </CardTitle>
         <div className="flex items-center gap-2">
-          <Select value={mealType} onValueChange={value => setMealType(value)}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Meals</SelectItem>
-              <SelectItem value="breakfast">Breakfast</SelectItem>
-              <SelectItem value="lunch">Lunch</SelectItem>
-              <SelectItem value="dinner">Dinner</SelectItem>
-              <SelectItem value="snack">Snacks</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={period} onValueChange={value => setPeriod(value)}>
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="week">Week</SelectItem>
-              <SelectItem value="month">Month</SelectItem>
-            </SelectContent>
-          </Select>
+          <select
+            value={mealType}
+            onChange={(e) => setMealType(e.target.value)}
+            className="w-32 px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+          >
+            <option value="all">All Meals</option>
+            <option value="breakfast">Breakfast</option>
+            <option value="lunch">Lunch</option>
+            <option value="dinner">Dinner</option>
+            <option value="snack">Snacks</option>
+          </select>
+          <select
+            value={period}
+            onChange={(e) => setPeriod(e.target.value)}
+            className="w-32 px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+          >
+            <option value="week">Week</option>
+            <option value="month">Month</option>
+          </select>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
