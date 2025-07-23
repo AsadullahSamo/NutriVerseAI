@@ -1,11 +1,4 @@
 import React, { useState, useMemo } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
-} from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -162,19 +155,38 @@ export function EditRecipeDialog({ recipe, trigger }) {
   })
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
+    <>
+      <div onClick={() => setOpen(true)}>
         {trigger || (
           <Button variant="ghost" size="sm">
             <Pencil className="h-4 w-4 mr-2" />
             Edit Recipe
           </Button>
         )}
-      </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Edit Recipe</DialogTitle>
-        </DialogHeader>
+      </div>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/50"
+            onClick={() => setOpen(false)}
+          />
+
+          {/* Modal Content */}
+          <div className="relative bg-background border rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h2 className="text-lg font-semibold">Edit Recipe</h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setOpen(false)}
+                className="h-6 w-6 p-0"
+              >
+                ×
+              </Button>
+            </div>
+            <div className="p-6">
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(data =>
@@ -422,7 +434,10 @@ export function EditRecipeDialog({ recipe, trigger }) {
             </Button>
           </form>
         </Form>
-      </DialogContent>
-    </Dialog>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }

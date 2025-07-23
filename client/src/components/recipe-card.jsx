@@ -22,12 +22,7 @@ import {
   HoverCardTrigger
 } from "@/components/ui/hover-card"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu"
+
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -381,24 +376,18 @@ export function RecipeCard({
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>Meal Type</Label>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start">
-                    <span className="capitalize">{mealType}</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-full">
-                  {["breakfast", "lunch", "dinner", "snack"].map(type => (
-                    <DropdownMenuItem
-                      key={type}
-                      onSelect={() => setMealType(type)}
-                      className="capitalize"
-                    >
-                      {type}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="relative">
+                <select
+                  value={mealType}
+                  onChange={(e) => setMealType(e.target.value)}
+                  className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent capitalize"
+                >
+                  <option value="breakfast">Breakfast</option>
+                  <option value="lunch">Lunch</option>
+                  <option value="dinner">Dinner</option>
+                  <option value="snack">Snack</option>
+                </select>
+              </div>
             </div>
             <div className="space-y-2">
               <Label>Servings</Label>
