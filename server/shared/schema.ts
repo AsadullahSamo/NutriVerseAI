@@ -373,7 +373,7 @@ import {
     })
   })
   
-  export const insertCommunityPostSchema = createInsertSchema(communityPosts)
+  export const insertCommunityPostSchema = createInsertSchema(communityPosts).omit({ id: true })
   export const insertNutritionGoalSchema = createInsertSchema(
     nutritionGoals
   ).extend({
