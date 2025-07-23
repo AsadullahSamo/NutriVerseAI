@@ -21,6 +21,20 @@ export function LineChart({
   valueFormatter,
   className
 }) {
+  const [isClient, setIsClient] = React.useState(false)
+
+  React.useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  if (!isClient) {
+    return (
+      <div className={cn("h-[200px] w-full flex items-center justify-center", className)}>
+        <div className="text-sm text-muted-foreground">Loading chart...</div>
+      </div>
+    )
+  }
+
   return (
     <div className={cn("h-[200px] w-full", className)}>
       <ResponsiveContainer width="100%" height="100%">
@@ -89,7 +103,20 @@ export function PieChart({
   colors = ["#2563eb", "#f59e0b", "#10b981", "#3730a3", "#dc2626"],
   className
 }) {
+  const [isClient, setIsClient] = React.useState(false)
   const total = data.reduce((sum, item) => sum + item.value, 0)
+
+  React.useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  if (!isClient) {
+    return (
+      <div className={cn("h-[200px] w-full flex items-center justify-center", className)}>
+        <div className="text-sm text-muted-foreground">Loading chart...</div>
+      </div>
+    )
+  }
 
   return (
     <div className={cn("h-[200px] w-full", className)}>
