@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { apiRequest } from "@/lib/queryClient"
 import { useLocation } from "wouter"
 import { toast } from "sonner"
-import { config } from "@/lib/config"
+import config from "@/lib/config"
 
 const AuthContext = createContext(undefined)
 
