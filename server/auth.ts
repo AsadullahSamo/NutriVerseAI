@@ -41,6 +41,32 @@ function sanitizeUser(raw) {
   return safeUser
 }
 
+// Helper function to authenticate user via session or token
+async function authenticateUser(req) {
+  // Try session authentication first
+  if (req.isAuthenticated()) {
+    return req.user
+  }
+
+  // Fallback to token authentication
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    try {
+      // Simple token validation (user ID)
+      const user = await storage.getUser(token);
+      if (user) {
+        const { password, dnaProfile, moodJournal, secretKey, ...safeUser } = user;
+        return safeUser;
+      }
+    } catch (error) {
+      console.error('Token validation error:', error);
+    }
+  }
+
+  return null
+}
+
 export function setupAuth(app) {
   // Session middleware setup
   const sessionMiddleware = session({
@@ -255,7 +281,8 @@ export function setupAuth(app) {
       const { username, currentPassword, newPassword, secretKey } = req.body
 
       // Handle unauthenticated password reset using secret key
-      if (!req.isAuthenticated()) {
+      const authenticatedUser = await authenticateUser(req);
+      if (!authenticatedUser) {
         if (!username || !secretKey || !newPassword) {
           return res.status(400).json({
             message:
@@ -302,7 +329,7 @@ export function setupAuth(app) {
           .json({ message: "Current password and new password are required" })
       }
 
-      const user = await storage.getUser(req.user.id)
+      const user = await storage.getUser(authenticatedUser.id)
       if (!user) {
         return res.status(404).json({ message: "User not found" })
       }
@@ -379,17 +406,18 @@ export function setupAuth(app) {
   // Update account profile endpoint
   app.patch("/api/account/profile", async (req, res) => {
     try {
-      if (!req.isAuthenticated()) {
+      const authenticatedUser = await authenticateUser(req);
+      if (!authenticatedUser) {
         return res.status(401).json({ message: "Not authenticated" })
       }
 
       const updates = {
-        ...req.user,
+        ...authenticatedUser,
         ...req.body,
-        id: req.user.id // Ensure ID doesn't change
+        id: authenticatedUser.id // Ensure ID doesn't change
       }
 
-      const user = await storage.updateUser(req.user.id, updates)
+      const user = await storage.updateUser(authenticatedUser.id, updates)
       res.json(sanitizeUser(user))
     } catch (error) {
       console.error("Profile update error:", error)
@@ -441,7 +469,8 @@ export function setupAuth(app) {
   // Delete account endpoint
   app.post("/api/account/delete", async (req, res) => {
     try {
-      if (!req.isAuthenticated()) {
+      const authenticatedUser = await authenticateUser(req);
+      if (!authenticatedUser) {
         return res.status(401).json({ message: "Not authenticated" });
       }
 
@@ -450,7 +479,7 @@ export function setupAuth(app) {
         return res.status(400).json({ message: "Password is required" });
       }
 
-      const user = await storage.getUser(req.user.id);
+      const user = await storage.getUser(authenticatedUser.id);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }

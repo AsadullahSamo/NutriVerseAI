@@ -17,7 +17,30 @@ export function AuthProvider({ children }) {
     queryKey: ["/api/user"],
     queryFn: async () => {
       try {
-        const userData = await apiRequest("GET", "/api/user")
+        const token = localStorage.getItem('authToken')
+        console.log("User query - token:", token)
+
+        const response = await fetch(`${config.apiBaseUrl}/api/user`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            ...(token && { "Authorization": `Bearer ${token}` })
+          },
+          credentials: "include"
+        })
+
+        console.log("User query response status:", response.status)
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            console.log("User query - not authenticated")
+            return null
+          }
+          throw new Error(`HTTP ${response.status}`)
+        }
+
+        const userData = await response.json()
         console.log("User query result:", userData)
         return userData
       } catch (error) {
