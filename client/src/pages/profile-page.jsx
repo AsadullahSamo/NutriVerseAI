@@ -47,6 +47,9 @@ export default function ProfilePage() {
     logoutMutation,
     deleteAccountMutation
   } = useAuth()
+
+  // Debug user object
+  console.log("Profile page - user object:", user)
   const {
     preferences,
     updateAccentColor,
@@ -359,7 +362,11 @@ export default function ProfilePage() {
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="username">Username</Label>
-                      <Input id="username" value={user.username} disabled />
+                      <Input
+                        id="username"
+                        value={user.username || user.name || user.email?.split('@')[0] || ''}
+                        disabled
+                      />
                     </div>
 
                     <div className="space-y-2">

@@ -168,16 +168,37 @@ export function AuthProvider({ children }) {
   // Update profile mutation
   const updateProfileMutation = useMutation({
     mutationFn: async profileData => {
-      const response = await apiRequest(
-        "PATCH",
-        "/api/account/profile",
-        profileData
-      )
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || "Profile update failed")
+      try {
+        console.log("Update profile request - profileData:", profileData)
+        const token = localStorage.getItem('authToken')
+        console.log("Current auth token:", token)
+
+        const response = await fetch(`${config.apiBaseUrl}/api/account/profile`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            ...(token && { "Authorization": `Bearer ${token}` })
+          },
+          body: JSON.stringify(profileData),
+          credentials: "include"
+        })
+
+        console.log("Update profile response status:", response.status)
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}))
+          console.error("Update profile failed with error:", error)
+          throw new Error(error.message || "Profile update failed")
+        }
+
+        const result = await response.json()
+        console.log("Update profile success:", result)
+        return result
+      } catch (error) {
+        console.error("Update profile error:", error)
+        throw error
       }
-      return response.json()
     },
     onSuccess: data => {
       setError(null)
@@ -192,16 +213,37 @@ export function AuthProvider({ children }) {
   // Change password mutation
   const changePasswordMutation = useMutation({
     mutationFn: async passwordData => {
-      const response = await apiRequest(
-        "POST",
-        "/api/account/change-password",
-        passwordData
-      )
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.message || "Failed to change password")
+      try {
+        console.log("Change password request")
+        const token = localStorage.getItem('authToken')
+        console.log("Current auth token:", token)
+
+        const response = await fetch(`${config.apiBaseUrl}/api/account/change-password`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            ...(token && { "Authorization": `Bearer ${token}` })
+          },
+          body: JSON.stringify(passwordData),
+          credentials: "include"
+        })
+
+        console.log("Change password response status:", response.status)
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}))
+          console.error("Change password failed with error:", error)
+          throw new Error(error.message || "Failed to change password")
+        }
+
+        const result = await response.json()
+        console.log("Change password success:", result)
+        return result
+      } catch (error) {
+        console.error("Change password error:", error)
+        throw error
       }
-      return response.json()
     },
     onSuccess: () => {
       setError(null)
@@ -216,12 +258,29 @@ export function AuthProvider({ children }) {
     mutationFn: async passwordData => {
       try {
         console.log("Delete account request - passwordData:", passwordData)
-        console.log("Current auth token:", localStorage.getItem('authToken'))
-        const result = await apiRequest(
-          "POST",
-          "/api/account/delete",
-          passwordData
-        )
+        const token = localStorage.getItem('authToken')
+        console.log("Current auth token:", token)
+
+        const response = await fetch(`${config.apiBaseUrl}/api/account/delete`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            ...(token && { "Authorization": `Bearer ${token}` })
+          },
+          body: JSON.stringify(passwordData),
+          credentials: "include"
+        })
+
+        console.log("Delete account response status:", response.status)
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}))
+          console.error("Delete account failed with error:", error)
+          throw new Error(error.message || "Failed to delete account")
+        }
+
+        const result = await response.json()
         console.log("Delete account success:", result)
         return result
       } catch (error) {
