@@ -6,6 +6,8 @@ import { AuthProvider } from "@/hooks/use-auth"
 import { UserPreferencesProvider } from "@/contexts/UserPreferencesContext"
 // Import global fetch override to fix all API calls automatically
 import "@/lib/api"
+// Import custom toast styles
+import "@/styles/toast.css"
 import NotFound from "@/pages/not-found"
 import HomePage from "@/pages/home-page"
 import AuthPage from "@/pages/auth-page"
@@ -86,15 +88,24 @@ function App() {
           <Router />
           <Toaster
             position="top-right"
-            richColors
-            closeButton
-            duration={4000}
+            richColors={true}
+            closeButton={false}
+            duration={3000}
+            expand={false}
+            visibleToasts={3}
+            theme="system"
             toastOptions={{
               style: {
                 background: 'hsl(var(--background))',
                 border: '1px solid hsl(var(--border))',
                 color: 'hsl(var(--foreground))',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontFamily: 'inherit',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                padding: '12px 16px',
               },
+              className: 'custom-toast',
             }}
           />
         </UserPreferencesProvider>
