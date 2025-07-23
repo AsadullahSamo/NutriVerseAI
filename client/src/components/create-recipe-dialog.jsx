@@ -246,16 +246,13 @@ export function CreateRecipeDialog({ trigger }) {
       form.setValue("nutritionInfo.fat", details.nutritionInfo.fat);
       form.setValue("prepTime", details.prepTime);
 
-      toast({
-        title: "Recipe Details Generated",
-        description: "AI has generated recipe details. Feel free to edit them.",
+      toast.success("Recipe Details Generated", {
+        description: "AI has generated recipe details. Feel free to edit them."
       });
     } catch (error) {
-      toast({
-        title: "Generation Failed",
+      toast.error("Generation Failed", {
         description:
-          "Failed to generate recipe details. Please try again or enter manually.",
-        variant: "destructive",
+          "Failed to generate recipe details. Please try again or enter manually."
       });
     } finally {
       setIsGenerating(false);

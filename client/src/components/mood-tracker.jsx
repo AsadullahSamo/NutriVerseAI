@@ -66,8 +66,7 @@ export function MoodTracker({ recipeId }) {
     },
     onSuccess: () => {
       setEntry("")
-      toast({
-        title: "Mood tracked!",
+      toast.success("Mood tracked!", {
         description:
           "Your cooking experience has been recorded and analyzed. Now click on 'View Insights' to see patterns and recommendations OR add more entries to see how your mood evolves."
       })

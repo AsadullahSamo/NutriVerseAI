@@ -167,16 +167,13 @@ export default function ProfilePage() {
       // Dispatch custom event for immediate updates
       window.dispatchEvent(new Event("localProfileUpdate"))
 
-      toast({
-        title: "Profile Updated",
+      toast.success("Profile Updated", {
         description: "Your profile information has been updated successfully."
       })
     } catch (error) {
       console.error("Profile update error:", error)
-      toast({
-        title: "Update Failed",
-        description: error.message || "Failed to update profile information.",
-        variant: "destructive"
+      toast.error("Update Failed", {
+        description: error.message || "Failed to update profile information."
       })
     }
   }
@@ -251,8 +248,7 @@ export default function ProfilePage() {
         newPassword: passwordForm.newPassword
       })
 
-      toast({
-        title: "Success",
+      toast.success("Success", {
         description: "Your password has been changed successfully"
       })
 
@@ -274,11 +270,9 @@ export default function ProfilePage() {
           currentPassword: "Current password is incorrect"
         }))
       } else {
-        toast({
-          title: "Error",
+        toast.error("Error", {
           description:
-            error.message || "Failed to change password. Please try again.",
-          variant: "destructive"
+            error.message || "Failed to change password. Please try again."
         })
       }
     }
