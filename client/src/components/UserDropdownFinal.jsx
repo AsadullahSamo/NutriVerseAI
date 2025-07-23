@@ -75,18 +75,23 @@ export function UserDropdownFinal() {
 
   const handleLogout = async () => {
     try {
+      console.log("Starting logout process...")
       const currentProfile = localStorage.getItem("userProfile")
       const currentPrefs = localStorage.getItem("userPreferences")
 
+      console.log("Calling logout mutation...")
       await logoutMutation.mutateAsync()
 
+      console.log("Logout mutation completed, restoring profile data...")
       if (currentProfile && currentPrefs) {
         localStorage.setItem("userProfile", currentProfile)
         localStorage.setItem("userPreferences", currentPrefs)
       }
 
+      console.log("Logout successful")
       toast.success("Logged out successfully")
     } catch (error) {
+      console.error("Logout error:", error)
       toast.error("Failed to logout")
     }
   }
