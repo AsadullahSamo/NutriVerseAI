@@ -514,17 +514,33 @@ export async function registerRoutes(app) {
     "/api/community",
     isAuthenticated,
     asyncHandler(async (req, res) => {
-      const validated = insertCommunityPostSchema.parse(req.body);
-      // Remove id field if it exists to let the database auto-generate it
-      const { id, ...postData } = validated as any;
-      const post = await storage.createCommunityPost({
-        ...postData,
-        userId: req.user?.id,
-        createdAt: new Date(),
-        recipeId: postData.recipeId ?? null,
-        location: postData.location ?? null,
-      });
-                            res.status(201).json(post);
+      try {
+        console.log('[Server] Creating community post with data:', req.body);
+
+        // Manually construct the post data without schema validation for now
+        const postData = {
+          userId: req.user?.id,
+          username: req.user?.username || 'Anonymous',
+          content: req.body.content,
+          type: req.body.type,
+          recipeId: req.body.recipeId || null,
+          location: req.body.location || null,
+          createdAt: new Date()
+        };
+
+        console.log('[Server] Processed post data:', postData);
+
+        const post = await storage.createCommunityPost(postData);
+        console.log('[Server] Created post successfully:', post);
+
+        res.status(201).json(post);
+      } catch (error) {
+        console.error('[Server] Error creating community post:', error);
+        res.status(500).json({
+          error: 'Failed to create community post',
+          message: error.message
+        });
+      }
     })
   );
 
@@ -993,30 +1009,46 @@ export async function registerRoutes(app) {
 
   app.post('/api/cultural-cuisines', isAuthenticated, async (req, res) => {
     try {
-                            if (!req.user) {
+      console.log('[Server] Creating cultural cuisine with data:', req.body);
+      console.log('[Server] User:', req.user);
+
+      if (!req.user) {
         return res.status(401).json({ error: 'Unauthorized' });
       }
 
       const { name, region, description, imageUrl, bannerUrl, keyIngredients, cookingTechniques, culturalContext, servingEtiquette } = req.body;
 
-      const [cuisine] = await db.insert(culturalCuisines).values({
+      if (!name || !region) {
+        return res.status(400).json({ error: 'Name and region are required' });
+      }
+
+      const cuisineData = {
         name,
         region,
-        description,
-        imageUrl,
-        bannerUrl,
-        keyIngredients,
-        cookingTechniques,
-        culturalContext,
-        servingEtiquette,
-                                    createdBy: req.user.id,
-                                    createdAt: new Date()
-      }).returning();
+        description: description || '',
+        imageUrl: imageUrl || null,
+        bannerUrl: bannerUrl || null,
+        keyIngredients: keyIngredients || [],
+        cookingTechniques: cookingTechniques || [],
+        culturalContext: culturalContext || '',
+        servingEtiquette: servingEtiquette || '',
+        createdBy: req.user.id,
+        createdAt: new Date()
+      };
 
-                            res.status(201).json(cuisine);
+      console.log('[Server] Inserting cuisine data:', cuisineData);
+
+      const [cuisine] = await db.insert(culturalCuisines).values(cuisineData).returning();
+
+      console.log('[Server] Created cuisine successfully:', cuisine);
+      res.status(201).json(cuisine);
     } catch (error) {
-      console.error('Error adding cuisine:', error);
-                            res.status(500).json({ error: 'Failed to add cuisine' });
+      console.error('[Server] Error adding cuisine:', error);
+      res.status(500).json({
+        error: 'Failed to add cuisine',
+        message: error.message,
+        details: error.stack
+      });
     }
   });
 
