@@ -5,7 +5,7 @@ import { Input } from "./ui/input"
 import { Badge } from "./ui/badge"
 import { Separator } from "./ui/separator"
 import { getRecipeRecommendations } from "@ai-services/recipe-ai"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert"
 import {
   Loader2,
@@ -28,7 +28,6 @@ export function RecipeRecommendations() {
   const [recommendations, setRecommendations] = useState([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
-  const { toast } = useToast()
 
   const addIngredient = () => {
     if (currentIngredient.trim()) {
@@ -68,8 +67,7 @@ export function RecipeRecommendations() {
       }
 
       setRecommendations(recipes)
-      toast({
-        title: "Success",
+      toast.success("Success", {
         description: `Generated ${recipes.length} recipe recommendations!`
       })
     } catch (error) {

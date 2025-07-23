@@ -447,16 +447,13 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
         }
       }
 
-      toast({
-        title: "Recipe Details Generated",
+      toast.success("Recipe Details Generated", {
         description: "AI has generated recipe details. Feel free to edit them."
       })
     } catch (error) {
-      toast({
-        title: "Generation Failed",
+      toast.error("Generation Failed", {
         description:
-          "Failed to generate recipe details. Please try again or enter manually.",
-        variant: "destructive"
+          "Failed to generate recipe details. Please try again or enter manually."
       })
     } finally {
       setIsGenerating(false)

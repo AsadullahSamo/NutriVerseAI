@@ -187,8 +187,7 @@ export function CreatePantryItemDialog({ trigger }) {
       queryClient.invalidateQueries({ queryKey: ["/api/pantry"] })
       setOpen(false)
       form.reset()
-      toast({
-        title: "Item added!",
+      toast.success("Item added!", {
         description: "Your pantry item has been added successfully."
       })
       queryClient.invalidateQueries({
