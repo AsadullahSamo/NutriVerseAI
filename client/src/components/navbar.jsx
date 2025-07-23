@@ -1,6 +1,8 @@
 import React from "react"
 import { Link } from "wouter"
-import { UserButtonSimple } from "./UserButtonSimple.jsx"
+import { UserDropdown } from "./UserDropdown.jsx"
+import { UserDropdownBasic } from "./UserDropdownBasic.jsx"
+import { UserDropdownFinal } from "./UserDropdownFinal.jsx"
 import { ThemeToggle } from "./ThemeToggle.jsx"
 import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
@@ -178,7 +180,7 @@ export function Navbar() {
 
             <ThemeToggle />
             {user ? (
-              <UserButtonSimple />
+              <UserDropdownFinal />
             ) : (
               <div className="hidden md:flex items-center gap-3">
                 <Button variant="ghost" asChild>
