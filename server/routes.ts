@@ -1533,6 +1533,31 @@ export async function registerRoutes(app) {
                     }
   }));
 
+  // Add recipe generation endpoint
+  app.post('/api/ai/generate-recipe', async (req, res) => {
+    try {
+      const { title, cuisine, preferences } = req.body;
+      console.log('[Server] Received request to generate recipe:', { title, cuisine, preferences });
+
+      if (!title) {
+        return res.status(400).json({ error: 'Recipe title is required' });
+      }
+
+      // Import the server-side recipe generation function
+      const { generateRecipeDetails } = await import('./ai-services/recipe-ai');
+      const details = await generateRecipeDetails(title, cuisine, preferences);
+
+      console.log('[Server] Generated recipe details successfully');
+      res.json(details);
+    } catch (error) {
+      console.error('[Server] Error generating recipe details:', error);
+      res.status(500).json({
+        error: 'Failed to generate recipe details',
+        message: error.message
+      });
+    }
+  });
+
   // Add the generate-cuisine-details endpoint
   app.post('/api/ai/generate-cuisine-details', async (req, res) => {
     try {
