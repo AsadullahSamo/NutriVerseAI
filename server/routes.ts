@@ -515,12 +515,14 @@ export async function registerRoutes(app) {
     isAuthenticated,
     asyncHandler(async (req, res) => {
       const validated = insertCommunityPostSchema.parse(req.body);
+      // Remove id field if it exists to let the database auto-generate it
+      const { id, ...postData } = validated as any;
       const post = await storage.createCommunityPost({
-        ...validated,
+        ...postData,
         userId: req.user?.id,
         createdAt: new Date(),
-        recipeId: (validated as any).recipeId ?? null,
-        location: (validated as any).location ?? null,
+        recipeId: postData.recipeId ?? null,
+        location: postData.location ?? null,
       });
                             res.status(201).json(post);
     })

@@ -110,11 +110,11 @@ export function CreatePostDialog({ trigger }) {
             <select
               value={type}
               onChange={(e) => setType(e.target.value)}
-              className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+              className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
             >
-              <option value="RECIPE_SHARE">Share Recipe</option>
-              <option value="FOOD_RESCUE">Food Rescue</option>
-              <option value="COOKING_TIP">Cooking Tip</option>
+              <option value="RECIPE_SHARE" className="hover:bg-accent hover:text-accent-foreground">Share Recipe</option>
+              <option value="FOOD_RESCUE" className="hover:bg-accent hover:text-accent-foreground">Food Rescue</option>
+              <option value="COOKING_TIP" className="hover:bg-accent hover:text-accent-foreground">Cooking Tip</option>
             </select>
           </div>
 
@@ -124,12 +124,12 @@ export function CreatePostDialog({ trigger }) {
               <select
                 value={selectedRecipeId}
                 onChange={(e) => setSelectedRecipeId(e.target.value)}
-                className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+                className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
               >
-                <option value="">Select a recipe to share</option>
+                <option value="" className="hover:bg-accent hover:text-accent-foreground">Select a recipe to share</option>
                 {recipes &&
                   recipes.map(recipe => (
-                    <option key={recipe.id} value={recipe.id.toString()}>
+                    <option key={recipe.id} value={recipe.id.toString()} className="hover:bg-accent hover:text-accent-foreground">
                       {recipe.title}
                     </option>
                   ))}

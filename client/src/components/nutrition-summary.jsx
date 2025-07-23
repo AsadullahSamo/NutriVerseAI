@@ -156,21 +156,21 @@ export function NutritionSummary() {
           <select
             value={mealType}
             onChange={(e) => setMealType(e.target.value)}
-            className="w-32 px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+            className="w-32 px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
           >
-            <option value="all">All Meals</option>
-            <option value="breakfast">Breakfast</option>
-            <option value="lunch">Lunch</option>
-            <option value="dinner">Dinner</option>
-            <option value="snack">Snacks</option>
+            <option value="all" className="hover:bg-accent hover:text-accent-foreground">All Meals</option>
+            <option value="breakfast" className="hover:bg-accent hover:text-accent-foreground">Breakfast</option>
+            <option value="lunch" className="hover:bg-accent hover:text-accent-foreground">Lunch</option>
+            <option value="dinner" className="hover:bg-accent hover:text-accent-foreground">Dinner</option>
+            <option value="snack" className="hover:bg-accent hover:text-accent-foreground">Snacks</option>
           </select>
           <select
             value={period}
             onChange={(e) => setPeriod(e.target.value)}
-            className="w-32 px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent"
+            className="w-32 px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
           >
-            <option value="week">Week</option>
-            <option value="month">Month</option>
+            <option value="week" className="hover:bg-accent hover:text-accent-foreground">Week</option>
+            <option value="month" className="hover:bg-accent hover:text-accent-foreground">Month</option>
           </select>
         </div>
       </CardHeader>
