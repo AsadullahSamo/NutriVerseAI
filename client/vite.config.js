@@ -44,29 +44,70 @@ function fixMissingFiles() {
       if (id === './Combination.jsx' && importer?.includes('react-remove-scroll')) {
         return 'virtual:react-remove-scroll-combination';
       }
-      // Handle any missing .jsx files in recharts
-      if (importer?.includes('recharts') && id.startsWith('./') && id.endsWith('.jsx')) {
+
+      // Handle missing recharts files
+      if (importer?.includes('recharts') && id.startsWith('./')) {
         const fileName = id.replace('./', '').replace('.jsx', '').replace(/[\/\\]/g, '-');
-        return `virtual:recharts-${fileName}`;
+
+        // List of known missing files in recharts
+        const missingFiles = [
+          'container/Surface',
+          'container/Layer',
+          'component/DefaultLegendContent',
+          'component/DefaultTooltipContent',
+          'util/ReactUtils',
+          'util/DOMUtils',
+          'util/DataUtils'
+        ];
+
+        if (missingFiles.some(file => fileName.includes(file.replace('/', '-')))) {
+          return `virtual:recharts-${fileName}`;
+        }
       }
+
       return null;
     },
     load(id) {
       if (id === 'virtual:react-remove-scroll-combination') {
         return 'export default function Combination() { return null; }';
       }
-      // Handle recharts virtual modules
+
+      // Handle recharts virtual modules with proper exports
       if (id.startsWith('virtual:recharts-')) {
-        // Extract the original component name from the virtual ID
         const fileName = id.replace('virtual:recharts-', '');
-        // Get the last part after the last dash (the actual component name)
-        const parts = fileName.split('-');
-        const componentName = parts[parts.length - 1];
-        // Capitalize first letter
+
+        if (fileName.includes('Surface')) {
+          return `
+            import React from 'react';
+            export default function Surface(props) {
+              return React.createElement('div', { ...props, className: 'recharts-surface' });
+            }
+            export { Surface };
+          `;
+        }
+
+        if (fileName.includes('Layer')) {
+          return `
+            import React from 'react';
+            export default function Layer(props) {
+              return React.createElement('div', { ...props, className: 'recharts-layer' });
+            }
+            export { Layer };
+          `;
+        }
+
+        // Generic fallback for other missing components
+        const componentName = fileName.split('-').pop();
         const finalName = componentName.charAt(0).toUpperCase() + componentName.slice(1);
-        return `export default function ${finalName}() { return null; }
-export { ${finalName} };`;
+        return `
+          import React from 'react';
+          export default function ${finalName}(props) {
+            return React.createElement('div', props);
+          }
+          export { ${finalName} };
+        `;
       }
+
       return null;
     }
   };
@@ -107,9 +148,10 @@ export default defineConfig(({ mode }) => {
           manualChunks: {
             vendor: ['react', 'react-dom', 'wouter'],
             ui: ['framer-motion', 'react-icons'],
-            charts: ['recharts'],
+            charts: ['chart.js', 'react-chartjs-2'],
           },
         },
+        external: [],
       },
     },
     esbuild: {

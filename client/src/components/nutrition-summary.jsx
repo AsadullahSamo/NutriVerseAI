@@ -1,7 +1,7 @@
 import * as React from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
-import { LineChart } from "@/components/ui/chart"
+import { ChartJSLineChart as LineChart } from "@/components/ui/chartjs-chart"
 import { useQuery } from "@tanstack/react-query"
 import { apiRequest } from "@/lib/queryClient"
 import { format, startOfWeek, startOfMonth, eachDayOfInterval } from "date-fns"

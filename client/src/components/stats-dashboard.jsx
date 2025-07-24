@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { PieChart, LineChart } from "@/components/ui/chart"
+import { ChartJSPieChart as PieChart, ChartJSLineChart as LineChart } from "@/components/ui/chartjs-chart"
 import { format, subDays } from "date-fns"
 import { Package, Leaf, AlertTriangle, Apple, Search, Filter } from "lucide-react"
 
