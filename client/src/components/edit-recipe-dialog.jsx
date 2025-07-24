@@ -6,6 +6,13 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { insertRecipeSchema } from "@shared/schema"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog"
+import {
   Form,
   FormControl,
   FormField,
@@ -154,36 +161,7 @@ export function EditRecipeDialog({ recipe, trigger }) {
     }
   })
 
-  // Simple modal component
-  const Modal = ({ isOpen, onClose, children }) => {
-    if (!isOpen) return null;
 
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        {/* Backdrop */}
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-          onClick={onClose}
-        />
-
-        {/* Modal Content */}
-        <div className="relative bg-background border rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-          <div className="flex items-center justify-between p-6 border-b">
-            <h2 className="text-lg font-semibold">Edit Recipe</h2>
-            <button
-              onClick={onClose}
-              className="h-8 w-8 rounded-full hover:bg-accent hover:text-accent-foreground flex items-center justify-center text-xl font-bold"
-            >
-              ×
-            </button>
-          </div>
-          <div className="p-6 max-h-[calc(90vh-120px)] overflow-y-auto">
-            {children}
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <>
@@ -198,14 +176,22 @@ export function EditRecipeDialog({ recipe, trigger }) {
         </Button>
       )}
 
-      <Modal isOpen={open} onClose={() => setOpen(false)}>
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(data =>
-              editRecipeMutation.mutate(data)
-            )}
-            className="space-y-4"
-          >
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Edit Recipe</DialogTitle>
+            <DialogDescription>
+              Update your recipe details and sustainability information.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto pr-2">
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(data =>
+                  editRecipeMutation.mutate(data)
+                )}
+                className="space-y-4"
+              >
             <FormField
               control={form.control}
               name="title"
@@ -446,7 +432,9 @@ export function EditRecipeDialog({ recipe, trigger }) {
             </Button>
           </form>
         </Form>
-      </Modal>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

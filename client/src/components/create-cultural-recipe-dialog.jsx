@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useToast } from "@/components/ui/use-toast"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,24 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { generateCulturalRecipeDetails } from "@/lib/generateCulturalRecipeDetails"
+
+const formSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  description: z.string().min(1, "Description is required"),
+  authenticIngredients: z.string().min(1, "Ingredients are required"),
+  instructions: z.string().min(1, "Instructions are required"),
+  difficulty: z.enum(["beginner", "intermediate", "advanced"]),
+  culturalNotes: z.object({
+    history: z.string().optional(),
+    significance: z.string().optional(),
+    variations: z.string().optional()
+  }).optional(),
+  servingSuggestions: z.string().optional(),
+  localSubstitutes: z.object({
+    ingredient: z.string().optional(),
+    notes: z.string().optional()
+  }).optional()
+})
 
 export function CreateCulturalRecipeDialog({
   open,
@@ -136,15 +155,16 @@ export function CreateCulturalRecipeDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Create Cultural Recipe</DialogTitle>
           <DialogDescription>
             Add a new recipe from {cuisine} cuisine.
           </DialogDescription>
         </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <div className="flex-1 overflow-y-auto pr-2">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
               control={form.control}
               name="name"
@@ -232,9 +252,38 @@ export function CreateCulturalRecipeDialog({
               )}
             />
 
-            {/* ... rest of the form fields ... */}
+            <FormField
+              control={form.control}
+              name="difficulty"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Difficulty</FormLabel>
+                  <FormControl>
+                    <select {...field} className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm">
+                      <option value="beginner">Beginner</option>
+                      <option value="intermediate">Intermediate</option>
+                      <option value="advanced">Advanced</option>
+                    </select>
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">
+                Create Recipe
+              </Button>
+            </div>
           </form>
         </Form>
+        </div>
       </DialogContent>
     </Dialog>
   )
