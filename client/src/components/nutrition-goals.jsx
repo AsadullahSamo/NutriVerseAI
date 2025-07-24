@@ -16,7 +16,7 @@ import {
   DialogTitle
 } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
-import { LineChart } from "@/components/ui/chart"
+import { ChartJSLineChart as LineChart } from "@/components/ui/chartjs-chart"
 import config from "@/lib/config"
 
 export function NutritionGoals() {
