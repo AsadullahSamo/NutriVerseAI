@@ -45,8 +45,8 @@ export function EditRecipeDialog({ recipe, trigger }) {
       },
       prepTime: recipe.prepTime || 30, // Default to 30 minutes if not set
       imageUrl: recipe.imageUrl || "",
-      createdBy: recipe.createdBy,
-      forkedFrom: recipe.forkedFrom,
+      createdBy: recipe.createdBy || undefined,
+      forkedFrom: recipe.forkedFrom || undefined, // Convert null to undefined for optional field
       sustainabilityScore: recipe.sustainabilityScore || 0,
       wastageReduction: recipe.wastageReduction || {}
     }
@@ -125,10 +125,13 @@ export function EditRecipeDialog({ recipe, trigger }) {
 
   const editRecipeMutation = useMutation({
     mutationFn: async data => {
-      // Always use the latest calculated score
+      // Clean up null values and always use the latest calculated score
       const payload = {
         ...data,
-        sustainabilityScore: latestScoreRef.current
+        sustainabilityScore: latestScoreRef.current,
+        // Ensure optional number fields are undefined instead of null
+        createdBy: data.createdBy || undefined,
+        forkedFrom: data.forkedFrom || undefined
       }
 
       const res = await apiRequest(
