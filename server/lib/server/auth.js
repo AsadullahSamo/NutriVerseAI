@@ -155,7 +155,19 @@ export function setupAuth(app) {
                     if (err) {
                         return res.status(500).json({ message: "Login failed" });
                     }
-                    res.json(safeUser);
+
+                    const responseData = {
+                        ...safeUser,
+                        token: safeUser.id // Simple token = user ID
+                    };
+
+                    console.log('Secret key login successful:', {
+                        userId: safeUser.id,
+                        sessionId: req.sessionID,
+                        responseIncludesToken: !!responseData.token
+                    });
+
+                    res.json(responseData);
                 });
             }
             catch (err) {
@@ -175,7 +187,19 @@ export function setupAuth(app) {
                     if (err) {
                         return res.status(500).json({ message: "Login failed" });
                     }
-                    res.json(user);
+
+                    const responseData = {
+                        ...user,
+                        token: user.id // Simple token = user ID
+                    };
+
+                    console.log('Regular login successful:', {
+                        userId: user.id,
+                        sessionId: req.sessionID,
+                        responseIncludesToken: !!responseData.token
+                    });
+
+                    res.json(responseData);
                 });
             })(req, res, next);
         }

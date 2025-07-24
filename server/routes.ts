@@ -90,32 +90,54 @@ const isAuthenticated = async (req, res, next) => {
 
 // Middleware to check if user is authenticated and owns the resource
 const isResourceOwner = (resourceType) => async (req, res, next) => {
-                if (!req.isAuthenticated()) {
-        return res.status(401).json({ message: "Unauthorized" });
+    // Check authentication first (session OR token)
+    if (!req.isAuthenticated || !req.isAuthenticated()) {
+        // Try token authentication
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.substring(7);
+            try {
+                const user = await storage.getUser(token);
+                if (user) {
+                    const { password, dnaProfile, moodJournal, secretKey, ...safeUser } = user;
+                    req.user = safeUser;
+                } else {
+                    return res.status(401).json({ message: "Unauthorized" });
+                }
+            } catch (error) {
+                console.error('Token validation error:', error);
+                return res.status(401).json({ message: "Unauthorized" });
+            }
+        } else {
+            return res.status(401).json({ message: "Unauthorized" });
+        }
     }
+
     try {
         let resource;
         const userId = req.user.id;
-        
+
         if (resourceType === 'recipe') {
             resource = await storage.getRecipe(parseInt(req.params.id));
-                if (resource && resource.createdBy !== userId) {
+            if (resource && resource.createdBy !== userId) {
                 return res.status(403).json({ message: "Forbidden" });
             }
         } else if (resourceType === 'post') {
             resource = await storage.getCommunityPost(parseInt(req.params.id));
-                if (resource && resource.userId !== userId) {
+            if (resource && resource.userId !== userId) {
                 return res.status(403).json({ message: "Forbidden" });
-                }
+            }
         }
-        
-                if (!resource) {
+
+        if (!resource) {
             return res.status(404).json({ message: "Resource not found" });
-                }
-                next();
-    } catch (error) {
-                res.status(500).json({ message: "Server error" });
         }
+
+        next();
+    } catch (error) {
+        console.error('Resource owner middleware error:', error);
+        res.status(500).json({ message: "Server error" });
+    }
 };
 
 // Async handler to catch errors in async routes
