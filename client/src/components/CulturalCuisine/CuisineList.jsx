@@ -254,8 +254,8 @@ export function CuisineList({ cuisines, onSelectCuisine }) {
       </div>
 
       <Dialog open={isAddingCuisine} onOpenChange={setIsAddingCuisine}>
-        <DialogContent className="sm:max-w-[600px]">
-          <ScrollArea className="max-h-[80vh] px-6">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-hidden">
+          <ScrollArea className="max-h-[80vh] overflow-y-auto pr-4">
             <Alert className="mb-6 border-green-500">
               <Info className="size-4 text-yellow-500" />
               <AlertDescription className="ml-2">

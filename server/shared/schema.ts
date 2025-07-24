@@ -373,7 +373,16 @@ import {
     })
   })
   
-  export const insertCommunityPostSchema = createInsertSchema(communityPosts)
+  export const insertCommunityPostSchema = z.object({
+    userId: z.number(),
+    username: z.string(),
+    recipeId: z.number().optional(),
+    content: z.string(),
+    type: z.string(),
+    location: z.any().optional(),
+    hiddenFor: z.array(z.any()).default([]),
+    createdAt: z.date().optional()
+  })
   export const insertNutritionGoalSchema = createInsertSchema(
     nutritionGoals
   ).extend({
