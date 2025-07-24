@@ -134,12 +134,23 @@ export function EditRecipeDialog({ recipe, trigger }) {
         forkedFrom: data.forkedFrom || undefined
       }
 
-      const res = await apiRequest(
-        "PATCH",
-        `/api/recipes/${recipe.id}`,
-        payload
-      )
-      return res.json()
+      try {
+        const res = await apiRequest(
+          "PATCH",
+          `/api/recipes/${recipe.id}`,
+          payload
+        )
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}))
+          throw new Error(errorData.message || `HTTP ${res.status}: ${res.statusText}`)
+        }
+
+        return res.json()
+      } catch (error) {
+        console.error('Edit recipe error:', error)
+        throw error
+      }
     },
     onSuccess: () => {
       // Invalidate all related queries to ensure synchronization between pages
