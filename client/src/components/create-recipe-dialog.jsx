@@ -269,11 +269,11 @@ export function CreateRecipeDialog({ trigger }) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="bg-background pb-4 mb-4">
-          <DialogTitle>Create New Recipe</DialogTitle>
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0 pb-4 mb-4">
+          <DialogTitle>Add New Recipe</DialogTitle>
         </DialogHeader>
-        <div className="px-1 pb-6">
+        <div className="flex-1 dialog-scroll-area px-1 pb-6">
           <Alert className="mb-6 border-green-500">
             <Info className="size-4 text-yellow-500" />
             <AlertDescription className="ml-2">

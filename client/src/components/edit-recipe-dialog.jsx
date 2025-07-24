@@ -178,13 +178,13 @@ export function EditRecipeDialog({ recipe, trigger }) {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Edit Recipe</DialogTitle>
             <DialogDescription>
               Update your recipe details and sustainability information.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto pr-2">
+          <div className="flex-1 dialog-scroll-area pr-2 min-h-0">
             <Form {...form}>
               <form
                 onSubmit={form.handleSubmit(data =>
