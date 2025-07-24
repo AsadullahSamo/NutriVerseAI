@@ -33,12 +33,17 @@ export function EditRecipeDialog({ recipe, trigger }) {
   const form = useForm({
     resolver: zodResolver(insertRecipeSchema),
     defaultValues: {
-      title: recipe.title,
-      description: recipe.description,
-      ingredients: recipe.ingredients,
-      instructions: recipe.instructions,
-      nutritionInfo: recipe.nutritionInfo,
-      prepTime: recipe.prepTime,
+      title: recipe.title || "",
+      description: recipe.description || "",
+      ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients : [],
+      instructions: Array.isArray(recipe.instructions) ? recipe.instructions : [],
+      nutritionInfo: recipe.nutritionInfo || {
+        calories: 0,
+        protein: 0,
+        carbs: 0,
+        fat: 0
+      },
+      prepTime: recipe.prepTime || 30, // Default to 30 minutes if not set
       imageUrl: recipe.imageUrl || "",
       createdBy: recipe.createdBy,
       forkedFrom: recipe.forkedFrom,
@@ -120,27 +125,18 @@ export function EditRecipeDialog({ recipe, trigger }) {
 
   const editRecipeMutation = useMutation({
     mutationFn: async data => {
-      console.log("Edit Recipe Mutation - Starting update for recipe:", recipe.id)
-      console.log("Edit Recipe Mutation - Form data:", data)
-
       // Always use the latest calculated score
       const payload = {
         ...data,
         sustainabilityScore: latestScoreRef.current
       }
 
-      console.log("Edit Recipe Mutation - Final payload:", payload)
-
       const res = await apiRequest(
         "PATCH",
         `/api/recipes/${recipe.id}`,
         payload
       )
-
-      console.log("Edit Recipe Mutation - API response status:", res.status)
-      const result = await res.json()
-      console.log("Edit Recipe Mutation - API response data:", result)
-      return result
+      return res.json()
     },
     onSuccess: () => {
       // Invalidate all related queries to ensure synchronization between pages
@@ -196,11 +192,19 @@ export function EditRecipeDialog({ recipe, trigger }) {
           <div className="flex-1 dialog-scroll-area pr-2 min-h-0">
             <Form {...form}>
               <form
-                onSubmit={form.handleSubmit(data => {
-                  console.log("Form submitted with data:", data)
-                  console.log("Form validation errors:", form.formState.errors)
-                  editRecipeMutation.mutate(data)
-                })}
+                onSubmit={form.handleSubmit(
+                  data => {
+                    editRecipeMutation.mutate(data)
+                  },
+                  errors => {
+                    console.error("Form validation failed:", errors)
+                    toast({
+                      title: "Validation Error",
+                      description: "Please check the form for errors and try again.",
+                      variant: "destructive"
+                    })
+                  }
+                )}
                 className="space-y-4"
               >
             <FormField
@@ -435,11 +439,6 @@ export function EditRecipeDialog({ recipe, trigger }) {
               type="submit"
               className="w-full"
               disabled={editRecipeMutation.isPending}
-              onClick={() => {
-                console.log("Update Recipe button clicked!")
-                console.log("Form state:", form.formState)
-                console.log("Form values:", form.getValues())
-              }}
             >
               {editRecipeMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
