@@ -259,7 +259,7 @@ export function CreateCulturalRecipeDialog({
                 <FormItem>
                   <FormLabel>Difficulty</FormLabel>
                   <FormControl>
-                    <select {...field} className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm">
+                    <select {...field} className="navbar-dropdown-trigger">
                       <option value="beginner">Beginner</option>
                       <option value="intermediate">Intermediate</option>
                       <option value="advanced">Advanced</option>

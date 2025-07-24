@@ -39,11 +39,11 @@ export function CustomSelect({ value, onValueChange, placeholder, children, clas
 
   return (
     <div className={`relative ${className}`} ref={selectRef}>
-      {/* Trigger */}
+      {/* Trigger - Using navbar-consistent styling */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent flex items-center justify-between hover:bg-accent hover:text-accent-foreground transition-colors"
+        className="navbar-dropdown-trigger"
       >
         <span className={selectedLabel ? "" : "text-muted-foreground"}>
           {selectedLabel || placeholder}
@@ -51,16 +51,16 @@ export function CustomSelect({ value, onValueChange, placeholder, children, clas
         <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
-      {/* Dropdown */}
+      {/* Dropdown - Using navbar-consistent styling */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-background border border-input rounded-md shadow-lg">
-          <div className="py-1 max-h-60 overflow-auto">
+        <div className="navbar-dropdown-content">
+          <div className="py-1">
             {React.Children.map(children, (child) => (
               <button
                 key={child.props.value}
                 type="button"
                 onClick={() => handleOptionClick(child.props.value, child.props.children)}
-                className="w-full px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer focus:outline-none focus:bg-accent focus:text-accent-foreground"
+                className="navbar-dropdown-item"
               >
                 {child.props.children}
               </button>
