@@ -134,42 +134,11 @@ export function CreatePostDialog({ trigger }) {
             <select
               value={type}
               onChange={(e) => setType(e.target.value)}
-              className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
-              style={{
-                backgroundColor: 'hsl(var(--background))',
-                color: 'hsl(var(--foreground))'
-              }}
+              className="navbar-dropdown-trigger"
             >
-              <option
-                value="RECIPE_SHARE"
-                style={{
-                  backgroundColor: 'hsl(var(--background))',
-                  color: 'hsl(var(--foreground))',
-                  padding: '8px 12px'
-                }}
-              >
-                Share Recipe
-              </option>
-              <option
-                value="FOOD_RESCUE"
-                style={{
-                  backgroundColor: 'hsl(var(--background))',
-                  color: 'hsl(var(--foreground))',
-                  padding: '8px 12px'
-                }}
-              >
-                Food Rescue
-              </option>
-              <option
-                value="COOKING_TIP"
-                style={{
-                  backgroundColor: 'hsl(var(--background))',
-                  color: 'hsl(var(--foreground))',
-                  padding: '8px 12px'
-                }}
-              >
-                Cooking Tip
-              </option>
+              <option value="RECIPE_SHARE">Share Recipe</option>
+              <option value="FOOD_RESCUE">Food Rescue</option>
+              <option value="COOKING_TIP">Cooking Tip</option>
             </select>
           </div>
 
@@ -179,12 +148,12 @@ export function CreatePostDialog({ trigger }) {
               <select
                 value={selectedRecipeId}
                 onChange={(e) => setSelectedRecipeId(e.target.value)}
-                className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+                className="navbar-dropdown-trigger"
               >
-                <option value="" className="hover:bg-accent hover:text-accent-foreground">Select a recipe to share</option>
+                <option value="">Select a recipe to share</option>
                 {recipes &&
                   recipes.map(recipe => (
-                    <option key={recipe.id} value={recipe.id.toString()} className="hover:bg-accent hover:text-accent-foreground">
+                    <option key={recipe.id} value={recipe.id.toString()}>
                       {recipe.title}
                     </option>
                   ))}

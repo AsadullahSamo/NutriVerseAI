@@ -577,13 +577,13 @@ export function CreatePantryItemDialog({ trigger }) {
                             <select
                               value={field.value}
                               onChange={(e) => field.onChange(e.target.value)}
-                              className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+                              className="navbar-dropdown-trigger"
                             >
-                              <option value="" className="hover:bg-accent hover:text-accent-foreground">Select packaging type</option>
-                              <option value="recyclable" className="hover:bg-accent hover:text-accent-foreground">Recyclable</option>
-                              <option value="biodegradable" className="hover:bg-accent hover:text-accent-foreground">Biodegradable</option>
-                              <option value="reusable" className="hover:bg-accent hover:text-accent-foreground">Reusable</option>
-                              <option value="non-recyclable" className="hover:bg-accent hover:text-accent-foreground">Non-Recyclable</option>
+                              <option value="">Select packaging type</option>
+                              <option value="recyclable">Recyclable</option>
+                              <option value="biodegradable">Biodegradable</option>
+                              <option value="reusable">Reusable</option>
+                              <option value="non-recyclable">Non-Recyclable</option>
                             </select>
                           </FormControl>
                           <FormMessage />
@@ -601,12 +601,12 @@ export function CreatePantryItemDialog({ trigger }) {
                             <select
                               value={field.value}
                               onChange={(e) => field.onChange(e.target.value)}
-                              className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
+                              className="navbar-dropdown-trigger"
                             >
-                              <option value="" className="hover:bg-accent hover:text-accent-foreground">Select carbon footprint</option>
-                              <option value="low" className="hover:bg-accent hover:text-accent-foreground">Low</option>
-                              <option value="medium" className="hover:bg-accent hover:text-accent-foreground">Medium</option>
-                              <option value="high" className="hover:bg-accent hover:text-accent-foreground">High</option>
+                              <option value="">Select carbon footprint</option>
+                              <option value="low">Low</option>
+                              <option value="medium">Medium</option>
+                              <option value="high">High</option>
                             </select>
                           </FormControl>
                           <FormMessage />

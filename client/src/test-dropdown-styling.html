@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dropdown Styling Test - NutriVerseAI</title>
+    <link rel="stylesheet" href="./index.css">
+    <style>
+        body {
+            padding: 2rem;
+            font-family: system-ui, -apple-system, sans-serif;
+            background: hsl(var(--background));
+            color: hsl(var(--foreground));
+        }
+        
+        .test-section {
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            border: 1px solid hsl(var(--border));
+            border-radius: 0.5rem;
+            background: hsl(var(--card));
+        }
+        
+        .test-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: hsl(var(--foreground));
+        }
+        
+        .test-description {
+            font-size: 0.875rem;
+            color: hsl(var(--muted-foreground));
+            margin-bottom: 1rem;
+        }
+        
+        .dropdown-container {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .dropdown-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="font-size: 2rem; font-weight: bold; margin-bottom: 2rem; text-align: center;">
+        🎨 Dropdown Styling Test - Navbar Consistency
+    </h1>
+    
+    <div class="test-section">
+        <div class="test-title">✅ Native HTML Select Elements</div>
+        <div class="test-description">
+            These should now match the navbar styling exactly with hover states, transitions, and colors.
+        </div>
+        <div class="dropdown-container">
+            <div>
+                <label class="dropdown-label">Meal Type:</label>
+                <select>
+                    <option value="">Select meal type</option>
+                    <option value="breakfast">Breakfast</option>
+                    <option value="lunch">Lunch</option>
+                    <option value="dinner">Dinner</option>
+                    <option value="snack">Snack</option>
+                </select>
+            </div>
+            
+            <div>
+                <label class="dropdown-label">Category:</label>
+                <select>
+                    <option value="">All Categories</option>
+                    <option value="nutrition">Nutrition</option>
+                    <option value="kitchen">Kitchen</option>
+                    <option value="recipes">Recipes</option>
+                </select>
+            </div>
+            
+            <div>
+                <label class="dropdown-label">Difficulty:</label>
+                <select>
+                    <option value="beginner">Beginner</option>
+                    <option value="intermediate">Intermediate</option>
+                    <option value="advanced">Advanced</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <div class="test-title">🎯 Custom Dropdown Classes</div>
+        <div class="test-description">
+            Testing the new navbar-dropdown-* classes for consistent styling.
+        </div>
+        <div class="dropdown-container">
+            <div style="position: relative;">
+                <label class="dropdown-label">Custom Trigger:</label>
+                <button class="navbar-dropdown-trigger" onclick="toggleDropdown('custom1')">
+                    <span>Select Option</span>
+                    <svg class="h-4 w-4 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+                <div id="custom1" class="navbar-dropdown-content" style="display: none;">
+                    <div class="py-1">
+                        <button class="navbar-dropdown-item" onclick="selectOption('custom1', 'Option 1')">Option 1</button>
+                        <button class="navbar-dropdown-item" onclick="selectOption('custom1', 'Option 2')">Option 2</button>
+                        <button class="navbar-dropdown-item" onclick="selectOption('custom1', 'Option 3')">Option 3</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <div class="test-title">🔍 Hover & Focus Testing</div>
+        <div class="test-description">
+            Hover over the dropdowns and options to test the navbar-consistent styling.
+        </div>
+        <div class="dropdown-container">
+            <div>
+                <label class="dropdown-label">Test Hover States:</label>
+                <select style="width: 200px;">
+                    <option value="">Hover over me!</option>
+                    <option value="test1">Test Option 1</option>
+                    <option value="test2">Test Option 2</option>
+                    <option value="test3">Test Option 3</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <div class="test-title">📋 Implementation Summary</div>
+        <div class="test-description">
+            All dropdown fields across the project now use consistent navbar styling:
+        </div>
+        <ul style="margin-top: 1rem; padding-left: 1.5rem; line-height: 1.6;">
+            <li>✅ Native HTML select elements</li>
+            <li>✅ Radix UI Select components</li>
+            <li>✅ Radix UI Dropdown Menu components</li>
+            <li>✅ Custom Select components</li>
+            <li>✅ Form select elements in dialogs</li>
+            <li>✅ Consistent hover states and transitions</li>
+            <li>✅ Navbar-matching colors and spacing</li>
+            <li>✅ Dark mode support</li>
+        </ul>
+    </div>
+
+    <script>
+        function toggleDropdown(id) {
+            const dropdown = document.getElementById(id);
+            const isVisible = dropdown.style.display !== 'none';
+            dropdown.style.display = isVisible ? 'none' : 'block';
+        }
+        
+        function selectOption(dropdownId, option) {
+            const trigger = document.querySelector(`#${dropdownId}`).previousElementSibling;
+            trigger.querySelector('span').textContent = option;
+            toggleDropdown(dropdownId);
+        }
+        
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.navbar-dropdown-trigger')) {
+                document.querySelectorAll('.navbar-dropdown-content').forEach(dropdown => {
+                    dropdown.style.display = 'none';
+                });
+            }
+        });
+    </script>
+</body>
+</html>
