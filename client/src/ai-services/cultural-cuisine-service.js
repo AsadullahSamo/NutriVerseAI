@@ -34,7 +34,9 @@ export async function generateCuisineDetailsFromName(name, region) {
 
 export async function getCulturalContext(recipe, cuisine) {
   const apiUrl = `${config.apiBaseUrl}/api/cultural-recipes/${recipe.id}/context`;
-  const response = await fetch(apiUrl);
+  const response = await fetch(apiUrl, {
+    credentials: 'include'
+  });
   if (!response.ok) throw new Error("Failed to get cultural context");
   return await response.json();
 }
@@ -67,23 +69,29 @@ export async function getTechniqueTips(technique, cuisine) {
   return await response.json();
 }
 
-export async function getSubstitutions(ingredient, cuisine) {
-  const apiUrl = `${config.apiBaseUrl}/api/cultural-cuisines/${cuisine.id}/ingredients/${ingredient.id}/substitutions`;
-  const response = await fetch(apiUrl);
+export async function getSubstitutions(recipe, pantryItems, region) {
+  const apiUrl = `${config.apiBaseUrl}/api/cultural-recipes/${recipe.id}/substitutions`;
+  const response = await fetch(apiUrl, {
+    credentials: 'include'
+  });
   if (!response.ok) throw new Error("Failed to get substitutions");
   return await response.json();
 }
 
-export async function getPairings(ingredient, cuisine) {
-  const apiUrl = `${config.apiBaseUrl}/api/cultural-cuisines/${cuisine.id}/ingredients/${ingredient.id}/pairings`;
-  const response = await fetch(apiUrl);
+export async function getPairings(recipe, cuisine) {
+  const apiUrl = `${config.apiBaseUrl}/api/cultural-recipes/${recipe.id}/pairings`;
+  const response = await fetch(apiUrl, {
+    credentials: 'include'
+  });
   if (!response.ok) throw new Error("Failed to get pairings");
   return await response.json();
 }
 
-export async function getEtiquette(cuisine) {
-  const apiUrl = `${config.apiBaseUrl}/api/cultural-cuisines/${cuisine.id}/etiquette`;
-  const response = await fetch(apiUrl);
+export async function getEtiquette(recipe, cuisine) {
+  const apiUrl = `${config.apiBaseUrl}/api/cultural-recipes/${recipe.id}/etiquette`;
+  const response = await fetch(apiUrl, {
+    credentials: 'include'
+  });
   if (!response.ok) throw new Error("Failed to get etiquette");
   return await response.json();
 }

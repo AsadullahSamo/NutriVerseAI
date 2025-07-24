@@ -47,8 +47,7 @@ import {
   getTechniqueTips,
   getSubstitutions,
   getPairings,
-  getEtiquette,
-  getCulturalContext
+  getEtiquette
 } from "@ai-services/cultural-cuisine-service"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { generateCulturalRecipeDetails } from "@ai-services/cultural-cuisine-service"
@@ -184,13 +183,9 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
     setLoading(true)
     try {
       console.log("Fetching etiquette for:", recipe.name)
-      const [etiquetteData, culturalData] = await Promise.all([
-        getEtiquette(recipe, cuisine),
-        getCulturalContext(recipe, cuisine) // New function to get cultural context
-      ])
+      const etiquetteData = await getEtiquette(recipe, cuisine)
 
       console.log("Etiquette response:", etiquetteData)
-      console.log("Cultural context response:", culturalData)
 
       if (etiquetteData) {
         setEtiquette({
@@ -199,22 +194,6 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
           taboos: etiquetteData.taboos || [],
           servingOrder: etiquetteData.servingOrder || []
         })
-      }
-
-      if (culturalData) {
-        setCulturalContext(culturalData)
-        // Convert CulturalContext to Record<string, string>
-        const formattedCulturalData = {
-          history: culturalData.history || "",
-          significance: culturalData.significance || "",
-          variations: culturalData.variations || ""
-        }
-        try {
-          await handleUpdateRecipe({ culturalNotes: formattedCulturalData }, false)
-        } catch (updateError) {
-          console.error("Error updating recipe with cultural notes:", updateError)
-          // Don't show error toast here since the etiquette was still generated successfully
-        }
       }
     } catch (error) {
       console.error("Error fetching etiquette:", error)
@@ -447,13 +426,16 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
         }
       }
 
-      toast.success("Recipe Details Generated", {
+      toast({
+        title: "Recipe Details Generated",
         description: "AI has generated recipe details. Feel free to edit them."
       })
     } catch (error) {
-      toast.error("Generation Failed", {
+      toast({
+        title: "Generation Failed",
         description:
-          "Failed to generate recipe details. Please try again or enter manually."
+          "Failed to generate recipe details. Please try again or enter manually.",
+        variant: "destructive"
       })
     } finally {
       setIsGenerating(false)
