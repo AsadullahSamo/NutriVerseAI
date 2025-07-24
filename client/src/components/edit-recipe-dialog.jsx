@@ -120,18 +120,27 @@ export function EditRecipeDialog({ recipe, trigger }) {
 
   const editRecipeMutation = useMutation({
     mutationFn: async data => {
+      console.log("Edit Recipe Mutation - Starting update for recipe:", recipe.id)
+      console.log("Edit Recipe Mutation - Form data:", data)
+
       // Always use the latest calculated score
       const payload = {
         ...data,
         sustainabilityScore: latestScoreRef.current
       }
 
+      console.log("Edit Recipe Mutation - Final payload:", payload)
+
       const res = await apiRequest(
         "PATCH",
         `/api/recipes/${recipe.id}`,
         payload
       )
-      return res.json()
+
+      console.log("Edit Recipe Mutation - API response status:", res.status)
+      const result = await res.json()
+      console.log("Edit Recipe Mutation - API response data:", result)
+      return result
     },
     onSuccess: () => {
       // Invalidate all related queries to ensure synchronization between pages
@@ -187,9 +196,11 @@ export function EditRecipeDialog({ recipe, trigger }) {
           <div className="flex-1 dialog-scroll-area pr-2 min-h-0">
             <Form {...form}>
               <form
-                onSubmit={form.handleSubmit(data =>
+                onSubmit={form.handleSubmit(data => {
+                  console.log("Form submitted with data:", data)
+                  console.log("Form validation errors:", form.formState.errors)
                   editRecipeMutation.mutate(data)
-                )}
+                })}
                 className="space-y-4"
               >
             <FormField
@@ -424,6 +435,11 @@ export function EditRecipeDialog({ recipe, trigger }) {
               type="submit"
               className="w-full"
               disabled={editRecipeMutation.isPending}
+              onClick={() => {
+                console.log("Update Recipe button clicked!")
+                console.log("Form state:", form.formState)
+                console.log("Form values:", form.getValues())
+              }}
             >
               {editRecipeMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
