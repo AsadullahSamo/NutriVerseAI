@@ -28,14 +28,26 @@ async function throwIfResNotOk(res) {
 }
 
 export async function apiRequest(method, path, body, customHeaders) {
+  // Get token for authentication
+  const token = localStorage.getItem('authToken')
+
   const response = await fetch(`${config.apiBaseUrl}${path}`, {
     method,
     headers: {
       "Content-Type": "application/json",
+      "Accept": "application/json",
+      // Include token authentication if available
+      ...(token && { "Authorization": `Bearer ${token}` }),
       ...customHeaders
     },
     body: body ? JSON.stringify(body) : undefined,
-    credentials: "include"
+    credentials: "include" // For session-based auth
+  })
+
+  console.log(`API Request: ${method} ${path}`, {
+    hasToken: !!token,
+    token: token,
+    status: response.status
   })
 
   if (!response.ok) {
@@ -43,6 +55,9 @@ export async function apiRequest(method, path, body, customHeaders) {
 
     // Handle specific error cases
     if (response.status === 401) {
+      // Clear invalid token on 401 error
+      localStorage.removeItem('authToken')
+      console.log('401 error - cleared invalid token')
       // Use the server's error message if available, otherwise provide a more specific message
       throw new Error(error.message || "Authentication required. Please log in to continue.")
     } else if (response.status === 403) {
