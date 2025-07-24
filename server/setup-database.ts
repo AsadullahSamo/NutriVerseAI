@@ -89,16 +89,15 @@ async function setupDatabase(connectionString?: string) {
       );
 
       CREATE TABLE IF NOT EXISTS "community_posts" (
-        "id" integer PRIMARY KEY,
-        "user_id" integer,
-        "recipe_id" integer,
-        "content" text,
-        "type" text,
+        "id" serial PRIMARY KEY NOT NULL,
+        "user_id" integer NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+        "recipe_id" integer REFERENCES "recipes"("id") ON DELETE SET NULL,
+        "content" text NOT NULL,
+        "type" text NOT NULL,
         "location" jsonb,
-        "created_at" timestamp without time zone,
-        "hidden_for" jsonb,
-        "username" text,
-        "updated_at" timestamp without time zone
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "hidden_for" jsonb DEFAULT '[]' NOT NULL,
+        "username" text NOT NULL
       );
 
       CREATE TABLE IF NOT EXISTS "grocery_lists" (
@@ -237,55 +236,55 @@ async function setupDatabase(connectionString?: string) {
       );
 
       CREATE TABLE IF NOT EXISTS "cultural_cuisines" (
-        "id" integer PRIMARY KEY,
-        "name" character varying,
-        "region" character varying,
-        "description" text,
-        "key_ingredients" jsonb,
-        "cooking_techniques" jsonb,
-        "cultural_context" jsonb,
-        "serving_etiquette" jsonb,
-        "created_at" timestamp without time zone,
+        "id" serial PRIMARY KEY NOT NULL,
+        "name" text NOT NULL,
+        "region" text NOT NULL,
+        "description" text NOT NULL,
+        "key_ingredients" jsonb NOT NULL,
+        "cooking_techniques" jsonb NOT NULL,
+        "cultural_context" jsonb NOT NULL,
+        "serving_etiquette" jsonb NOT NULL,
+        "created_at" timestamp DEFAULT now() NOT NULL,
         "image_url" text,
         "banner_url" text,
         "color" text,
-        "tags" text[],
-        "visual" jsonb,
-        "created_by" integer,
-        "hidden_for" jsonb
+        "tags" jsonb,
+        "visual" jsonb DEFAULT '{"primaryColor": "#E2E8F0", "textColor": "#1A202C", "accentColor": "#4A5568"}',
+        "created_by" integer REFERENCES "users"("id"),
+        "hidden_for" jsonb DEFAULT '[]'
       );
 
       CREATE TABLE IF NOT EXISTS "cultural_recipes" (
-        "id" integer PRIMARY KEY,
-        "cuisine_id" integer,
-        "name" character varying,
-        "local_name" character varying,
-        "description" text,
-        "difficulty" character varying,
-        "authentic_ingredients" jsonb,
+        "id" serial PRIMARY KEY NOT NULL,
+        "cuisine_id" integer NOT NULL REFERENCES "cultural_cuisines"("id") ON DELETE CASCADE,
+        "name" text NOT NULL,
+        "local_name" text,
+        "description" text NOT NULL,
+        "difficulty" text NOT NULL,
+        "authentic_ingredients" jsonb NOT NULL,
         "local_substitutes" jsonb,
-        "instructions" jsonb,
-        "cultural_notes" jsonb,
-        "serving_suggestions" jsonb,
+        "instructions" jsonb NOT NULL,
+        "cultural_notes" jsonb NOT NULL,
+        "serving_suggestions" jsonb NOT NULL,
         "complementary_dishes" jsonb,
-        "created_at" timestamp without time zone,
-        "updated_at" timestamp without time zone,
+        "created_at" timestamp DEFAULT now() NOT NULL,
+        "updated_at" timestamp DEFAULT now() NOT NULL,
         "image_url" text,
-        "created_by" integer,
-        "hidden_for" jsonb
+        "created_by" integer REFERENCES "users"("id"),
+        "hidden_for" jsonb DEFAULT '[]'
       );
 
       CREATE TABLE IF NOT EXISTS "cultural_techniques" (
-        "id" integer PRIMARY KEY,
-        "cuisine_id" integer,
-        "name" character varying,
-        "description" text,
-        "difficulty" character varying,
-        "steps" jsonb,
-        "tips" jsonb,
-        "common_uses" jsonb,
+        "id" serial PRIMARY KEY NOT NULL,
+        "cuisine_id" integer NOT NULL REFERENCES "cultural_cuisines"("id") ON DELETE CASCADE,
+        "name" text NOT NULL,
+        "description" text NOT NULL,
+        "difficulty" text NOT NULL,
+        "steps" jsonb NOT NULL,
+        "tips" jsonb NOT NULL,
+        "common_uses" jsonb NOT NULL,
         "video_url" text,
-        "created_at" timestamp without time zone
+        "created_at" timestamp DEFAULT now() NOT NULL
       );
 
       CREATE TABLE IF NOT EXISTS "kitchen_equipment" (

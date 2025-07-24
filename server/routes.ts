@@ -1438,29 +1438,26 @@ export async function registerRoutes(app) {
     }
   });
 
-  app.patch('/api/cultural-recipes/:id', isAuthenticated, async (req, res) => {
+  app.patch('/api/cultural-recipes/:id', isAuthenticated, asyncHandler(async (req, res) => {
     try {
-      const { imageUrl, ...otherUpdates } = req.body;
-      
-      const [updatedRecipe] = await db.update(culturalRecipes)
-        .set({
-          ...otherUpdates,
-          imageUrl: imageUrl || null,
-          updatedAt: new Date()
-        })
-        .where(eq(culturalRecipes.id, parseInt(req.params.id)))
-        .returning();
+      const { id } = req.params;
+      const recipeData = req.body;
 
-                            if (!updatedRecipe) {
+      const recipe = await storage.updateCulturalRecipe(parseInt(id), {
+        ...recipeData,
+        imageUrl: recipeData.imageUrl || null,
+      });
+
+      if (!recipe) {
         return res.status(404).json({ error: 'Recipe not found' });
-                            }
+      }
 
-                            res.json(updatedRecipe);
+      res.json(recipe);
     } catch (error) {
       console.error('Error updating recipe:', error);
-                            res.status(500).json({ error: 'Failed to update recipe' });
-                    }
-                });
+      res.status(500).json({ error: 'Failed to update recipe' });
+    }
+  }));
 
             // ----------------- User Recipes Routes -----------------
   app.get(
@@ -1518,22 +1515,7 @@ export async function registerRoutes(app) {
                     }
   }));
 
-            // Update the recipe update endpoint
-  app.patch('/api/cultural-recipes/:id', asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const recipeData = req.body;
-    
-    try {
-      const recipe = await storage.updateCulturalRecipe(parseInt(id), {
-        ...recipeData,
-        image_url: recipeData.image_url || null,
-      });
-                            res.json(recipe);
-    } catch (error) {
-      console.error('Error updating recipe:', error);
-                            res.status(500).json({ error: 'Failed to update recipe' });
-                    }
-  }));
+
 
   // Add recipe generation endpoint
   app.post('/api/ai/generate-recipe', async (req, res) => {
