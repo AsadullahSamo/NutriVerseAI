@@ -135,30 +135,49 @@ export function EditRecipeDialog({ recipe, trigger }) {
         forkedFrom: data.forkedFrom || undefined
       }
 
-      // Use direct fetch with explicit authentication to bypass server middleware issues
+      // Use XMLHttpRequest to completely bypass fetch overrides and middleware issues
       const token = localStorage.getItem('authToken')
-      console.log('Direct fetch attempt with token:', token)
+      console.log('Using XMLHttpRequest with token:', token)
 
-      const response = await fetch(`${config.apiBaseUrl}/api/recipes/${recipe.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        },
-        body: JSON.stringify(payload),
-        credentials: 'include'
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest()
+        xhr.open('PATCH', `${config.apiBaseUrl}/api/recipes/${recipe.id}`)
+
+        // Set headers
+        xhr.setRequestHeader('Content-Type', 'application/json')
+        xhr.setRequestHeader('Accept', 'application/json')
+        if (token) {
+          xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+        }
+
+        // Enable credentials for session auth
+        xhr.withCredentials = true
+
+        xhr.onload = function() {
+          console.log('XMLHttpRequest response:', xhr.status, xhr.statusText)
+
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const result = JSON.parse(xhr.responseText)
+              console.log('Update successful:', result)
+              resolve(result)
+            } catch (e) {
+              console.log('Update successful (no JSON response)')
+              resolve({})
+            }
+          } else {
+            console.error('XMLHttpRequest failed:', xhr.status, xhr.responseText)
+            reject(new Error(`Failed to update recipe: ${xhr.status} ${xhr.statusText}`))
+          }
+        }
+
+        xhr.onerror = function() {
+          console.error('XMLHttpRequest network error')
+          reject(new Error('Network error occurred'))
+        }
+
+        xhr.send(JSON.stringify(payload))
       })
-
-      console.log('Direct fetch response:', response.status, response.statusText)
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('Server response:', errorText)
-        throw new Error(`Failed to update recipe: ${response.status} ${response.statusText}`)
-      }
-
-      return response.json()
     },
     onSuccess: () => {
       // Invalidate all related queries to ensure synchronization between pages
