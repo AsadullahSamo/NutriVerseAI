@@ -825,22 +825,22 @@ export function CuisineDetails({ cuisineId, onBack }) {
                       Add Recipe
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="max-h-[90vh]">
-                    <ScrollArea className="max-h-[80vh] pr-4">
-                      
-                    <Alert className="mb-6 border-green-500">
-                            <Info className="size-4 text-yellow-500"/>
-                            <AlertDescription className="ml-2">
-                              <span>
-                                Enter the name of the recipe and click the <span className="inline-flex mx-2 font-bold"><Sparkles className="size-4 text-green-500 mr-2"/> Generate</span> button to auto-fill recipe details using AI. You'll need to add an image URL manually.
-                              </span>
-                            </AlertDescription>
-                          </Alert>
-            
-
-                      <DialogHeader>
-                        <DialogTitle>Add New Recipe</DialogTitle>
-                      </DialogHeader>
+                  <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+                    <DialogHeader className="flex-shrink-0">
+                      <DialogTitle>Add New Recipe</DialogTitle>
+                      <DialogDescription>
+                        Add a traditional recipe to {cuisine.name} cuisine.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex-1 dialog-scroll-area pr-4 min-h-0">
+                      <Alert className="mb-6 border-green-500">
+                        <Info className="size-4 text-yellow-500"/>
+                        <AlertDescription className="ml-2">
+                          <span>
+                            Enter the name of the recipe and click the <span className="inline-flex mx-2 font-bold"><Sparkles className="size-4 text-green-500 mr-2"/> Generate</span> button to auto-fill recipe details using AI. You'll need to add an image URL manually.
+                          </span>
+                        </AlertDescription>
+                      </Alert>
                           
                       <form onSubmit={handleAddRecipe} className="space-y-6 py-4">
                         <div className="space-y-4">
@@ -904,7 +904,7 @@ export function CuisineDetails({ cuisineId, onBack }) {
                             </>) : ('Add Recipe')}
                         </Button>
                       </form>
-                    </ScrollArea>
+                    </div>
                   </DialogContent>
                 </Dialog>
               </div>
