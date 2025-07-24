@@ -1,11 +1,4 @@
-import { useState, useMemo } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
-} from "@/components/ui/dialog"
+import React, { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useForm } from "react-hook-form"
@@ -33,7 +26,7 @@ import {
   Sparkles
 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { CustomSelect, CustomSelectItem } from "@/components/ui/custom-select"
+
 import { Badge } from "@/components/ui/badge"
 import { generatePantryItemDetails } from "@ai-services/recipe-ai"
 
@@ -575,22 +568,17 @@ export function CreatePantryItemDialog({ trigger }) {
                         <FormItem>
                           <FormLabel>Packaging Type</FormLabel>
                           <FormControl>
-                            <CustomSelect
+                            <select
                               value={field.value}
-                              onValueChange={value => field.onChange(value)}
-                              placeholder="Select packaging type"
+                              onChange={(e) => field.onChange(e.target.value)}
+                              className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
                             >
-                              <CustomSelectItem value="recyclable">
-                                Recyclable
-                              </CustomSelectItem>
-                              <CustomSelectItem value="biodegradable">
-                                Biodegradable
-                              </CustomSelectItem>
-                              <CustomSelectItem value="reusable">Reusable</CustomSelectItem>
-                              <CustomSelectItem value="non-recyclable">
-                                Non-Recyclable
-                              </CustomSelectItem>
-                            </CustomSelect>
+                              <option value="" className="hover:bg-accent hover:text-accent-foreground">Select packaging type</option>
+                              <option value="recyclable" className="hover:bg-accent hover:text-accent-foreground">Recyclable</option>
+                              <option value="biodegradable" className="hover:bg-accent hover:text-accent-foreground">Biodegradable</option>
+                              <option value="reusable" className="hover:bg-accent hover:text-accent-foreground">Reusable</option>
+                              <option value="non-recyclable" className="hover:bg-accent hover:text-accent-foreground">Non-Recyclable</option>
+                            </select>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -604,15 +592,16 @@ export function CreatePantryItemDialog({ trigger }) {
                         <FormItem>
                           <FormLabel>Carbon Footprint</FormLabel>
                           <FormControl>
-                            <CustomSelect
+                            <select
                               value={field.value}
-                              onValueChange={value => field.onChange(value)}
-                              placeholder="Select carbon footprint"
+                              onChange={(e) => field.onChange(e.target.value)}
+                              className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
                             >
-                              <CustomSelectItem value="low">Low</CustomSelectItem>
-                              <CustomSelectItem value="medium">Medium</CustomSelectItem>
-                              <CustomSelectItem value="high">High</CustomSelectItem>
-                            </CustomSelect>
+                              <option value="" className="hover:bg-accent hover:text-accent-foreground">Select carbon footprint</option>
+                              <option value="low" className="hover:bg-accent hover:text-accent-foreground">Low</option>
+                              <option value="medium" className="hover:bg-accent hover:text-accent-foreground">Medium</option>
+                              <option value="high" className="hover:bg-accent hover:text-accent-foreground">High</option>
+                            </select>
                           </FormControl>
                           <FormMessage />
                         </FormItem>

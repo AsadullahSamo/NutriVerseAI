@@ -1,17 +1,16 @@
 import * as React from "react"
-import {
-  Line,
-  LineChart as RechartsLineChart,
-  ResponsiveContainer,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
-  Pie,
-  PieChart as RechartsPieChart,
-  Cell
-} from "recharts"
 import { cn } from "@/lib/utils"
+
+// Simple client-side check
+function useIsClient() {
+  const [isClient, setIsClient] = React.useState(false)
+
+  React.useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  return isClient
+}
 
 export function LineChart({
   data,
@@ -21,67 +20,103 @@ export function LineChart({
   valueFormatter,
   className
 }) {
-  return (
-    <div className={cn("h-[200px] w-full", className)}>
-      <ResponsiveContainer width="100%" height="100%">
-        <RechartsLineChart
-          data={data}
-          margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-        >
-          <XAxis
-            dataKey={index}
-            stroke="#888888"
-            fontSize={12}
-            tickLine={false}
-            axisLine={false}
-          />
-          <YAxis
-            stroke="#888888"
-            fontSize={12}
-            tickLine={false}
-            axisLine={false}
-            tickFormatter={valueFormatter}
-          />
-          <Tooltip
-            content={({ active, payload }) => {
-              if (!active || !payload) return null
-              return (
-                <div className="rounded-lg border bg-background p-2 shadow-sm">
-                  <div className="grid grid-cols-2 gap-2">
-                    {payload.map(category => (
-                      <div
-                        key={`${category.dataKey}`}
-                        className="flex flex-col"
-                      >
-                        <span className="text-[0.70rem] uppercase text-muted-foreground">
-                          {category.dataKey}
-                        </span>
-                        <span className="font-bold text-muted-foreground">
-                          {valueFormatter && typeof category.value === "number"
-                            ? valueFormatter(category.value)
-                            : category.value}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )
-            }}
-          />
-          {categories.map((category, i) => (
-            <Line
-              key={category}
-              type="monotone"
-              dataKey={category}
-              stroke={colors[i % colors.length]}
-              strokeWidth={2}
-              dot={false}
+  const isClient = useIsClient()
+  const [RechartsComponents, setRechartsComponents] = React.useState(null)
+  const [error, setError] = React.useState(null)
+
+  React.useEffect(() => {
+    if (isClient) {
+      // Try to import recharts with better error handling
+      import('recharts')
+        .then((recharts) => {
+          console.log('[Chart] Recharts loaded successfully:', recharts)
+          setRechartsComponents(recharts)
+        })
+        .catch((err) => {
+          console.error('[Chart] Failed to load recharts:', err)
+          setError(err)
+        })
+    }
+  }, [isClient])
+
+  if (!isClient) {
+    return (
+      <div className={cn("h-[200px] w-full flex items-center justify-center bg-muted/50 rounded-lg", className)}>
+        <div className="text-sm text-muted-foreground animate-pulse">Initializing chart...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className={cn("h-[200px] w-full flex items-center justify-center bg-muted/50 rounded-lg border-2 border-dashed", className)}>
+        <div className="text-center">
+          <div className="text-sm text-muted-foreground mb-2">Chart unavailable</div>
+          <div className="text-xs text-muted-foreground">Data: {data?.length || 0} points</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!RechartsComponents) {
+    return (
+      <div className={cn("h-[200px] w-full flex items-center justify-center bg-muted/50 rounded-lg", className)}>
+        <div className="text-sm text-muted-foreground animate-pulse">Loading chart library...</div>
+      </div>
+    )
+  }
+
+  try {
+    const { LineChart: RechartsLineChart, Line, ResponsiveContainer, XAxis, YAxis, Tooltip, Legend } = RechartsComponents
+
+    return (
+      <div className={cn("h-[200px] w-full", className)}>
+        <ResponsiveContainer width="100%" height="100%">
+          <RechartsLineChart data={data}>
+            <XAxis
+              dataKey={index}
+              tick={{ fontSize: 12 }}
+              tickLine={{ stroke: '#374151' }}
             />
-          ))}
-        </RechartsLineChart>
-      </ResponsiveContainer>
-    </div>
-  )
+            <YAxis
+              tick={{ fontSize: 12 }}
+              tickLine={{ stroke: '#374151' }}
+              tickFormatter={valueFormatter}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: 'hsl(var(--background))',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: '6px'
+              }}
+              formatter={valueFormatter}
+            />
+            <Legend />
+            {categories.map((category, idx) => (
+              <Line
+                key={category}
+                type="monotone"
+                dataKey={category}
+                stroke={colors[idx % colors.length]}
+                strokeWidth={2}
+                dot={{ fill: colors[idx % colors.length], strokeWidth: 2, r: 4 }}
+              />
+            ))}
+          </RechartsLineChart>
+        </ResponsiveContainer>
+      </div>
+    )
+  } catch (renderError) {
+    console.error('[Chart] Error rendering chart:', renderError)
+    return (
+      <div className={cn("h-[200px] w-full flex items-center justify-center bg-muted/50 rounded-lg border-2 border-dashed", className)}>
+        <div className="text-center">
+          <div className="text-sm text-muted-foreground mb-2">Chart render error</div>
+          <div className="text-xs text-muted-foreground">Data: {data?.length || 0} points</div>
+        </div>
+      </div>
+    )
+  }
 }
 
 export function PieChart({
@@ -89,7 +124,26 @@ export function PieChart({
   colors = ["#2563eb", "#f59e0b", "#10b981", "#3730a3", "#dc2626"],
   className
 }) {
-  const total = data.reduce((sum, item) => sum + item.value, 0)
+  const isClient = useIsClient()
+  const [RechartsComponents, setRechartsComponents] = React.useState(null)
+
+  React.useEffect(() => {
+    if (isClient) {
+      import('recharts').then((recharts) => {
+        setRechartsComponents(recharts)
+      }).catch(console.error)
+    }
+  }, [isClient])
+
+  if (!isClient || !RechartsComponents) {
+    return (
+      <div className={cn("h-[200px] w-full flex items-center justify-center bg-muted/50 rounded-lg", className)}>
+        <div className="text-sm text-muted-foreground animate-pulse">Loading chart...</div>
+      </div>
+    )
+  }
+
+  const { PieChart: RechartsPieChart, Pie, ResponsiveContainer, Tooltip, Legend, Cell } = RechartsComponents
 
   return (
     <div className={cn("h-[200px] w-full", className)}>
@@ -97,65 +151,24 @@ export function PieChart({
         <RechartsPieChart>
           <Pie
             data={data}
-            dataKey="value"
-            nameKey="name"
             cx="50%"
             cy="50%"
-            innerRadius={60}
-            outerRadius={80}
-            paddingAngle={2}
+            outerRadius={60}
+            dataKey="value"
+            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
           >
-            {data.map((_, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={colors[index % colors.length]}
-              />
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
             ))}
           </Pie>
           <Tooltip
-            content={({ active, payload }) => {
-              if (!active || !payload?.[0]) return null
-              const item = payload[0]
-              const percentage = ((Number(item.value) / total) * 100).toFixed(1)
-              return (
-                <div className="rounded-lg border bg-background p-2 shadow-sm">
-                  <div className="flex flex-col">
-                    <span className="text-[0.70rem] uppercase text-muted-foreground">
-                      {item.name}
-                    </span>
-                    <span className="font-bold">
-                      {item.value} ({percentage}%)
-                    </span>
-                  </div>
-                </div>
-              )
+            contentStyle={{
+              backgroundColor: 'hsl(var(--background))',
+              border: '1px solid hsl(var(--border))',
+              borderRadius: '6px'
             }}
           />
-          <Legend
-            verticalAlign="bottom"
-            height={36}
-            content={({ payload }) => {
-              if (!payload) return null
-              return (
-                <div className="flex flex-wrap justify-center gap-4">
-                  {payload.map((entry, index) => (
-                    <div
-                      key={`legend-${index}`}
-                      className="flex items-center gap-1"
-                    >
-                      <div
-                        className="h-2 w-2 rounded-full"
-                        style={{
-                          backgroundColor: colors[index % colors.length]
-                        }}
-                      />
-                      <span className="text-xs font-medium">{entry.value}</span>
-                    </div>
-                  ))}
-                </div>
-              )
-            }}
-          />
+          <Legend />
         </RechartsPieChart>
       </ResponsiveContainer>
     </div>

@@ -1,11 +1,4 @@
-import { useState, useMemo } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
-} from "@/components/ui/dialog"
+import React, { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useForm } from "react-hook-form"
@@ -31,7 +24,7 @@ import {
   AlertTriangle
 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { CustomSelect, CustomSelectItem } from "@/components/ui/custom-select"
+
 import { Badge } from "@/components/ui/badge"
 
 export function EditPantryItemDialog({ item, trigger }) {
@@ -203,19 +196,44 @@ export function EditPantryItemDialog({ item, trigger }) {
     }
   })
 
+  // Simple modal component
+  const Modal = ({ isOpen, onClose, children }) => {
+    if (!isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+        <div className="relative bg-background border rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+          <div className="flex items-center justify-between p-6 border-b">
+            <h2 className="text-lg font-semibold">Edit Pantry Item</h2>
+            <button
+              onClick={onClose}
+              className="h-8 w-8 rounded-full hover:bg-accent hover:text-accent-foreground flex items-center justify-center text-xl font-bold"
+            >
+              ×
+            </button>
+          </div>
+          <div className="p-6 max-h-[calc(90vh-120px)] overflow-y-auto">
+            {children}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <Pencil className="h-4 w-4" />
-          </Button>
-        )}
-      </DialogTrigger>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Edit Pantry Item</DialogTitle>
-        </DialogHeader>
+    <>
+      {trigger ? (
+        React.cloneElement(trigger, {
+          onClick: () => setOpen(true)
+        })
+      ) : (
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setOpen(true)}>
+          <Pencil className="h-4 w-4" />
+        </Button>
+      )}
+
+      <Modal isOpen={open} onClose={() => setOpen(false)}>
         <div className="px-1 pb-6">
           <Form {...form}>
             <form
@@ -458,22 +476,17 @@ export function EditPantryItemDialog({ item, trigger }) {
                         <FormItem>
                           <FormLabel>Packaging Type</FormLabel>
                           <FormControl>
-                            <CustomSelect
+                            <select
                               value={field.value}
-                              onValueChange={value => field.onChange(value)}
-                              placeholder="Select packaging type"
+                              onChange={(e) => field.onChange(e.target.value)}
+                              className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
                             >
-                              <CustomSelectItem value="recyclable">
-                                Recyclable
-                              </CustomSelectItem>
-                              <CustomSelectItem value="biodegradable">
-                                Biodegradable
-                              </CustomSelectItem>
-                              <CustomSelectItem value="reusable">Reusable</CustomSelectItem>
-                              <CustomSelectItem value="non-recyclable">
-                                Non-Recyclable
-                              </CustomSelectItem>
-                            </CustomSelect>
+                              <option value="" className="hover:bg-accent hover:text-accent-foreground">Select packaging type</option>
+                              <option value="recyclable" className="hover:bg-accent hover:text-accent-foreground">Recyclable</option>
+                              <option value="biodegradable" className="hover:bg-accent hover:text-accent-foreground">Biodegradable</option>
+                              <option value="reusable" className="hover:bg-accent hover:text-accent-foreground">Reusable</option>
+                              <option value="non-recyclable" className="hover:bg-accent hover:text-accent-foreground">Non-Recyclable</option>
+                            </select>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -487,15 +500,16 @@ export function EditPantryItemDialog({ item, trigger }) {
                         <FormItem>
                           <FormLabel>Carbon Footprint</FormLabel>
                           <FormControl>
-                            <CustomSelect
+                            <select
                               value={field.value}
-                              onValueChange={value => field.onChange(value)}
-                              placeholder="Select carbon footprint"
+                              onChange={(e) => field.onChange(e.target.value)}
+                              className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent hover:bg-accent hover:text-accent-foreground transition-colors cursor-pointer"
                             >
-                              <CustomSelectItem value="low">Low</CustomSelectItem>
-                              <CustomSelectItem value="medium">Medium</CustomSelectItem>
-                              <CustomSelectItem value="high">High</CustomSelectItem>
-                            </CustomSelect>
+                              <option value="" className="hover:bg-accent hover:text-accent-foreground">Select carbon footprint</option>
+                              <option value="low" className="hover:bg-accent hover:text-accent-foreground">Low</option>
+                              <option value="medium" className="hover:bg-accent hover:text-accent-foreground">Medium</option>
+                              <option value="high" className="hover:bg-accent hover:text-accent-foreground">High</option>
+                            </select>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -556,7 +570,7 @@ export function EditPantryItemDialog({ item, trigger }) {
             </form>
           </Form>
         </div>
-      </DialogContent>
-    </Dialog>
+      </Modal>
+    </>
   )
 }

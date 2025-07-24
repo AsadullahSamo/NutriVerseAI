@@ -387,7 +387,12 @@ class DatabaseStorage {
   }
 
   async createCommunityPost(post) {
-    const [newPost] = await db.insert(communityPosts).values(post).returning();
+    // Ensure id field is not included to avoid constraint violations
+    const { id, ...postData } = post;
+    console.log('[Storage] Creating community post with data:', postData);
+
+    const [newPost] = await db.insert(communityPosts).values(postData).returning();
+    console.log('[Storage] Created community post successfully:', newPost);
     return newPost;
   }
 

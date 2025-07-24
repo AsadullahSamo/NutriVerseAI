@@ -154,12 +154,43 @@ export function EditRecipeDialog({ recipe, trigger }) {
     }
   })
 
+  // Simple modal component
+  const Modal = ({ isOpen, onClose, children }) => {
+    if (!isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        {/* Backdrop */}
+        <div
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+          onClick={onClose}
+        />
+
+        {/* Modal Content */}
+        <div className="relative bg-background border rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+          <div className="flex items-center justify-between p-6 border-b">
+            <h2 className="text-lg font-semibold">Edit Recipe</h2>
+            <button
+              onClick={onClose}
+              className="h-8 w-8 rounded-full hover:bg-accent hover:text-accent-foreground flex items-center justify-center text-xl font-bold"
+            >
+              ×
+            </button>
+          </div>
+          <div className="p-6 max-h-[calc(90vh-120px)] overflow-y-auto">
+            {children}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
       {trigger ? (
-        <div onClick={() => setOpen(true)}>
-          {trigger}
-        </div>
+        React.cloneElement(trigger, {
+          onClick: () => setOpen(true)
+        })
       ) : (
         <Button variant="ghost" size="sm" onClick={() => setOpen(true)}>
           <Pencil className="h-4 w-4 mr-2" />
@@ -167,28 +198,7 @@ export function EditRecipeDialog({ recipe, trigger }) {
         </Button>
       )}
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-black/50"
-            onClick={() => setOpen(false)}
-          />
-
-          {/* Modal Content */}
-          <div className="relative bg-background border rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-6 border-b">
-              <h2 className="text-lg font-semibold">Edit Recipe</h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setOpen(false)}
-                className="h-6 w-6 p-0"
-              >
-                ×
-              </Button>
-            </div>
-            <div className="p-6">
+      <Modal isOpen={open} onClose={() => setOpen(false)}>
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(data =>
@@ -436,10 +446,7 @@ export function EditRecipeDialog({ recipe, trigger }) {
             </Button>
           </form>
         </Form>
-            </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </>
   )
 }
