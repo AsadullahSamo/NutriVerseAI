@@ -25,6 +25,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient"
 import { useToast } from "@/hooks/use-toast"
 import { Pencil, Loader2, Info } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import config from "@/lib/config"
 
 export function EditRecipeDialog({ recipe, trigger }) {
   const [open, setOpen] = useState(false)
@@ -134,12 +135,30 @@ export function EditRecipeDialog({ recipe, trigger }) {
         forkedFrom: data.forkedFrom || undefined
       }
 
-      const res = await apiRequest(
-        "PATCH",
-        `/api/recipes/${recipe.id}`,
-        payload
-      )
-      return res.json()
+      // Use direct fetch with explicit authentication to bypass server middleware issues
+      const token = localStorage.getItem('authToken')
+      console.log('Direct fetch attempt with token:', token)
+
+      const response = await fetch(`${config.apiBaseUrl}/api/recipes/${recipe.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify(payload),
+        credentials: 'include'
+      })
+
+      console.log('Direct fetch response:', response.status, response.statusText)
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Server response:', errorText)
+        throw new Error(`Failed to update recipe: ${response.status} ${response.statusText}`)
+      }
+
+      return response.json()
     },
     onSuccess: () => {
       // Invalidate all related queries to ensure synchronization between pages
