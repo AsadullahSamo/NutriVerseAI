@@ -154,33 +154,54 @@ export function AuthProvider({ children }) {
     mutationFn: async userData => {
       console.log("Starting registration with userData:", { username: userData.username, email: userData.email })
 
-      const response = await fetch(`${config.apiBaseUrl}/api/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json"
-        },
-        body: JSON.stringify(userData),
-        credentials: "include"
-      })
+      try {
+        const response = await fetch(`${config.apiBaseUrl}/api/register`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+          },
+          body: JSON.stringify(userData),
+          credentials: "include"
+        })
 
-      console.log("Registration response status:", response.status)
+        console.log("Registration response status:", response.status)
+        console.log("Registration response headers:", Object.fromEntries(response.headers.entries()))
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}))
-        console.error("Registration failed with error:", error)
-        throw new Error(error.message || "Registration failed")
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({ message: `HTTP ${response.status}: ${response.statusText}` }))
+          console.error("Registration failed with error:", error)
+          throw new Error(error.message || `Registration failed with status ${response.status}`)
+        }
+
+        const data = await response.json()
+        console.log("Registration successful, received data:", {
+          hasUser: !!data.user,
+          hasSecretKey: !!data.secretKey,
+          message: data.message
+        })
+
+        if (!data.user || !data.secretKey) {
+          throw new Error("Registration response missing required data")
+        }
+
+        return data // Return the full response which includes both user and secretKey
+      } catch (fetchError) {
+        console.error("Registration fetch error:", fetchError)
+        // Re-throw with more context
+        if (fetchError.name === 'TypeError' && fetchError.message.includes('fetch')) {
+          throw new Error("Network error: Unable to connect to server. Please check your connection and try again.")
+        }
+        throw fetchError
       }
-
-      const data = await response.json()
-      console.log("Registration successful, received data:", data)
-      return data // Return the full response which includes both user and secretKey
     },
     onSuccess: data => {
+      console.log("Registration mutation onSuccess called with:", { hasUser: !!data.user, hasSecretKey: !!data.secretKey })
       setError(null)
       queryClient.setQueryData(["/api/user"], data.user)
     },
     onError: err => {
+      console.error("Registration mutation onError called with:", err)
       setError(err.message)
       toast.error("Registration failed", {
         description: err.message

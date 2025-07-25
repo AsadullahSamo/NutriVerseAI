@@ -45,17 +45,28 @@ export default function HomePage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const key = params.get("secretKey")
-    if (key) {
-      setSecretKey(key)
+    console.log("Home page - checking for secret key in URL:", { hasKey: !!key, keyLength: key?.length })
+
+    if (key && key.trim()) {
+      console.log("Home page - secret key found, displaying dialog")
+      setSecretKey(key.trim())
       setSecretKeyDialog(true)
       // Clean up URL
       window.history.replaceState({}, "", window.location.pathname)
+    } else if (key === "") {
+      console.warn("Home page - empty secret key found in URL")
+      toast({
+        title: "Registration Issue",
+        description: "Secret key was empty. Please contact support if you just registered.",
+        variant: "destructive"
+      })
     }
   }, [])
 
   // Prevent closing dialog if secret key hasn't been acknowledged
   const handleSecretKeyDialogClose = () => {
     if (secretKey) {
+      console.log("Home page - user tried to close secret key dialog without saving")
       toast({
         title: "⚠️ Important",
         description:
@@ -66,6 +77,7 @@ export default function HomePage() {
   }
 
   const handleConfirmSecretKeySaved = () => {
+    console.log("Home page - user confirmed secret key saved")
     toast({
       title: "Success",
       description: "Your secret key has been saved. Keep it in a safe place."

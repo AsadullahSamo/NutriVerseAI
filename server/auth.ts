@@ -129,18 +129,30 @@ export function setupAuth(app) {
 
   // Registration endpoint
   app.post("/api/register", async (req, res) => {
+    const startTime = Date.now()
+    console.log("Registration request received:", {
+      username: req.body?.username,
+      hasPassword: !!req.body?.password,
+      origin: req.headers.origin,
+      userAgent: req.headers['user-agent'],
+      sessionId: req.sessionID
+    })
+
     try {
       // Validate required fields are present
       if (!req.body.username || req.body.username.trim() === "") {
+        console.log("Registration failed: Username is required")
         return res.status(400).json({ message: "Username is required" })
       }
 
       if (!req.body.password || req.body.password.trim() === "") {
+        console.log("Registration failed: Password is required")
         return res.status(400).json({ message: "Password is required" })
       }
 
       // Validate username length
       if (req.body.username.length < 3) {
+        console.log("Registration failed: Username too short")
         return res
           .status(400)
           .json({ message: "Username must be at least 3 characters long" })
@@ -148,44 +160,70 @@ export function setupAuth(app) {
 
       // Validate password length
       if (req.body.password.length < 6) {
+        console.log("Registration failed: Password too short")
         return res
           .status(400)
           .json({ message: "Password must be at least 6 characters long" })
       }
 
+      console.log("Checking if user exists:", req.body.username)
       const existingUser = await storage.getUserByUsername(req.body.username)
       if (existingUser) {
+        console.log("Registration failed: Username already exists")
         return res.status(400).json({ message: "Username already exists" })
       }
 
       // Generate secret key for the user
+      console.log("Generating secret key for new user")
       const secretKey = generateSecretKey()
 
+      console.log("Hashing password")
       const hashedPassword = await hashPassword(req.body.password)
+
+      console.log("Creating user in database")
       const user = await storage.createUser({
         ...req.body,
         password: hashedPassword,
         secretKey
       })
 
+      console.log("User created successfully, sanitizing user data")
       const safeUser = sanitizeUser(user)
 
       // Send the response with both user data and secret key
+      console.log("Logging in user after registration")
       req.login(safeUser, err => {
         if (err) {
+          console.error("Failed to log in user after registration:", err)
           return res
             .status(500)
             .json({ message: "Failed to log in after registration" })
         }
-        res.status(201).json({
+
+        const responseData = {
           user: safeUser,
           secretKey,
           message:
             "Please save this secret key in a secure place. You will need it to reset your password if you forget it."
+        }
+
+        console.log("Registration successful:", {
+          userId: safeUser.id,
+          username: safeUser.username,
+          hasSecretKey: !!secretKey,
+          sessionId: req.sessionID,
+          duration: Date.now() - startTime + 'ms'
         })
+
+        res.status(201).json(responseData)
       })
     } catch (err) {
-      console.error("Registration error:", err)
+      console.error("Registration error:", {
+        error: err.message,
+        stack: err.stack,
+        username: req.body?.username,
+        duration: Date.now() - startTime + 'ms'
+      })
       res.status(500).json({ message: "Registration failed" })
     }
   })

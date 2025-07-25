@@ -23,7 +23,7 @@ import {
   DialogTitle,
   DialogTrigger
 } from "@/components/ui/dialog"
-import { Loader2 } from "lucide-react"
+import { Loader2, Copy, Check } from "lucide-react"
 import { Redirect } from "wouter"
 import { useToast } from "@/hooks/use-toast"
 
@@ -37,6 +37,26 @@ export default function AuthPage() {
   } = useAuth()
   const { toast } = useToast()
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false)
+  const [showSecretKey, setShowSecretKey] = useState(null)
+  const [copied, setCopied] = useState(false)
+
+  const handleCopySecretKey = async () => {
+    if (showSecretKey) {
+      await navigator.clipboard.writeText(showSecretKey)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+      toast({
+        title: "Secret key copied",
+        description: "Make sure to store it in a secure place"
+      })
+    }
+  }
+
+  const handleSecretKeySaved = () => {
+    setShowSecretKey(null)
+    // Proceed with redirect
+    window.location.replace("/")
+  }
 
   const loginForm = useForm({
     resolver: zodResolver(
@@ -72,20 +92,42 @@ export default function AuthPage() {
 
   const handleRegister = async data => {
     try {
+      console.log("Auth page - starting registration with data:", { username: data.username })
       const result = await registerMutation.mutateAsync(data)
-      if (result.secretKey) {
+      console.log("Auth page - registration successful, result:", {
+        hasUser: !!result.user,
+        hasSecretKey: !!result.secretKey,
+        message: result.message
+      })
+
+      if (result && result.secretKey) {
         toast({
           title: "Registration successful",
           description: "Your secret key will be shown next."
         })
-        // Redirect to home page with secret key
-        window.location.href = `/?secretKey=${encodeURIComponent(
-          result.secretKey
-        )}`
+
+        // Show secret key immediately as backup
+        setShowSecretKey(result.secretKey)
+
+        // Try to redirect, but with a delay to ensure the secret key is shown
+        setTimeout(() => {
+          const secretKeyUrl = `/?secretKey=${encodeURIComponent(result.secretKey)}`
+          console.log("Auth page - redirecting to:", secretKeyUrl)
+
+          // Use replace instead of href to avoid back button issues
+          window.location.replace(secretKeyUrl)
+        }, 1000)
+      } else {
+        console.error("Registration succeeded but missing secret key in response:", result)
+        toast({
+          title: "Registration issue",
+          description: "Registration completed but secret key not received. Please contact support.",
+          variant: "destructive"
+        })
       }
     } catch (error) {
-      // Error is handled by mutation
-      console.error("Registration error:", error)
+      // Error is handled by mutation, but log for debugging
+      console.error("Auth page - registration error:", error)
     }
   }
 
@@ -363,6 +405,49 @@ export default function AuthPage() {
           </p>
         </div>
       </div>
+
+      {/* Secret Key Dialog - Backup display */}
+      <Dialog open={!!showSecretKey} onOpenChange={() => {}}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-center">
+              Important: Save Your Secret Key
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-center text-muted-foreground">
+              Please save this secret key in a secure place. You will need it to
+              reset your password if you forget it:
+            </p>
+            <div className="relative">
+              <div className="p-3 bg-muted rounded-md font-mono text-sm break-all pr-12">
+                {showSecretKey}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-3 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
+                onClick={handleCopySecretKey}
+              >
+                {copied ? (
+                  <Check className="h-4 w-4 text-green-500" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </Button>
+            </div>
+            <div className="bg-yellow-100 dark:bg-yellow-900/30 p-4 rounded-md">
+              <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                ⚠️ Warning: This key will not be shown again. Store it somewhere
+                secure.
+              </p>
+            </div>
+            <Button onClick={handleSecretKeySaved} className="w-full">
+              I Have Saved My Secret Key
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

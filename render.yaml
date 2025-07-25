@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: nutri-cart-backend
+    name: nutriverse-ai
     env: node
     buildCommand: npm install
     startCommand: npm run start
@@ -23,13 +23,13 @@ services:
     autoDeploy: true
 
   - type: web
-    name: nutri-cart-frontend
+    name: nutriverse-ai-frontend
     env: static
     buildCommand: npm install && npx vite build
     staticPublishPath: ./dist
     envVars:
       - key: VITE_API_URL
-        value: https://nutri-cart-backend.onrender.com
+        value: https://nutriverse-ai.onrender.com
     routes:
       - type: rewrite
         source: /*
