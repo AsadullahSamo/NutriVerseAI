@@ -109,15 +109,26 @@ export function AddEquipmentDialog({
             <div className="grid gap-2">
               <Label htmlFor="category">Category</Label>
               <Select
-                value={categoryValue}
-                onValueChange={value => setValue("category", value)}
+                value={categoryValue || ""}
+                onValueChange={value => {
+                  console.log("Category selected:", value);
+                  setValue("category", value);
+                }}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent
+                  className="z-[200]"
+                  position="popper"
+                  sideOffset={5}
+                >
                   {EQUIPMENT_CATEGORIES.map(category => (
-                    <SelectItem key={category} value={category.toLowerCase()}>
+                    <SelectItem
+                      key={category}
+                      value={category.toLowerCase()}
+                      className="cursor-pointer hover:bg-accent"
+                    >
                       {category}
                     </SelectItem>
                   ))}
@@ -128,20 +139,35 @@ export function AddEquipmentDialog({
             <div className="grid gap-2">
               <Label htmlFor="condition">Condition</Label>
               <Select
-                value={conditionValue}
-                onValueChange={value => setValue("condition", value)}
+                value={conditionValue || ""}
+                onValueChange={value => {
+                  console.log("Condition selected:", value);
+                  setValue("condition", value);
+                }}
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select condition" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="excellent">Excellent</SelectItem>
-                  <SelectItem value="good">Good</SelectItem>
-                  <SelectItem value="fair">Fair</SelectItem>
-                  <SelectItem value="needs-maintenance">
+                <SelectContent
+                  className="z-[200]"
+                  position="popper"
+                  sideOffset={5}
+                >
+                  <SelectItem value="excellent" className="cursor-pointer hover:bg-accent">
+                    Excellent
+                  </SelectItem>
+                  <SelectItem value="good" className="cursor-pointer hover:bg-accent">
+                    Good
+                  </SelectItem>
+                  <SelectItem value="fair" className="cursor-pointer hover:bg-accent">
+                    Fair
+                  </SelectItem>
+                  <SelectItem value="needs-maintenance" className="cursor-pointer hover:bg-accent">
                     Needs Maintenance
                   </SelectItem>
-                  <SelectItem value="replace">Replace</SelectItem>
+                  <SelectItem value="replace" className="cursor-pointer hover:bg-accent">
+                    Replace
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>

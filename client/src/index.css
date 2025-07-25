@@ -117,7 +117,7 @@ body.modal-open {
 
 /* Fix Select dropdown visibility in production */
 [data-radix-select-content] {
-  z-index: 100 !important;
+  z-index: 200 !important;
   position: fixed !important;
   background: hsl(var(--background)) !important;
   border: 1px solid hsl(var(--border)) !important;
@@ -126,6 +126,46 @@ body.modal-open {
   min-width: 8rem !important;
   max-height: 24rem !important;
   overflow: hidden !important;
+}
+
+/* Ensure Select dropdowns work in dialogs */
+[data-radix-dialog-content] [data-radix-select-content] {
+  z-index: 200 !important;
+}
+
+/* Force Select trigger to be clickable */
+[data-radix-select-trigger] {
+  position: relative !important;
+  z-index: 1 !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
+/* Ensure Select items are clickable */
+[data-radix-select-item] {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
+/* Additional fixes for Select dropdown issues */
+[data-radix-select-content] {
+  pointer-events: auto !important;
+  user-select: none !important;
+}
+
+[data-radix-select-item]:focus {
+  outline: none !important;
+  background-color: hsl(var(--accent)) !important;
+}
+
+/* Ensure Select works in all dialog contexts */
+.dialog-content [data-radix-select-content] {
+  z-index: 200 !important;
+}
+
+/* Force Select portal to render above everything */
+[data-radix-portal] {
+  z-index: 200 !important;
 }
 
 [data-radix-select-viewport] {
