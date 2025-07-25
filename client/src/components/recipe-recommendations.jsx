@@ -42,10 +42,8 @@ export function RecipeRecommendations() {
 
   const getRecommendations = async () => {
     if (ingredients.length === 0) {
-      toast({
-        title: "Error",
-        description: "Please add at least one ingredient",
-        variant: "destructive"
+      toast.error("Error", {
+        description: "Please add at least one ingredient"
       })
       return
     }
@@ -78,10 +76,8 @@ export function RecipeRecommendations() {
           : "Failed to generate recipes. Please try again with different ingredients."
 
       setError(errorMessage)
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive"
+      toast.error("Error", {
+        description: errorMessage
       })
     } finally {
       setIsLoading(false)
