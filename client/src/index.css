@@ -172,6 +172,30 @@ body.modal-open {
   padding: 4px !important;
 }
 
+/* Beautiful scrollable dialog content */
+.dialog-scroll-area {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+
+.dialog-scroll-area::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dialog-scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dialog-scroll-area::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 3px;
+}
+
+.dialog-scroll-area::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--border) / 0.8);
+}
+
 [data-radix-select-item] {
   padding: 8px 12px !important;
   border-radius: 4px !important;

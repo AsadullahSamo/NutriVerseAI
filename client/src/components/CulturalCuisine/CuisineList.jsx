@@ -26,23 +26,32 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { useState, useMemo } from "react"
 import { useToast } from "@/hooks/use-toast"
 import { useQueryClient } from "@tanstack/react-query"
+import { useAuth } from "@/hooks/use-auth"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { generateCuisineDetailsFromName } from "@ai-services/cultural-cuisine-service"
 
-export function CuisineList({ cuisines, onSelectCuisine }) {
+export function CuisineList({ cuisines, onSelectCuisine, viewFilter = "all" }) {
   const [isAddingCuisine, setIsAddingCuisine] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const { toast } = useToast()
+  const { user } = useAuth()
   const queryClient = useQueryClient()
 
-  // Filter out hidden cuisines
+  // Filter out hidden cuisines and apply view filter
   const visibleCuisines = useMemo(() => {
     const hiddenCuisines = JSON.parse(
       localStorage.getItem("hiddenCuisines") || "[]"
     )
-    return cuisines.filter(cuisine => !hiddenCuisines.includes(cuisine.id))
-  }, [cuisines])
+    let filtered = cuisines.filter(cuisine => !hiddenCuisines.includes(cuisine.id))
+
+    // Apply view filter
+    if (viewFilter === "my" && user) {
+      filtered = filtered.filter(cuisine => cuisine.createdBy === user.id)
+    }
+
+    return filtered
+  }, [cuisines, viewFilter, user])
 
   // Format the key ingredients for display
   const formatKeyIngredients = ingredients => {

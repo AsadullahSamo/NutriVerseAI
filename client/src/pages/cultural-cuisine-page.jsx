@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 export default function CulturalCuisinePage() {
   const [selectedCuisineId, setSelectedCuisineId] = useState(null)
   const [view, setView] = useState("list")
+  const [viewFilter, setViewFilter] = useState("all") // "all" or "my"
   const [errorDetails, setErrorDetails] = useState(null)
   const [forceRefresh, setForceRefresh] = useState(Date.now())
   const queryClient = useQueryClient()
@@ -143,9 +144,28 @@ export default function CulturalCuisinePage() {
 
         {view === "list" && (
           <>
+            {/* View Filter */}
+            <div className="flex gap-2 mb-6">
+              <Button
+                variant={viewFilter === "all" ? "default" : "outline"}
+                onClick={() => setViewFilter("all")}
+                size="sm"
+              >
+                All Cuisines
+              </Button>
+              <Button
+                variant={viewFilter === "my" ? "default" : "outline"}
+                onClick={() => setViewFilter("my")}
+                size="sm"
+              >
+                My Cuisines
+              </Button>
+            </div>
+
             <CuisineList
               cuisines={cuisines || []}
               onSelectCuisine={handleSelectCuisine}
+              viewFilter={viewFilter}
             />
           </>
         )}

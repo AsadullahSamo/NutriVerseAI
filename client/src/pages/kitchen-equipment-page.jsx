@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Loader2, AlertTriangle, CheckCircle, XCircle, PlusCircle, Edit, Trash2, Utensils } from 'lucide-react';
+import { Loader2, AlertTriangle, CheckCircle, XCircle, PlusCircle, Edit, Trash2, Utensils, Wrench } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -218,12 +218,18 @@ const KitchenEquipmentPage = () => {
         try {
             console.log('Getting maintenance tips for:', item.name);
 
-            // Import the AI service
-            const { getMaintenanceTips } = await import('../ai-services/kitchen-inventory-ai');
-            const tips = await getMaintenanceTips(item);
+            // Call server endpoint for maintenance tips
+            const response = await apiRequest('POST', '/api/kitchen-equipment/maintenance-tips', {
+                equipment: item
+            });
 
-            setMaintenanceTips(tips);
-            setMaintenanceDialogOpen(true);
+            if (response.ok) {
+                const tips = await response.json();
+                setMaintenanceTips(tips);
+                setMaintenanceDialogOpen(true);
+            } else {
+                throw new Error('Failed to get maintenance tips from server');
+            }
         }
         catch (error) {
             console.error('Error getting maintenance tips:', error);
@@ -423,9 +429,48 @@ const KitchenEquipmentPage = () => {
     const handleRunAIAnalysis = async () => {
         setAiLoading(true);
         try {
-            console.log('Running sample AI analysis on kitchen equipment...');
-            // Use sample analysis instead of direct AI call
-            const analysis = {
+            console.log('Running AI analysis on kitchen equipment...');
+
+            // Call server endpoint for kitchen analysis
+            const enrichedEquipment = enrichEquipmentData(equipment);
+            const userPreferences = ['Italian', 'Healthy']; // You can make this dynamic
+
+            const response = await apiRequest('POST', '/api/kitchen-equipment/analysis', {
+                equipment: enrichedEquipment,
+                userPreferences: userPreferences
+            });
+
+            if (response.ok) {
+                const analysis = await response.json();
+                console.log('AI analysis complete:', analysis);
+
+                // Ensure analysis has the expected structure
+                const validatedAnalysis = {
+                    maintenanceRecommendations: Array.isArray(analysis.maintenanceRecommendations)
+                        ? analysis.maintenanceRecommendations
+                        : [],
+                    shoppingRecommendations: Array.isArray(analysis.shoppingRecommendations)
+                        ? analysis.shoppingRecommendations
+                        : [],
+                    recipeRecommendations: Array.isArray(analysis.recipeRecommendations)
+                        ? analysis.recipeRecommendations
+                        : []
+                };
+
+                setAiAnalysis(validatedAnalysis);
+                setAnalysisDialogOpen(true);
+                setNotification({
+                    type: 'success',
+                    message: 'AI analysis completed successfully!'
+                });
+            } else {
+                throw new Error('Failed to get analysis from server');
+            }
+        }
+        catch (error) {
+            console.error('Error running AI analysis:', error);
+            // Fallback to sample analysis
+            const fallbackAnalysis = {
                 maintenanceRecommendations: [
                     { equipmentId: '1', recommendation: 'Clean regularly', priority: 'medium', suggestedAction: 'Weekly cleaning' }
                 ],
@@ -436,37 +481,12 @@ const KitchenEquipmentPage = () => {
                     { recipeName: 'Basic Pasta', possibleWithCurrent: true, requiredEquipment: ['Pot', 'Stove'] }
                 ]
             };
-            console.log('Sample AI analysis complete:', analysis);
-            // Ensure analysis has the expected structure
-            const validatedAnalysis = {
-                maintenanceRecommendations: Array.isArray(analysis.maintenanceRecommendations)
-                    ? analysis.maintenanceRecommendations
-                    : [],
-                shoppingRecommendations: Array.isArray(analysis.shoppingRecommendations)
-                    ? analysis.shoppingRecommendations
-                    : [],
-                recipeRecommendations: Array.isArray(analysis.recipeRecommendations)
-                    ? analysis.recipeRecommendations
-                    : []
-            };
-            setAiAnalysis(validatedAnalysis);
+
+            setAiAnalysis(fallbackAnalysis);
             setAnalysisDialogOpen(true);
             setNotification({
-                type: 'success',
-                message: 'AI analysis completed successfully!'
-            });
-        }
-        catch (error) {
-            console.error('Error running AI analysis:', error);
-            // Set a default structure to prevent mapping errors
-            setAiAnalysis({
-                maintenanceRecommendations: [],
-                shoppingRecommendations: [],
-                recipeRecommendations: []
-            });
-            setNotification({
-                type: 'error',
-                message: 'Failed to run AI analysis. Please try again.'
+                type: 'warning',
+                message: 'Using sample analysis. AI service temporarily unavailable.'
             });
         }
         finally {
@@ -905,17 +925,52 @@ const KitchenEquipmentPage = () => {
 
       {/* Maintenance Tips Dialog */}
       <Dialog open={maintenanceDialogOpen} onOpenChange={setMaintenanceDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>AI Maintenance Tips for {selectedEquipment === null || selectedEquipment === void 0 ? void 0 : selectedEquipment.name}</DialogTitle>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0 pb-4 border-b">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <Wrench className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-semibold">
+                  AI Maintenance Tips
+                </DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  Personalized maintenance guidance for {selectedEquipment?.name}
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
-          <ScrollArea className="h-[300px] mt-4">
-            <ul className="list-disc pl-5 space-y-2">
-              {maintenanceTips.map((tip, index) => (<li key={index}>{String(tip)}</li>))}
-            </ul>
-          </ScrollArea>
-          <DialogFooter className="mt-4">
-            <Button onClick={() => setMaintenanceDialogOpen(false)}>Close</Button>
+
+          <div className="flex-1 dialog-scroll-area pr-2 min-h-0">
+            <div className="space-y-4 mt-4">
+              {maintenanceTips.length > 0 ? (
+                maintenanceTips.map((tip, index) => (
+                  <div key={index} className="flex gap-3 p-4 bg-accent/50 rounded-lg border">
+                    <div className="flex-shrink-0 mt-0.5">
+                      <div className="w-6 h-6 bg-primary/20 rounded-full flex items-center justify-center">
+                        <span className="text-xs font-medium text-primary">{index + 1}</span>
+                      </div>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm leading-relaxed">{String(tip)}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Wrench className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>No maintenance tips available</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="flex-shrink-0 pt-4 border-t">
+            <Button onClick={() => setMaintenanceDialogOpen(false)} className="w-full">
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Got it, thanks!
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1002,46 +1057,116 @@ const KitchenEquipmentPage = () => {
 
       {/* AI Analysis Dialog */}
       <Dialog open={analysisDialogOpen} onOpenChange={setAnalysisDialogOpen}>
-        <DialogContent className="max-w-4xl h-[80vh] flex flex-col p-6">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle>AI Analysis of Your Kitchen Equipment</DialogTitle>
+        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0 pb-4 border-b">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/10 rounded-lg">
+                <AlertTriangle className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <DialogTitle className="text-xl font-semibold">
+                  AI Kitchen Analysis
+                </DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                  Comprehensive insights and recommendations for your kitchen equipment
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
-          <ScrollArea className="flex-1 mt-4 pr-4 h-full">
-            {aiAnalysis && (<div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-bold">Maintenance Recommendations</h3>
-                  <ul className="list-disc pl-5 mt-2 space-y-2">
-                    {aiAnalysis.maintenanceRecommendations && aiAnalysis.maintenanceRecommendations.length > 0 ? (aiAnalysis.maintenanceRecommendations.map((rec, index) => (<li key={index} className="space-y-1">
-                          <div><span className="font-medium">{rec.equipmentId}:</span> {rec.recommendation}</div>
-                          <div className="text-sm">Priority: <Badge className={getPriorityColor(rec.priority)}>{rec.priority}</Badge></div>
+          <div className="flex-1 dialog-scroll-area pr-2 min-h-0">
+            {aiAnalysis && (<div className="space-y-8 mt-4">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Wrench className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-semibold">Maintenance Recommendations</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {aiAnalysis.maintenanceRecommendations && aiAnalysis.maintenanceRecommendations.length > 0 ? (
+                      aiAnalysis.maintenanceRecommendations.map((rec, index) => (
+                        <div key={index} className="p-4 bg-accent/50 rounded-lg border space-y-2">
+                          <div className="flex items-start justify-between">
+                            <div className="font-medium">{rec.equipmentId}: {rec.recommendation}</div>
+                            <Badge className={getPriorityColor(rec.priority)}>{rec.priority}</Badge>
+                          </div>
                           <div className="text-sm text-muted-foreground">Action: {rec.suggestedAction}</div>
-                        </li>))) : (<li>No maintenance recommendations available.</li>)}
-                  </ul>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-6 text-muted-foreground">
+                        <Wrench className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>No maintenance recommendations available.</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold">Shopping Recommendations</h3>
-                  <ul className="list-disc pl-5 mt-2 space-y-2">
-                    {aiAnalysis.shoppingRecommendations && aiAnalysis.shoppingRecommendations.length > 0 ? (aiAnalysis.shoppingRecommendations.map((rec, index) => (<li key={index} className="space-y-1">
-                          <div><span className="font-medium">{rec.itemName}</span> - {rec.reason}</div>
-                          <div className="text-sm">Priority: <Badge className={getPriorityColor(rec.priority)}>{rec.priority}</Badge></div>
-                          {rec.estimatedPrice && <div className="text-sm text-muted-foreground">Est. price: {rec.estimatedPrice}</div>}
-                        </li>))) : (<li>No shopping recommendations available.</li>)}
-                  </ul>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <PlusCircle className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-semibold">Shopping Recommendations</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {aiAnalysis.shoppingRecommendations && aiAnalysis.shoppingRecommendations.length > 0 ? (
+                      aiAnalysis.shoppingRecommendations.map((rec, index) => (
+                        <div key={index} className="p-4 bg-accent/50 rounded-lg border space-y-2">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <div className="font-medium">{rec.itemName}</div>
+                              <div className="text-sm text-muted-foreground">{rec.reason}</div>
+                            </div>
+                            <Badge className={getPriorityColor(rec.priority)}>{rec.priority}</Badge>
+                          </div>
+                          {rec.estimatedPrice && (
+                            <div className="text-sm font-medium text-green-600">Est. price: {rec.estimatedPrice}</div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-6 text-muted-foreground">
+                        <PlusCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>No shopping recommendations available.</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold">Recipe Recommendations</h3>
-                  <ul className="list-disc pl-5 mt-2 space-y-2">
-                    {aiAnalysis.recipeRecommendations && aiAnalysis.recipeRecommendations.length > 0 ? (aiAnalysis.recipeRecommendations.map((rec, index) => (<li key={index} className="space-y-1">
-                          <div><span className="font-medium">{rec.recipeName}</span></div>
-                          <div className="text-sm">{rec.possibleWithCurrent ? 'Possible with current equipment' : 'Requires additional equipment'}</div>
-                          <div className="text-sm">Required: {rec.requiredEquipment && rec.requiredEquipment.length > 0 ? rec.requiredEquipment.join(', ') : 'None specified'}</div>
-                        </li>))) : (<li>No recipe recommendations available.</li>)}
-                  </ul>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Utensils className="h-5 w-5 text-primary" />
+                    <h3 className="text-lg font-semibold">Recipe Recommendations</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {aiAnalysis.recipeRecommendations && aiAnalysis.recipeRecommendations.length > 0 ? (
+                      aiAnalysis.recipeRecommendations.map((rec, index) => (
+                        <div key={index} className="p-4 bg-accent/50 rounded-lg border space-y-2">
+                          <div className="font-medium">{rec.recipeName}</div>
+                          <div className="flex items-center gap-2">
+                            <div className={`text-xs px-2 py-1 rounded-full ${
+                              rec.possibleWithCurrent
+                                ? 'bg-green-100 text-green-700 border border-green-200'
+                                : 'bg-orange-100 text-orange-700 border border-orange-200'
+                            }`}>
+                              {rec.possibleWithCurrent ? 'Ready to cook!' : 'Needs equipment'}
+                            </div>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Required: {rec.requiredEquipment && rec.requiredEquipment.length > 0 ? rec.requiredEquipment.join(', ') : 'None specified'}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-6 text-muted-foreground">
+                        <Utensils className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p>No recipe recommendations available.</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>)}
-          </ScrollArea>
-          <DialogFooter className="mt-4 border-t pt-4">
-            <Button onClick={() => setAnalysisDialogOpen(false)}>Close</Button>
+          </div>
+          <DialogFooter className="flex-shrink-0 pt-4 border-t">
+            <Button onClick={() => setAnalysisDialogOpen(false)} className="w-full">
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Close Analysis
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
