@@ -115,6 +115,41 @@ body.modal-open {
   display: block !important;
 }
 
+/* Fix Select dropdown visibility in production */
+[data-radix-select-content] {
+  z-index: 100 !important;
+  position: fixed !important;
+  background: hsl(var(--background)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  min-width: 8rem !important;
+  max-height: 24rem !important;
+  overflow: hidden !important;
+}
+
+[data-radix-select-viewport] {
+  padding: 4px !important;
+}
+
+[data-radix-select-item] {
+  padding: 8px 12px !important;
+  border-radius: 4px !important;
+  cursor: pointer !important;
+  transition: background-color 0.2s ease !important;
+}
+
+[data-radix-select-item]:hover,
+[data-radix-select-item][data-highlighted] {
+  background-color: hsl(var(--accent)) !important;
+  color: hsl(var(--accent-foreground)) !important;
+}
+
+[data-radix-select-item][data-state="checked"] {
+  background-color: hsl(var(--primary) / 0.1) !important;
+  color: hsl(var(--primary)) !important;
+}
+
 /* Ensure backdrop is always visible */
 [data-radix-dialog-overlay],
 [data-radix-alert-dialog-overlay] {
@@ -136,21 +171,79 @@ body.modal-open {
   overflow-y: auto !important;
   max-height: calc(90vh - 120px) !important;
   scrollbar-width: thin !important;
-  scrollbar-color: rgba(155, 155, 155, 0.5) transparent !important;
+  scrollbar-color: hsl(var(--primary)) transparent !important;
+  padding-left: 4px !important;
+  padding-right: 4px !important;
 }
 
-/* Webkit scrollbar styling for dialog content */
+/* Webkit scrollbar styling for dialog content - Green theme */
 .dialog-scroll-area::-webkit-scrollbar {
-  width: 6px !important;
+  width: 8px !important;
 }
 
 .dialog-scroll-area::-webkit-scrollbar-track {
   background: transparent !important;
+  border-radius: 4px !important;
 }
 
 .dialog-scroll-area::-webkit-scrollbar-thumb {
-  background-color: rgba(155, 155, 155, 0.5) !important;
-  border-radius: 3px !important;
+  background-color: hsl(var(--primary) / 0.6) !important;
+  border-radius: 4px !important;
+  transition: background-color 0.2s ease !important;
+}
+
+.dialog-scroll-area::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--primary) / 0.8) !important;
+}
+
+/* Global scrollbar styling for consistency */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--primary) / 0.6) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--primary) / 0.6);
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--primary) / 0.8);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Fix dialog field styling issues */
+.dialog-scroll-area input,
+.dialog-scroll-area select,
+.dialog-scroll-area textarea {
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 6px !important;
+  background: hsl(var(--background)) !important;
+  padding: 8px 12px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.dialog-scroll-area input:focus,
+.dialog-scroll-area select:focus,
+.dialog-scroll-area textarea:focus {
+  outline: none !important;
+  border-color: hsl(var(--primary)) !important;
+  box-shadow: 0 0 0 2px hsl(var(--primary) / 0.2) !important;
 }
 
 .dialog-scroll-area::-webkit-scrollbar-thumb:hover {
