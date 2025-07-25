@@ -1,4 +1,4 @@
-// ...existing code...
+import { model, safeJsonParse } from "./gemini-client.js";
 
 export async function getRecipesByEquipment(equipment, userPreferences) {
     const prompt = `You are a JSON API that must return recipe recommendations based on available kitchen equipment.

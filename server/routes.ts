@@ -962,6 +962,48 @@ export async function registerRoutes(app) {
                     }
                 });
 
+  // Kitchen Equipment Recommendations endpoint
+  app.post('/api/kitchen-equipment/recommendations', isAuthenticated, async (req, res) => {
+    try {
+      const { currentEquipment, cookingPreferences, budget } = req.body;
+      console.log('[Server] Generating kitchen equipment recommendations');
+
+      // Import the AI service
+      const { getEquipmentRecommendations } = await import('./ai-services/kitchen-inventory-ai');
+      const recommendations = await getEquipmentRecommendations(currentEquipment, cookingPreferences, budget);
+
+      console.log('[Server] Generated equipment recommendations successfully');
+      res.json(recommendations);
+    } catch (error) {
+      console.error('[Server] Error generating equipment recommendations:', error);
+      res.status(500).json({
+        error: 'Failed to generate equipment recommendations',
+        message: error.message
+      });
+    }
+  });
+
+  // Kitchen Equipment Recipe Matches endpoint
+  app.post('/api/kitchen-equipment/recipe-matches', isAuthenticated, async (req, res) => {
+    try {
+      const { equipment, userPreferences } = req.body;
+      console.log('[Server] Generating recipe matches for equipment');
+
+      // Import the AI service
+      const { getRecipesByEquipment } = await import('./ai-services/kitchen-ai');
+      const recipeMatches = await getRecipesByEquipment(equipment, userPreferences);
+
+      console.log('[Server] Generated recipe matches successfully');
+      res.json(recipeMatches);
+    } catch (error) {
+      console.error('[Server] Error generating recipe matches:', error);
+      res.status(500).json({
+        error: 'Failed to generate recipe matches',
+        message: error.message
+      });
+    }
+  });
+
             // ----------------- Cultural Cuisine Routes -----------------
   app.get('/api/cultural-cuisines', async (req, res) => {
     try {

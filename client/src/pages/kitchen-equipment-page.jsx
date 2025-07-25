@@ -216,22 +216,30 @@ const KitchenEquipmentPage = () => {
         setSelectedEquipment(item);
         setAiLoading(true);
         try {
-            // Use sample maintenance tips instead of AI call
             console.log('Getting maintenance tips for:', item.name);
-            const tips = [
-                `Clean ${item.name} regularly to maintain optimal performance`,
-                `Check for wear and tear every 3 months`,
-                `Store in a dry place when not in use`,
-                `Follow manufacturer's maintenance guidelines`
-            ];
+
+            // Import the AI service
+            const { getMaintenanceTips } = await import('../ai-services/kitchen-inventory-ai');
+            const tips = await getMaintenanceTips(item);
+
             setMaintenanceTips(tips);
             setMaintenanceDialogOpen(true);
         }
         catch (error) {
             console.error('Error getting maintenance tips:', error);
+            // Fallback to sample tips if AI fails
+            const fallbackTips = [
+                `Clean ${item.name} regularly to maintain optimal performance`,
+                `Check for wear and tear every 3 months`,
+                `Store in a dry place when not in use`,
+                `Follow manufacturer's maintenance guidelines`
+            ];
+            setMaintenanceTips(fallbackTips);
+            setMaintenanceDialogOpen(true);
+
             setNotification({
-                type: 'error',
-                message: 'Failed to get maintenance tips. Please try again.'
+                type: 'warning',
+                message: 'Using sample maintenance tips. AI service temporarily unavailable.'
             });
         }
         finally {
@@ -586,25 +594,43 @@ const KitchenEquipmentPage = () => {
         setAiLoading(true);
         try {
             const enrichedEquipment = enrichEquipmentData(equipment);
-            // Use sample data instead of AI calls
-            const equipRecResults = [];
-            const recipeResults = { possibleRecipes: [] };
+            console.log('Getting AI recommendations for equipment:', enrichedEquipment);
+
+            // Import AI services
+            const { getEquipmentRecommendations, getRecipesByEquipment } = await import('../ai-services/kitchen-ai');
+
+            // Get AI recommendations and recipes
+            const userPreferences = ['Italian', 'Healthy']; // You can make this dynamic based on user settings
+            const [equipRecResults, recipeResults] = await Promise.all([
+                getEquipmentRecommendations(enrichedEquipment, userPreferences, 500), // $500 budget
+                getRecipesByEquipment(enrichedEquipment, userPreferences)
+            ]);
+
+            console.log('Equipment recommendations:', equipRecResults);
+            console.log('Recipe results:', recipeResults);
+
             // Update recommendations and recipes
-            setRecommendations(equipRecResults);
-            setRecipes(recipeResults.possibleRecipes);
+            setRecommendations(equipRecResults || []);
+            setRecipes(recipeResults?.possibleRecipes || []);
+
             // Save to local storage for persistence
-            localStorage.setItem('kitchen-recommendations', JSON.stringify(equipRecResults));
-            localStorage.setItem('kitchen-recipes', JSON.stringify(recipeResults.possibleRecipes));
+            localStorage.setItem('kitchen-recommendations', JSON.stringify(equipRecResults || []));
+            localStorage.setItem('kitchen-recipes', JSON.stringify(recipeResults?.possibleRecipes || []));
+
             setNotification({
                 type: 'success',
-                message: 'Recommendations updated successfully'
+                message: 'AI recommendations updated successfully'
             });
         }
         catch (error) {
             console.error('Error fetching recommendations:', error);
+            // Fallback to empty arrays
+            setRecommendations([]);
+            setRecipes([]);
+
             setNotification({
-                type: 'error',
-                message: 'Failed to fetch recommendations'
+                type: 'warning',
+                message: 'AI recommendations temporarily unavailable. Please try again later.'
             });
         }
         finally {
@@ -622,17 +648,30 @@ const KitchenEquipmentPage = () => {
         const fetchRecommendations = async () => {
             try {
                 const enrichedEquipment = enrichEquipmentData(equipment);
-                // Use sample data instead of AI call
-                const recommendations = { possibleRecipes: [] };
+                console.log('Fetching initial recipe recommendations for equipment:', enrichedEquipment);
+
+                // Import AI service
+                const { getRecipesByEquipment } = await import('../ai-services/kitchen-ai');
+                const userPreferences = ['Italian', 'Healthy'];
+                const recommendations = await getRecipesByEquipment(enrichedEquipment, userPreferences);
+
                 console.log('Raw recipe recommendations:', recommendations);
-                if (recommendations === null || recommendations === void 0 ? void 0 : recommendations.possibleRecipes) {
-                    const recipes = recommendations.possibleRecipes.map((recipe) => (Object.assign(Object.assign({}, recipe), { nutritionInfo: Object.assign(Object.assign({}, recipe.nutritionInfo), { sustainabilityScore: recipe.nutritionInfo.sustainabilityScore || 50 }) })));
+                if (recommendations?.possibleRecipes) {
+                    const recipes = recommendations.possibleRecipes.map((recipe) => ({
+                        ...recipe,
+                        nutritionInfo: {
+                            ...recipe.nutritionInfo,
+                            sustainabilityScore: recipe.nutritionInfo?.sustainabilityScore || 50
+                        }
+                    }));
                     console.log('Processed recipes:', recipes);
                     setRecipes(recipes);
                 }
             }
             catch (error) {
                 console.error('Error fetching recipe recommendations:', error);
+                // Set empty array on error
+                setRecipes([]);
             }
         };
         if (equipment.length > 0) {
