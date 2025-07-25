@@ -41,6 +41,8 @@ export function AddEquipmentDialog({
     register,
     handleSubmit,
     reset,
+    setValue,
+    watch,
     formState: { errors }
   } = useForm({
     defaultValues: initialData || {
@@ -54,6 +56,8 @@ export function AddEquipmentDialog({
   })
 
   const { toast } = useToast()
+  const categoryValue = watch("category")
+  const conditionValue = watch("condition")
 
   const onSubmit = async data => {
     try {
@@ -105,10 +109,8 @@ export function AddEquipmentDialog({
             <div className="grid gap-2">
               <Label htmlFor="category">Category</Label>
               <Select
-                onValueChange={value =>
-                  register("category").onChange({ target: { value } })
-                }
-                defaultValue={initialData?.category}
+                value={categoryValue}
+                onValueChange={value => setValue("category", value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select category" />
@@ -126,10 +128,8 @@ export function AddEquipmentDialog({
             <div className="grid gap-2">
               <Label htmlFor="condition">Condition</Label>
               <Select
-                onValueChange={value =>
-                  register("condition").onChange({ target: { value } })
-                }
-                defaultValue={initialData?.condition || "excellent"}
+                value={conditionValue}
+                onValueChange={value => setValue("condition", value)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select condition" />
