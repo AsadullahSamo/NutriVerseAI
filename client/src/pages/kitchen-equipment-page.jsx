@@ -11,7 +11,7 @@ import { Loader2, AlertTriangle, CheckCircle, XCircle, PlusCircle, Edit, Trash2,
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CustomSelect, CustomSelectItem } from "@/components/ui/custom-select";
 import { format } from 'date-fns';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useAuth } from "@/hooks/use-auth";
@@ -939,61 +939,43 @@ const KitchenEquipmentPage = () => {
               <Label htmlFor="category" className="text-right">
                 Category
               </Label>
-              <Select
+              <CustomSelect
                 value={formData.category || ""}
                 onValueChange={(value) => {
                   console.log("Category selected:", value);
                   handleSelectChange('category', value);
                 }}
+                placeholder="Select category"
+                className="col-span-3"
               >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select category"/>
-                </SelectTrigger>
-                <SelectContent
-                  className="z-[200]"
-                  position="popper"
-                  sideOffset={5}
-                >
-                  <SelectGroup>
-                    <SelectItem value="Appliances" className="cursor-pointer hover:bg-accent">Appliances</SelectItem>
-                    <SelectItem value="Cookware" className="cursor-pointer hover:bg-accent">Cookware</SelectItem>
-                    <SelectItem value="Cutlery" className="cursor-pointer hover:bg-accent">Cutlery</SelectItem>
-                    <SelectItem value="Utensils" className="cursor-pointer hover:bg-accent">Utensils</SelectItem>
-                    <SelectItem value="Bakeware" className="cursor-pointer hover:bg-accent">Bakeware</SelectItem>
-                    <SelectItem value="Storage" className="cursor-pointer hover:bg-accent">Storage</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+                <CustomSelectItem value="Appliances">Appliances</CustomSelectItem>
+                <CustomSelectItem value="Cookware">Cookware</CustomSelectItem>
+                <CustomSelectItem value="Cutlery">Cutlery</CustomSelectItem>
+                <CustomSelectItem value="Utensils">Utensils</CustomSelectItem>
+                <CustomSelectItem value="Bakeware">Bakeware</CustomSelectItem>
+                <CustomSelectItem value="Storage">Storage</CustomSelectItem>
+              </CustomSelect>
             </div>
 
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="condition" className="text-right">
                 Condition
               </Label>
-              <Select
+              <CustomSelect
                 value={formData.condition || ""}
                 onValueChange={(value) => {
                   console.log("Condition selected:", value);
                   handleSelectChange('condition', value);
                 }}
+                placeholder="Select condition"
+                className="col-span-3"
               >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Select condition"/>
-                </SelectTrigger>
-                <SelectContent
-                  className="z-[200]"
-                  position="popper"
-                  sideOffset={5}
-                >
-                  <SelectGroup>
-                    <SelectItem value="excellent" className="cursor-pointer hover:bg-accent">Excellent</SelectItem>
-                    <SelectItem value="good" className="cursor-pointer hover:bg-accent">Good</SelectItem>
-                    <SelectItem value="fair" className="cursor-pointer hover:bg-accent">Fair</SelectItem>
-                    <SelectItem value="needs-maintenance" className="cursor-pointer hover:bg-accent">Needs Maintenance</SelectItem>
-                    <SelectItem value="replace" className="cursor-pointer hover:bg-accent">Replace</SelectItem>
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+                <CustomSelectItem value="excellent">Excellent</CustomSelectItem>
+                <CustomSelectItem value="good">Good</CustomSelectItem>
+                <CustomSelectItem value="fair">Fair</CustomSelectItem>
+                <CustomSelectItem value="needs-maintenance">Needs Maintenance</CustomSelectItem>
+                <CustomSelectItem value="replace">Replace</CustomSelectItem>
+              </CustomSelect>
             </div>
             
             <div className="grid grid-cols-4 items-center gap-4">

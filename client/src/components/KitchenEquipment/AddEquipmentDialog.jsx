@@ -8,13 +8,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select"
+import { CustomSelect, CustomSelectItem } from "@/components/ui/custom-select"
 import { Label } from "@/components/ui/label"
 import { useForm } from "react-hook-form"
 import { useToast } from "@/hooks/use-toast"
@@ -108,68 +102,53 @@ export function AddEquipmentDialog({
 
             <div className="grid gap-2">
               <Label htmlFor="category">Category</Label>
-              <Select
+              <CustomSelect
                 value={categoryValue || ""}
                 onValueChange={value => {
                   console.log("Category selected:", value);
                   setValue("category", value);
                 }}
+                placeholder="Select category"
+                className="w-full"
               >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent
-                  className="z-[200]"
-                  position="popper"
-                  sideOffset={5}
-                >
-                  {EQUIPMENT_CATEGORIES.map(category => (
-                    <SelectItem
-                      key={category}
-                      value={category.toLowerCase()}
-                      className="cursor-pointer hover:bg-accent"
-                    >
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                {EQUIPMENT_CATEGORIES.map(category => (
+                  <CustomSelectItem
+                    key={category}
+                    value={category.toLowerCase()}
+                  >
+                    {category}
+                  </CustomSelectItem>
+                ))}
+              </CustomSelect>
             </div>
 
             <div className="grid gap-2">
               <Label htmlFor="condition">Condition</Label>
-              <Select
+              <CustomSelect
                 value={conditionValue || ""}
                 onValueChange={value => {
                   console.log("Condition selected:", value);
                   setValue("condition", value);
                 }}
+                placeholder="Select condition"
+                className="w-full"
               >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select condition" />
-                </SelectTrigger>
-                <SelectContent
-                  className="z-[200]"
-                  position="popper"
-                  sideOffset={5}
-                >
-                  <SelectItem value="excellent" className="cursor-pointer hover:bg-accent">
-                    Excellent
-                  </SelectItem>
-                  <SelectItem value="good" className="cursor-pointer hover:bg-accent">
-                    Good
-                  </SelectItem>
-                  <SelectItem value="fair" className="cursor-pointer hover:bg-accent">
-                    Fair
-                  </SelectItem>
-                  <SelectItem value="needs-maintenance" className="cursor-pointer hover:bg-accent">
-                    Needs Maintenance
-                  </SelectItem>
-                  <SelectItem value="replace" className="cursor-pointer hover:bg-accent">
-                    Replace
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+                <CustomSelectItem value="excellent">
+                  Excellent
+                </CustomSelectItem>
+                <CustomSelectItem value="good">
+                  Good
+                </CustomSelectItem>
+                <CustomSelectItem value="fair">
+                  Fair
+                </CustomSelectItem>
+                <CustomSelectItem value="needs-maintenance">
+                  Needs Maintenance
+                </CustomSelectItem>
+                <CustomSelectItem value="replace">
+                  Replace
+                </CustomSelectItem>
+              </CustomSelect>
             </div>
 
             <div className="grid gap-2">

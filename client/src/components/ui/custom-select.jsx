@@ -1,21 +1,33 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { ChevronDown } from 'lucide-react'
 
-export function CustomSelect({ value, onValueChange, placeholder, children, className = "" }) {
+export function CustomSelect({ value, onValueChange, placeholder, children, className = "", options = [] }) {
   const [isOpen, setIsOpen] = useState(false)
   const [selectedLabel, setSelectedLabel] = useState("")
   const selectRef = useRef(null)
 
   // Find the selected option's label
   useEffect(() => {
-    if (value && children) {
-      const options = React.Children.toArray(children)
-      const selectedOption = options.find(child => child.props.value === value)
-      if (selectedOption) {
-        setSelectedLabel(selectedOption.props.children)
+    if (value) {
+      // Handle both children and options prop
+      if (children) {
+        const childOptions = React.Children.toArray(children)
+        const selectedOption = childOptions.find(child => child.props.value === value)
+        if (selectedOption) {
+          setSelectedLabel(selectedOption.props.children)
+        }
+      } else if (options.length > 0) {
+        const selectedOption = options.find(opt =>
+          (typeof opt === 'string' ? opt : opt.value) === value
+        )
+        if (selectedOption) {
+          setSelectedLabel(typeof selectedOption === 'string' ? selectedOption : selectedOption.label)
+        }
       }
+    } else {
+      setSelectedLabel("")
     }
-  }, [value, children])
+  }, [value, children, options])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -25,13 +37,14 @@ export function CustomSelect({ value, onValueChange, placeholder, children, clas
       }
     }
 
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [])
+  }, [isOpen])
 
   const handleOptionClick = (optionValue, optionLabel) => {
+    console.log('CustomSelect - Option selected:', optionValue)
     onValueChange(optionValue)
     setSelectedLabel(optionLabel)
     setIsOpen(false)
@@ -55,7 +68,8 @@ export function CustomSelect({ value, onValueChange, placeholder, children, clas
       {isOpen && (
         <div className="navbar-dropdown-content">
           <div className="py-1">
-            {React.Children.map(children, (child) => (
+            {/* Render from children prop */}
+            {children && React.Children.map(children, (child) => (
               <button
                 key={child.props.value}
                 type="button"
@@ -65,6 +79,30 @@ export function CustomSelect({ value, onValueChange, placeholder, children, clas
                 {child.props.children}
               </button>
             ))}
+
+            {/* Render from options prop */}
+            {!children && options.map((option, index) => {
+              const optionValue = typeof option === 'string' ? option : option.value
+              const optionLabel = typeof option === 'string' ? option : option.label
+
+              return (
+                <button
+                  key={`${optionValue}-${index}`}
+                  type="button"
+                  onClick={() => handleOptionClick(optionValue, optionLabel)}
+                  className="navbar-dropdown-item"
+                >
+                  {optionLabel}
+                </button>
+              )
+            })}
+
+            {/* Show message if no options */}
+            {!children && options.length === 0 && (
+              <div className="px-3 py-2 text-sm text-muted-foreground">
+                No options available
+              </div>
+            )}
           </div>
         </div>
       )}
