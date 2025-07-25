@@ -8,13 +8,7 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select"
+import { CustomSelect, CustomSelectItem } from "@/components/ui/custom-select"
 import { Label } from "@/components/ui/label"
 import { Icons } from "@/components/ui/icons"
 import { useForm } from "react-hook-form"
@@ -137,32 +131,24 @@ export function AddEquipmentDialog() {
 
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
-            <Select
+            <CustomSelect
               value={watch("category") || ""}
               onValueChange={value => {
                 console.log("Category selected:", value);
                 setValue("category", value, { shouldValidate: true });
               }}
+              placeholder="Select category"
+              className="w-full"
             >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent
-                className="z-[200]"
-                position="popper"
-                sideOffset={5}
-              >
-                {categories.map(category => (
-                  <SelectItem
-                    key={category}
-                    value={category}
-                    className="cursor-pointer hover:bg-accent"
-                  >
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              {categories.map(category => (
+                <CustomSelectItem
+                  key={category}
+                  value={category}
+                >
+                  {category}
+                </CustomSelectItem>
+              ))}
+            </CustomSelect>
             {errors.category && (
               <p className="text-sm text-red-500">{errors.category.message}</p>
             )}
@@ -170,32 +156,24 @@ export function AddEquipmentDialog() {
 
           <div className="space-y-2">
             <Label htmlFor="condition">Condition</Label>
-            <Select
+            <CustomSelect
               value={watch("condition") || ""}
               onValueChange={value => {
                 console.log("Condition selected:", value);
                 setValue("condition", value, { shouldValidate: true });
               }}
+              placeholder="Select condition"
+              className="w-full"
             >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select condition" />
-              </SelectTrigger>
-              <SelectContent
-                className="z-[200]"
-                position="popper"
-                sideOffset={5}
-              >
-                {conditions.map(condition => (
-                  <SelectItem
-                    key={condition}
-                    value={condition}
-                    className="cursor-pointer hover:bg-accent"
-                  >
-                    {condition.charAt(0).toUpperCase() + condition.slice(1)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              {conditions.map(condition => (
+                <CustomSelectItem
+                  key={condition}
+                  value={condition}
+                >
+                  {condition.charAt(0).toUpperCase() + condition.slice(1)}
+                </CustomSelectItem>
+              ))}
+            </CustomSelect>
             {errors.condition && (
               <p className="text-sm text-red-500">{errors.condition.message}</p>
             )}

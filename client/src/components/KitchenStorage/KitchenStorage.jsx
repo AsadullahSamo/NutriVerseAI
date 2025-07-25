@@ -4,13 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select"
+import { CustomSelect, CustomSelectItem } from "@/components/ui/custom-select"
 import {
   Dialog,
   DialogContent,
@@ -184,23 +178,19 @@ export function KitchenStorage() {
                 </div>
                 <div>
                   <Label htmlFor="type">Type</Label>
-                  <Select
+                  <CustomSelect
                     value={newLocation.type}
                     onValueChange={value =>
                       setNewLocation({ ...newLocation, type: value })
                     }
+                    placeholder="Select type"
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pantry">Pantry</SelectItem>
-                      <SelectItem value="refrigerator">Refrigerator</SelectItem>
-                      <SelectItem value="freezer">Freezer</SelectItem>
-                      <SelectItem value="cabinet">Cabinet</SelectItem>
-                      <SelectItem value="counter">Counter</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    <CustomSelectItem value="pantry">Pantry</CustomSelectItem>
+                    <CustomSelectItem value="refrigerator">Refrigerator</CustomSelectItem>
+                    <CustomSelectItem value="freezer">Freezer</CustomSelectItem>
+                    <CustomSelectItem value="cabinet">Cabinet</CustomSelectItem>
+                    <CustomSelectItem value="counter">Counter</CustomSelectItem>
+                  </CustomSelect>
                 </div>
                 <div>
                   <Label htmlFor="capacity">Capacity</Label>
@@ -245,26 +235,22 @@ export function KitchenStorage() {
                 </div>
                 <div>
                   <Label htmlFor="location">Location</Label>
-                  <Select
+                  <CustomSelect
                     value={newItem.locationId}
                     onValueChange={value =>
                       setNewItem({ ...newItem, locationId: value })
                     }
+                    placeholder="Select location"
                   >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {state.locations.map(location => (
-                        <SelectItem
-                          key={location.id}
-                          value={location.id.toString()}
-                        >
-                          {location.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    {state.locations.map(location => (
+                      <CustomSelectItem
+                        key={location.id}
+                        value={location.id.toString()}
+                      >
+                        {location.name}
+                      </CustomSelectItem>
+                    ))}
+                  </CustomSelect>
                 </div>
                 <div>
                   <Label htmlFor="quantity">Quantity</Label>

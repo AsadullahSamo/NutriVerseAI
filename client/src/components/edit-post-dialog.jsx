@@ -1,13 +1,7 @@
 import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select"
+import { CustomSelect, CustomSelectItem } from "@/components/ui/custom-select"
 import {
   Dialog,
   DialogContent,
@@ -101,21 +95,17 @@ export function EditPostDialog({ post, trigger }) {
               </div>
 
               {type === "RECIPE_SHARE" && (
-                <Select
+                <CustomSelect
                   value={selectedRecipeId}
                   onValueChange={setSelectedRecipeId}
+                  placeholder="Select a recipe to share"
                 >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a recipe to share" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {recipes?.map(recipe => (
-                      <SelectItem key={recipe.id} value={recipe.id.toString()}>
-                        {recipe.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  {recipes?.map(recipe => (
+                    <CustomSelectItem key={recipe.id} value={recipe.id.toString()}>
+                      {recipe.title}
+                    </CustomSelectItem>
+                  ))}
+                </CustomSelect>
               )}
 
               <Textarea

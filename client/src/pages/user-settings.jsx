@@ -13,13 +13,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select"
+import { CustomSelect, CustomSelectItem } from "@/components/ui/custom-select"
 import { Switch } from "@/components/ui/switch"
 import {
   AlertDialog,
@@ -152,23 +146,19 @@ export default function UserSettings() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="language">Language</Label>
-              <Select
-                defaultValue={profile.preferences?.language || "en"}
+              <CustomSelect
+                value={profile.preferences?.language || "en"}
                 onValueChange={value =>
                   updateProfileMutation.mutate({
                     preferences: { ...profile.preferences, language: value }
                   })
                 }
+                placeholder="Select language"
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select language" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="en">English</SelectItem>
-                  <SelectItem value="es">Spanish</SelectItem>
-                  <SelectItem value="fr">French</SelectItem>
-                </SelectContent>
-              </Select>
+                <CustomSelectItem value="en">English</CustomSelectItem>
+                <CustomSelectItem value="es">Spanish</CustomSelectItem>
+                <CustomSelectItem value="fr">French</CustomSelectItem>
+              </CustomSelect>
             </div>
 
             <div className="space-y-2">
