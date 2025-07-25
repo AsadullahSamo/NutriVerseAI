@@ -126,28 +126,46 @@ export function PersonalizedRecommendations() {
       title: "Refreshing Recommendations",
       description: "Fetching fresh personalized recommendations...",
     });
-    
+
     try {
-      // Call the refresh endpoint
-      const res = await apiRequest("POST", "/api/recipes/recommendations/refresh");
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
+      // First invalidate the current cache to force fresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/recipes/personalized"] });
+
+      // Try to call the refresh endpoint, but don't fail if it doesn't exist
+      try {
+        const res = await apiRequest("POST", "/api/recipes/recommendations/refresh");
+        if (res.ok) {
+          console.log("Refresh endpoint called successfully");
+        }
+      } catch (refreshError) {
+        console.log("Refresh endpoint not available, proceeding with direct refetch");
       }
-      
-      // Refetch recommendations
+
+      // Always refetch recommendations regardless of refresh endpoint status
       await refetchRecommendations();
-      
+
       toast({
         title: "Success",
         description: "Your recommendations have been refreshed!",
       });
     } catch (error) {
       console.error("Error refreshing recommendations:", error);
-      toast({
-        title: "Error",
-        description: "Failed to refresh recommendations. Please try again.",
-        variant: "destructive"
-      });
+
+      // Try a fallback approach - just refetch without the refresh endpoint
+      try {
+        await refetchRecommendations();
+        toast({
+          title: "Success",
+          description: "Your recommendations have been refreshed!",
+        });
+      } catch (fallbackError) {
+        console.error("Fallback refresh also failed:", fallbackError);
+        toast({
+          title: "Error",
+          description: "Failed to refresh recommendations. Please try again.",
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsRefreshing(false);
     }

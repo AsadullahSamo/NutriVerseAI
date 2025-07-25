@@ -23,6 +23,7 @@ import {
 
 export default function CommunityPage() {
   const [selectedType, setSelectedType] = useState(null)
+  const [viewFilter, setViewFilter] = useState("all") // "all" or "my"
   const { user } = useAuth()
   const { toast } = useToast()
 
@@ -79,11 +80,19 @@ export default function CommunityPage() {
 
   // Filter out hidden posts from localStorage
   const hiddenPosts = JSON.parse(localStorage.getItem("hiddenPosts") || "[]")
-  const filteredPosts = selectedType
-    ? posts?.filter(
-        post => post.type === selectedType && !hiddenPosts.includes(post.id)
-      )
-    : posts?.filter(post => !hiddenPosts.includes(post.id))
+
+  // Apply filters
+  let filteredPosts = posts?.filter(post => !hiddenPosts.includes(post.id)) || []
+
+  // Filter by type
+  if (selectedType) {
+    filteredPosts = filteredPosts.filter(post => post.type === selectedType)
+  }
+
+  // Filter by ownership
+  if (viewFilter === "my") {
+    filteredPosts = filteredPosts.filter(post => post.userId === user?.id)
+  }
 
   if (isLoading) {
     return (
@@ -134,31 +143,52 @@ export default function CommunityPage() {
               </div>
             )}
 
-          <div className="flex gap-2 mt-6">
-            <Button
-              variant={selectedType === null ? "default" : "outline"}
-              onClick={() => setSelectedType(null)}
-            >
-              All
-            </Button>
-            <Button
-              variant={selectedType === "RECIPE_SHARE" ? "default" : "outline"}
-              onClick={() => setSelectedType("RECIPE_SHARE")}
-            >
-              Recipes
-            </Button>
-            <Button
-              variant={selectedType === "FOOD_RESCUE" ? "default" : "outline"}
-              onClick={() => setSelectedType("FOOD_RESCUE")}
-            >
-              Food Rescue
-            </Button>
-            <Button
-              variant={selectedType === "COOKING_TIP" ? "default" : "outline"}
-              onClick={() => setSelectedType("COOKING_TIP")}
-            >
-              Tips
-            </Button>
+          <div className="space-y-4 mt-6">
+            {/* View Filter */}
+            <div className="flex gap-2">
+              <Button
+                variant={viewFilter === "all" ? "default" : "outline"}
+                onClick={() => setViewFilter("all")}
+                size="sm"
+              >
+                All Posts
+              </Button>
+              <Button
+                variant={viewFilter === "my" ? "default" : "outline"}
+                onClick={() => setViewFilter("my")}
+                size="sm"
+              >
+                My Posts
+              </Button>
+            </div>
+
+            {/* Type Filter */}
+            <div className="flex gap-2">
+              <Button
+                variant={selectedType === null ? "default" : "outline"}
+                onClick={() => setSelectedType(null)}
+              >
+                All Types
+              </Button>
+              <Button
+                variant={selectedType === "RECIPE_SHARE" ? "default" : "outline"}
+                onClick={() => setSelectedType("RECIPE_SHARE")}
+              >
+                Recipes
+              </Button>
+              <Button
+                variant={selectedType === "FOOD_RESCUE" ? "default" : "outline"}
+                onClick={() => setSelectedType("FOOD_RESCUE")}
+              >
+                Food Rescue
+              </Button>
+              <Button
+                variant={selectedType === "COOKING_TIP" ? "default" : "outline"}
+                onClick={() => setSelectedType("COOKING_TIP")}
+              >
+                Tips
+              </Button>
+            </div>
           </div>
         </header>
 
@@ -175,7 +205,7 @@ export default function CommunityPage() {
                     </span>
                   </div>
                   <div className="flex gap-2">
-                    {post.userId === user?.id ? (
+                    {post.userId === user?.id && (
                       <>
                         <EditPostDialog post={post} />
                         <AlertDialog>
@@ -209,36 +239,6 @@ export default function CommunityPage() {
                           </AlertDialogContent>
                         </AlertDialog>
                       </>
-                    ) : (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete Post
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Post?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This action cannot be undone. This will delete the
-                              post.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => deleteMutation.mutate(post.id)}
-                            >
-                              Delete Post
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
                     )}
                   </div>
                 </div>

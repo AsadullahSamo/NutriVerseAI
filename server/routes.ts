@@ -1004,6 +1004,48 @@ export async function registerRoutes(app) {
     }
   });
 
+  // Kitchen Equipment Maintenance Tips endpoint
+  app.post('/api/kitchen-equipment/maintenance-tips', isAuthenticated, async (req, res) => {
+    try {
+      const { equipment } = req.body;
+      console.log('[Server] Generating maintenance tips for equipment:', equipment.name);
+
+      // Import the AI service
+      const { getMaintenanceTips } = await import('./ai-services/kitchen-inventory-ai');
+      const tips = await getMaintenanceTips(equipment);
+
+      console.log('[Server] Generated maintenance tips successfully');
+      res.json(tips);
+    } catch (error) {
+      console.error('[Server] Error generating maintenance tips:', error);
+      res.status(500).json({
+        error: 'Failed to generate maintenance tips',
+        message: error.message
+      });
+    }
+  });
+
+  // Kitchen Equipment Analysis endpoint
+  app.post('/api/kitchen-equipment/analysis', isAuthenticated, async (req, res) => {
+    try {
+      const { equipment, userPreferences } = req.body;
+      console.log('[Server] Generating kitchen equipment analysis');
+
+      // Import the AI service
+      const { analyzeKitchenInventory } = await import('./ai-services/kitchen-inventory-ai');
+      const analysis = await analyzeKitchenInventory(equipment, userPreferences);
+
+      console.log('[Server] Generated kitchen analysis successfully');
+      res.json(analysis);
+    } catch (error) {
+      console.error('[Server] Error generating kitchen analysis:', error);
+      res.status(500).json({
+        error: 'Failed to generate kitchen analysis',
+        message: error.message
+      });
+    }
+  });
+
             // ----------------- Cultural Cuisine Routes -----------------
   app.get('/api/cultural-cuisines', async (req, res) => {
     try {
