@@ -1,7 +1,13 @@
 import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog"
 import { useAuth } from "@/hooks/use-auth"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { apiRequest, queryClient } from "@/lib/queryClient"
@@ -89,30 +95,7 @@ export function CreatePostDialog({ trigger }) {
     createPostMutation.mutate(postData)
   }
 
-  // Simple modal component
-  const Modal = ({ isOpen, onClose, children }) => {
-    if (!isOpen) return null;
 
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-        <div className="relative bg-background border rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-          <div className="flex items-center justify-between p-6 border-b">
-            <h2 className="text-lg font-semibold">Create Post</h2>
-            <button
-              onClick={onClose}
-              className="h-8 w-8 rounded-full hover:bg-accent hover:text-accent-foreground flex items-center justify-center text-xl font-bold"
-            >
-              ×
-            </button>
-          </div>
-          <div className="p-6 max-h-[calc(90vh-120px)] overflow-y-auto">
-            {children}
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <>
@@ -127,59 +110,69 @@ export function CreatePostDialog({ trigger }) {
         </Button>
       )}
 
-      <Modal isOpen={open} onClose={() => setOpen(false)}>
-        <div className="space-y-4 mt-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Post Type</label>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              className="navbar-dropdown-trigger"
-            >
-              <option value="RECIPE_SHARE">Share Recipe</option>
-              <option value="FOOD_RESCUE">Food Rescue</option>
-              <option value="COOKING_TIP">Cooking Tip</option>
-            </select>
-          </div>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle>Create Post</DialogTitle>
+            <DialogDescription>
+              Share your thoughts, recipes, or tips with the community.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 dialog-scroll-area pr-2 min-h-0">
+            <div className="space-y-4 mt-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Post Type</label>
+                <select
+                  value={type}
+                  onChange={(e) => setType(e.target.value)}
+                  className="navbar-dropdown-trigger"
+                >
+                  <option value="RECIPE_SHARE">Share Recipe</option>
+                  <option value="FOOD_RESCUE">Food Rescue</option>
+                  <option value="COOKING_TIP">Cooking Tip</option>
+                </select>
+              </div>
 
-          {type === "RECIPE_SHARE" && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Select Recipe</label>
-              <select
-                value={selectedRecipeId}
-                onChange={(e) => setSelectedRecipeId(e.target.value)}
-                className="navbar-dropdown-trigger"
+              {type === "RECIPE_SHARE" && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Select Recipe</label>
+                  <select
+                    value={selectedRecipeId}
+                    onChange={(e) => setSelectedRecipeId(e.target.value)}
+                    className="navbar-dropdown-trigger"
+                  >
+                    <option value="">Select a recipe to share</option>
+                    {recipes &&
+                      recipes.map(recipe => (
+                        <option key={recipe.id} value={recipe.id.toString()}>
+                          {recipe.title}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
+
+              <Textarea
+                placeholder="What would you like to share?"
+                value={content}
+                onChange={e => setContent(e.target.value)}
+                className="min-h-[150px]"
+              />
+              <Button
+                className="w-full"
+                onClick={handleCreatePost}
+                disabled={
+                  !content.trim() ||
+                  createPostMutation.isPending ||
+                  (type === "RECIPE_SHARE" && !selectedRecipeId)
+                }
               >
-                <option value="">Select a recipe to share</option>
-                {recipes &&
-                  recipes.map(recipe => (
-                    <option key={recipe.id} value={recipe.id.toString()}>
-                      {recipe.title}
-                    </option>
-                  ))}
-              </select>
+                {createPostMutation.isPending ? "Creating..." : "Post"}
+              </Button>
             </div>
-          )}
-
-          <Textarea
-            placeholder="What would you like to share?"
-            value={content}
-            onChange={e => setContent(e.target.value)}
-            className="min-h-[150px]"
-          />
-          <Button
-            className="w-full"
-            onClick={handleCreatePost}
-            disabled={
-              !content.trim() ||
-              createPostMutation.isPending ||
-              (type === "RECIPE_SHARE" && !selectedRecipeId)
-            }
-          >
-            {createPostMutation.isPending ? "Creating..." : "Post"}
-          </Button>
-        </div>
-      </Modal>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }

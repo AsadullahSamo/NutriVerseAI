@@ -38,7 +38,6 @@ import {
 
 export default function PantryPage() {
   const [searchTerm, setSearchTerm] = useState("")
-  const [selectedCategory, setSelectedCategory] = useState("all")
   const [sortOrder, setSortOrder] = useState("asc")
   const { toast } = useToast()
   const [showStats, setShowStats] = useState(false)
@@ -63,8 +62,7 @@ export default function PantryPage() {
   const filteredItems = pantryItems
     ?.filter(
       item =>
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-        (selectedCategory === "all" || item.category === selectedCategory)
+        item.name.toLowerCase().includes(searchTerm.toLowerCase())
     )
     .sort((a, b) => {
       if (!a.expiryDate || !b.expiryDate) return 0
@@ -74,14 +72,6 @@ export default function PantryPage() {
         ? dateA.getTime() - dateB.getTime()
         : dateB.getTime() - dateA.getTime()
     })
-
-  const categories = Array.from(
-    new Set(
-      pantryItems
-        ?.map(item => item.category)
-        .filter(category => Boolean(category))
-    )
-  )
 
   const expiringItems = filteredItems?.filter(item => {
     if (!item.expiryDate) return false
@@ -118,7 +108,17 @@ export default function PantryPage() {
 
           <div className="mt-6 space-y-4">
             <div className="flex gap-4">
-              <div className="relative flex-1">
+              <Button
+                variant="outline"
+                onClick={() =>
+                  setSortOrder(order => (order === "asc" ? "desc" : "asc"))
+                }
+                className="gap-2 flex-shrink-0"
+              >
+                <ArrowUpDown className="h-4 w-4" />
+                Sort by Expiry
+              </Button>
+              <div className="relative flex-1" style={{ width: "90%" }}>
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                 <Input
                   placeholder="Search pantry items..."
@@ -127,32 +127,6 @@ export default function PantryPage() {
                   className="pl-10"
                 />
               </div>
-              <Select
-                value={selectedCategory}
-                onValueChange={setSelectedCategory}
-              >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="All Categories" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map(category => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                variant="outline"
-                onClick={() =>
-                  setSortOrder(order => (order === "asc" ? "desc" : "asc"))
-                }
-                className="gap-2"
-              >
-                <ArrowUpDown className="h-4 w-4" />
-                Sort by Expiry
-              </Button>
             </div>
           </div>
         </header>
@@ -181,7 +155,6 @@ export default function PantryPage() {
                 pantryItems={pantryItems}
                 filteredItems={filteredItems}
                 searchTerm={searchTerm}
-                selectedCategory={selectedCategory}
               />
             )}
           </CollapsibleContent>
