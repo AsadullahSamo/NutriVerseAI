@@ -38,7 +38,7 @@ const LoginPage = () => {
             {error && (
               <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error.message}</AlertDescription>
+                <AlertDescription>{error.message || "An error occurred. Please try again."}</AlertDescription>
               </Alert>
             )}
             <div className="grid w-full items-center gap-4">

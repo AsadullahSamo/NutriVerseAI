@@ -146,12 +146,8 @@ export function AuthProvider({ children }) {
     },
     onError: (error) => {
       setError(error.message)
-      toast(error.message, {
-        duration: 3000,
-        style: {
-          background: "#f44336",
-          color: "white",
-        },
+      toast.error("Logout failed", {
+        description: error.message
       })
     },
   })
@@ -226,9 +222,7 @@ export function AuthProvider({ children }) {
     onError: err => {
       console.error("Registration mutation onError called with:", err)
       setError(err.message)
-      toast.error("Registration failed", {
-        description: err.message
-      })
+      toast.error("Registration failed: " + (err.message || "Unknown error"))
     }
   })
 
@@ -365,9 +359,7 @@ export function AuthProvider({ children }) {
     },
     onError: err => {
       setError(err.message)
-      toast.error("Delete account failed", {
-        description: err.message
-      })
+      toast.error("Delete account failed: " + (err.message || "Unknown error"))
     }
   })
 
@@ -386,9 +378,7 @@ export function AuthProvider({ children }) {
     },
     onError: err => {
       setError(err.message)
-      toast.error("Password reset failed", {
-        description: err.message
-      })
+      toast.error("Password reset failed: " + (err.message || "Unknown error"))
     }
   })
 
