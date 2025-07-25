@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useAuth } from "@/hooks/use-auth"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useQueryClient } from "@tanstack/react-query"
 import { insertUserSchema, forgotPasswordSchema } from "@/lib/schemas"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -36,6 +37,7 @@ export default function AuthPage() {
     forgotPasswordMutation
   } = useAuth()
   const { toast } = useToast()
+  const queryClient = useQueryClient()
   const [forgotPasswordOpen, setForgotPasswordOpen] = useState(false)
   const [showSecretKey, setShowSecretKey] = useState(null)
   const [copied, setCopied] = useState(false)
@@ -97,6 +99,7 @@ export default function AuthPage() {
       console.log("Auth page - registration successful, result:", {
         hasUser: !!result.user,
         hasSecretKey: !!result.secretKey,
+        hasToken: !!result.token,
         message: result.message
       })
 
@@ -109,14 +112,39 @@ export default function AuthPage() {
         // Show secret key immediately as backup
         setShowSecretKey(result.secretKey)
 
-        // Try to redirect, but with a delay to ensure the secret key is shown
-        setTimeout(() => {
-          const secretKeyUrl = `/?secretKey=${encodeURIComponent(result.secretKey)}`
-          console.log("Auth page - redirecting to:", secretKeyUrl)
+        // Wait for authentication state to be updated before redirecting
+        // This prevents the flash back to login page
+        let attempts = 0
+        const maxAttempts = 10 // Maximum 5 seconds of waiting
 
-          // Use replace instead of href to avoid back button issues
-          window.location.replace(secretKeyUrl)
-        }, 1000)
+        const checkAuthAndRedirect = () => {
+          attempts++
+          // Check if user is now authenticated by looking at the query cache
+          const userData = queryClient.getQueryData(["/api/user"])
+          console.log("Auth page - checking auth state before redirect:", {
+            hasUserData: !!userData,
+            attempt: attempts,
+            maxAttempts
+          })
+
+          if (userData) {
+            const secretKeyUrl = `/?secretKey=${encodeURIComponent(result.secretKey)}`
+            console.log("Auth page - user authenticated, redirecting to:", secretKeyUrl)
+            window.location.replace(secretKeyUrl)
+          } else if (attempts < maxAttempts) {
+            // If not authenticated yet, wait a bit more
+            console.log("Auth page - user not authenticated yet, waiting...")
+            setTimeout(checkAuthAndRedirect, 500)
+          } else {
+            // Fallback: redirect anyway after timeout
+            console.log("Auth page - timeout reached, redirecting anyway")
+            const secretKeyUrl = `/?secretKey=${encodeURIComponent(result.secretKey)}`
+            window.location.replace(secretKeyUrl)
+          }
+        }
+
+        // Start checking after a short delay
+        setTimeout(checkAuthAndRedirect, 500)
       } else {
         console.error("Registration succeeded but missing secret key in response:", result)
         toast({
