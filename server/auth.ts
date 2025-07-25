@@ -203,6 +203,7 @@ export function setupAuth(app) {
         const responseData = {
           user: safeUser,
           secretKey,
+          token: safeUser.id, // Add token for cross-domain auth consistency
           message:
             "Please save this secret key in a secure place. You will need it to reset your password if you forget it."
         }
@@ -211,6 +212,7 @@ export function setupAuth(app) {
           userId: safeUser.id,
           username: safeUser.username,
           hasSecretKey: !!secretKey,
+          hasToken: !!responseData.token,
           sessionId: req.sessionID,
           duration: Date.now() - startTime + 'ms'
         })

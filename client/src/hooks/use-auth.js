@@ -51,8 +51,15 @@ export function AuthProvider({ children }) {
         return null
       }
     },
-    retry: false,
-    refetchOnWindowFocus: true
+    retry: (failureCount, error) => {
+      // Retry up to 2 times for network errors, but not for 401s
+      if (error?.message?.includes('401') || error?.message?.includes('Authentication required')) {
+        return false
+      }
+      return failureCount < 2
+    },
+    refetchOnWindowFocus: true,
+    staleTime: 1000 * 60 * 5, // Consider data fresh for 5 minutes
   })
 
   // Login mutation
@@ -196,9 +203,25 @@ export function AuthProvider({ children }) {
       }
     },
     onSuccess: data => {
-      console.log("Registration mutation onSuccess called with:", { hasUser: !!data.user, hasSecretKey: !!data.secretKey })
+      console.log("Registration mutation onSuccess called with:", {
+        hasUser: !!data.user,
+        hasSecretKey: !!data.secretKey,
+        hasToken: !!data.token
+      })
       setError(null)
+
+      // Store token for cross-domain authentication (same as login)
+      if (data.token) {
+        localStorage.setItem('authToken', data.token)
+        console.log('Registration - Token stored in localStorage:', data.token)
+      } else {
+        console.log('Registration - No token in response')
+      }
+
+      // Update user state
       queryClient.setQueryData(["/api/user"], data.user)
+      // Also invalidate to ensure fresh data
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] })
     },
     onError: err => {
       console.error("Registration mutation onError called with:", err)

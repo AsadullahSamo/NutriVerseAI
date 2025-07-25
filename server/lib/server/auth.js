@@ -127,6 +127,7 @@ export function setupAuth(app) {
                 res.status(201).json({
                     user: safeUser,
                     secretKey,
+                    token: safeUser.id, // Add token for cross-domain auth consistency
                     message: "Please save this secret key in a secure place. You will need it to reset your password if you forget it."
                 });
             });
