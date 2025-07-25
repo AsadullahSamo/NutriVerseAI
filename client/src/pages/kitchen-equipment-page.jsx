@@ -939,38 +939,58 @@ const KitchenEquipmentPage = () => {
               <Label htmlFor="category" className="text-right">
                 Category
               </Label>
-              <Select value={formData.category} onValueChange={(value) => handleSelectChange('category', value)}>
+              <Select
+                value={formData.category || ""}
+                onValueChange={(value) => {
+                  console.log("Category selected:", value);
+                  handleSelectChange('category', value);
+                }}
+              >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select category"/>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent
+                  className="z-[200]"
+                  position="popper"
+                  sideOffset={5}
+                >
                   <SelectGroup>
-                    <SelectItem value="Appliances">Appliances</SelectItem>
-                    <SelectItem value="Cookware">Cookware</SelectItem>
-                    <SelectItem value="Cutlery">Cutlery</SelectItem>
-                    <SelectItem value="Utensils">Utensils</SelectItem>
-                    <SelectItem value="Bakeware">Bakeware</SelectItem>
-                    <SelectItem value="Storage">Storage</SelectItem>
+                    <SelectItem value="Appliances" className="cursor-pointer hover:bg-accent">Appliances</SelectItem>
+                    <SelectItem value="Cookware" className="cursor-pointer hover:bg-accent">Cookware</SelectItem>
+                    <SelectItem value="Cutlery" className="cursor-pointer hover:bg-accent">Cutlery</SelectItem>
+                    <SelectItem value="Utensils" className="cursor-pointer hover:bg-accent">Utensils</SelectItem>
+                    <SelectItem value="Bakeware" className="cursor-pointer hover:bg-accent">Bakeware</SelectItem>
+                    <SelectItem value="Storage" className="cursor-pointer hover:bg-accent">Storage</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="condition" className="text-right">
                 Condition
               </Label>
-              <Select value={formData.condition} onValueChange={(value) => handleSelectChange('condition', value)}>
+              <Select
+                value={formData.condition || ""}
+                onValueChange={(value) => {
+                  console.log("Condition selected:", value);
+                  handleSelectChange('condition', value);
+                }}
+              >
                 <SelectTrigger className="col-span-3">
                   <SelectValue placeholder="Select condition"/>
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent
+                  className="z-[200]"
+                  position="popper"
+                  sideOffset={5}
+                >
                   <SelectGroup>
-                    <SelectItem value="excellent">Excellent</SelectItem>
-                    <SelectItem value="good">Good</SelectItem>
-                    <SelectItem value="fair">Fair</SelectItem>
-                    <SelectItem value="needs-maintenance">Needs Maintenance</SelectItem>
-                    <SelectItem value="replace">Replace</SelectItem>
+                    <SelectItem value="excellent" className="cursor-pointer hover:bg-accent">Excellent</SelectItem>
+                    <SelectItem value="good" className="cursor-pointer hover:bg-accent">Good</SelectItem>
+                    <SelectItem value="fair" className="cursor-pointer hover:bg-accent">Fair</SelectItem>
+                    <SelectItem value="needs-maintenance" className="cursor-pointer hover:bg-accent">Needs Maintenance</SelectItem>
+                    <SelectItem value="replace" className="cursor-pointer hover:bg-accent">Replace</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>

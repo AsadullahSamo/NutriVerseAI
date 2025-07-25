@@ -138,17 +138,26 @@ export function AddEquipmentDialog() {
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
             <Select
-              value={watch("category")}
-              onValueChange={value =>
-                setValue("category", value, { shouldValidate: true })
-              }
+              value={watch("category") || ""}
+              onValueChange={value => {
+                console.log("Category selected:", value);
+                setValue("category", value, { shouldValidate: true });
+              }}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent
+                className="z-[200]"
+                position="popper"
+                sideOffset={5}
+              >
                 {categories.map(category => (
-                  <SelectItem key={category} value={category}>
+                  <SelectItem
+                    key={category}
+                    value={category}
+                    className="cursor-pointer hover:bg-accent"
+                  >
                     {category}
                   </SelectItem>
                 ))}
@@ -162,17 +171,26 @@ export function AddEquipmentDialog() {
           <div className="space-y-2">
             <Label htmlFor="condition">Condition</Label>
             <Select
-              value={watch("condition")}
-              onValueChange={value =>
-                setValue("condition", value, { shouldValidate: true })
-              }
+              value={watch("condition") || ""}
+              onValueChange={value => {
+                console.log("Condition selected:", value);
+                setValue("condition", value, { shouldValidate: true });
+              }}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select condition" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent
+                className="z-[200]"
+                position="popper"
+                sideOffset={5}
+              >
                 {conditions.map(condition => (
-                  <SelectItem key={condition} value={condition}>
+                  <SelectItem
+                    key={condition}
+                    value={condition}
+                    className="cursor-pointer hover:bg-accent"
+                  >
                     {condition.charAt(0).toUpperCase() + condition.slice(1)}
                   </SelectItem>
                 ))}
