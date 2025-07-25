@@ -203,7 +203,7 @@ export default function AuthPage() {
                   >
                     {loginMutation.error && (
                       <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-                        {loginMutation.error.message}
+                        {loginMutation.error.message || "Login failed. Please try again."}
                       </div>
                     )}
                     <FormField
@@ -342,7 +342,7 @@ export default function AuthPage() {
                   >
                     {registerMutation.error && (
                       <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm">
-                        {registerMutation.error.message}
+                        {registerMutation.error.message || "Registration failed. Please try again."}
                       </div>
                     )}
                     <FormField

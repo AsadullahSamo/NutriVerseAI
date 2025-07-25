@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query"
 import { Toaster } from "sonner"
 import { AuthProvider } from "@/hooks/use-auth"
 import { UserPreferencesProvider } from "@/contexts/UserPreferencesContext"
+import ErrorBoundary from "@/components/ErrorBoundary"
 // Import global fetch override to fix all API calls automatically
 import "@/lib/api"
 // Import custom toast styles
@@ -82,35 +83,37 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <UserPreferencesProvider>
-          <Router />
-          <Toaster
-            position="top-right"
-            richColors={true}
-            closeButton={false}
-            duration={3000}
-            expand={false}
-            visibleToasts={3}
-            theme="system"
-            toastOptions={{
-              style: {
-                background: 'hsl(var(--background))',
-                border: '1px solid hsl(var(--border))',
-                color: 'hsl(var(--foreground))',
-                borderRadius: '6px',
-                fontSize: '14px',
-                fontFamily: 'inherit',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                padding: '12px 16px',
-              },
-              className: 'custom-toast',
-            }}
-          />
-        </UserPreferencesProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <UserPreferencesProvider>
+            <Router />
+            <Toaster
+              position="top-right"
+              richColors={true}
+              closeButton={false}
+              duration={3000}
+              expand={false}
+              visibleToasts={3}
+              theme="system"
+              toastOptions={{
+                style: {
+                  background: 'hsl(var(--background))',
+                  border: '1px solid hsl(var(--border))',
+                  color: 'hsl(var(--foreground))',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  fontFamily: 'inherit',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                  padding: '12px 16px',
+                },
+                className: 'custom-toast',
+              }}
+            />
+          </UserPreferencesProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   )
 }
 
