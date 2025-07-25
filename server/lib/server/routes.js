@@ -127,10 +127,7 @@ export async function registerRoutes(app) {
             .where(eq(recipesTable.createdBy, req.user.id));
         res.json(userRecipes);
     }));
-    app.post("/api/recipes", asyncHandler(async (req, res) => {
-        if (!req.isAuthenticated()) {
-            return res.status(401).json({ message: "Unauthorized" });
-        }
+    app.post("/api/recipes", isAuthenticated, asyncHandler(async (req, res) => {
         const validated = insertRecipeSchema.parse(req.body);
         // Use the client-calculated sustainability score directly
         const sustainabilityScore = validated.sustainabilityScore || 50;

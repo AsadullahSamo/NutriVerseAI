@@ -209,8 +209,29 @@ export function setupAuth(app) {
     app.post("/api/account/change-password", async (req, res) => {
         try {
             const { username, currentPassword, newPassword, secretKey } = req.body;
+            // Check authentication (session or token)
+            let currentUser = null;
+            if (req.isAuthenticated()) {
+                currentUser = req.user;
+            } else {
+                // Try token authentication
+                const authHeader = req.headers.authorization;
+                if (authHeader && authHeader.startsWith('Bearer ')) {
+                    const token = authHeader.substring(7);
+                    try {
+                        const user = await storage.getUser(token);
+                        if (user) {
+                            const { password, dnaProfile, moodJournal, secretKey, ...safeUser } = user;
+                            currentUser = safeUser;
+                        }
+                    } catch (error) {
+                        console.error('Token validation error:', error);
+                    }
+                }
+            }
+
             // Handle unauthenticated password reset using secret key
-            if (!req.isAuthenticated()) {
+            if (!currentUser) {
                 if (!username || !secretKey || !newPassword) {
                     return res.status(400).json({
                         message: "Username, secret key, and new password are required for password reset"
@@ -236,7 +257,7 @@ export function setupAuth(app) {
             if (!oldPassword || !updatedPassword) {
                 return res.status(400).json({ message: "Current password and new password are required" });
             }
-            const user = await storage.getUser(req.user.id);
+            const user = await storage.getUser(currentUser.id);
             if (!user) {
                 return res.status(404).json({ message: "User not found" });
             }
@@ -247,7 +268,7 @@ export function setupAuth(app) {
                 return res.status(400).json({ message: "New password must be at least 6 characters long" });
             }
             const hashedPassword = await hashPassword(updatedPassword);
-            await storage.updateUser(user.id, Object.assign(Object.assign({}, user), { password: hashedPassword }));
+            await storage.updateUser(currentUser.id, Object.assign(Object.assign({}, user), { password: hashedPassword }));
             res.json({ message: "Password updated successfully" });
         }
         catch (error) {
@@ -264,22 +285,70 @@ export function setupAuth(app) {
             res.json({ message: "Logged out successfully" });
         });
     });
-    // Get user endpoint
-    app.get("/api/user", (req, res) => {
-        if (!req.isAuthenticated()) {
-            return res.status(401).json({ message: "Not authenticated" });
+    // Get user endpoint - with debugging and token fallback
+    app.get("/api/user", async (req, res) => {
+        console.log('User endpoint hit:', {
+            isAuthenticated: req.isAuthenticated(),
+            session: req.session?.passport,
+            cookies: req.headers.cookie,
+            authorization: req.headers.authorization,
+            origin: req.headers.origin
+        });
+
+        // Try session authentication first
+        if (req.isAuthenticated()) {
+            return res.json(req.user)
         }
-        res.json(req.user);
+
+        // Fallback to token authentication
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const token = authHeader.substring(7);
+            try {
+                // Simple token validation (user ID)
+                const user = await storage.getUser(token);
+                if (user) {
+                    const { password, dnaProfile, moodJournal, secretKey, ...safeUser } = user;
+                    return res.json(safeUser);
+                }
+            } catch (error) {
+                console.error('Token validation error:', error);
+            }
+        }
+
+        return res.status(401).json({ message: "Not authenticated" })
     });
     // Update account profile endpoint
     app.patch("/api/account/profile", async (req, res) => {
         try {
-            if (!req.isAuthenticated()) {
+            // Try session authentication first
+            let currentUser = null;
+            if (req.isAuthenticated()) {
+                currentUser = req.user;
+            } else {
+                // Fallback to token authentication
+                const authHeader = req.headers.authorization;
+                if (authHeader && authHeader.startsWith('Bearer ')) {
+                    const token = authHeader.substring(7);
+                    try {
+                        const user = await storage.getUser(token);
+                        if (user) {
+                            const { password, dnaProfile, moodJournal, secretKey, ...safeUser } = user;
+                            currentUser = safeUser;
+                        }
+                    } catch (error) {
+                        console.error('Token validation error:', error);
+                    }
+                }
+            }
+
+            if (!currentUser) {
                 return res.status(401).json({ message: "Not authenticated" });
             }
-            const updates = Object.assign(Object.assign(Object.assign({}, req.user), req.body), { id: req.user.id // Ensure ID doesn't change
+
+            const updates = Object.assign(Object.assign(Object.assign({}, currentUser), req.body), { id: currentUser.id // Ensure ID doesn't change
              });
-            const user = await storage.updateUser(req.user.id, updates);
+            const user = await storage.updateUser(currentUser.id, updates);
             res.json(sanitizeUser(user));
         }
         catch (error) {
@@ -290,12 +359,33 @@ export function setupAuth(app) {
     // Add account deletion endpoint
     app.delete("/api/account", async (req, res) => {
         try {
-            if (!req.isAuthenticated()) {
+            // Try session authentication first
+            let currentUser = null;
+            if (req.isAuthenticated()) {
+                currentUser = req.user;
+            } else {
+                // Fallback to token authentication
+                const authHeader = req.headers.authorization;
+                if (authHeader && authHeader.startsWith('Bearer ')) {
+                    const token = authHeader.substring(7);
+                    try {
+                        const user = await storage.getUser(token);
+                        if (user) {
+                            const { password, dnaProfile, moodJournal, secretKey, ...safeUser } = user;
+                            currentUser = safeUser;
+                        }
+                    } catch (error) {
+                        console.error('Token validation error:', error);
+                    }
+                }
+            }
+
+            if (!currentUser) {
                 return res.status(401).json({ message: "Not authenticated" });
             }
             const { password } = req.body;
             // Verify password before deletion
-            const user = await storage.getUser(req.user.id);
+            const user = await storage.getUser(currentUser.id);
             if (!user) {
                 return res.status(404).json({ message: "User not found" });
             }
@@ -304,7 +394,7 @@ export function setupAuth(app) {
                 return res.status(401).json({ message: "Invalid password" });
             }
             // Delete the user account
-            await storage.deleteUser(req.user.id);
+            await storage.deleteUser(currentUser.id);
             // Logout the user
             req.logout((err) => {
                 if (err) {
