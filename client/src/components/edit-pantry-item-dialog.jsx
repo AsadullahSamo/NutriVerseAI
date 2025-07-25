@@ -12,6 +12,13 @@ import {
   FormLabel,
   FormMessage
 } from "@/components/ui/form"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle
+} from "@/components/ui/dialog"
 import { useMutation } from "@tanstack/react-query"
 import { apiRequest, queryClient } from "@/lib/queryClient"
 import { useToast } from "@/hooks/use-toast"
@@ -196,30 +203,7 @@ export function EditPantryItemDialog({ item, trigger }) {
     }
   })
 
-  // Simple modal component
-  const Modal = ({ isOpen, onClose, children }) => {
-    if (!isOpen) return null;
 
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-        <div className="relative bg-background border rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
-          <div className="flex items-center justify-between p-6 border-b">
-            <h2 className="text-lg font-semibold">Edit Pantry Item</h2>
-            <button
-              onClick={onClose}
-              className="h-8 w-8 rounded-full hover:bg-accent hover:text-accent-foreground flex items-center justify-center text-xl font-bold"
-            >
-              ×
-            </button>
-          </div>
-          <div className="p-6 max-h-[calc(90vh-120px)] overflow-y-auto">
-            {children}
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <>
@@ -233,8 +217,16 @@ export function EditPantryItemDialog({ item, trigger }) {
         </Button>
       )}
 
-      <Modal isOpen={open} onClose={() => setOpen(false)}>
-        <div className="px-1 pb-6">
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle>Edit Pantry Item</DialogTitle>
+            <DialogDescription>
+              Update your pantry item details and sustainability information.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 dialog-scroll-area pr-2 min-h-0">
+            <div className="px-1 pb-6">
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(data =>
@@ -569,8 +561,10 @@ export function EditPantryItemDialog({ item, trigger }) {
               </Button>
             </form>
           </Form>
-        </div>
-      </Modal>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   )
 }
