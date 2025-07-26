@@ -841,31 +841,31 @@ const KitchenEquipmentPage = () => {
                     <div className="mb-6">
                       <div className="flex items-center gap-2 mb-3">
                         <CheckCircle className="h-5 w-5 text-green-600" />
-                        <h3 className="font-semibold text-green-700">Ready to Cook ({recipes.canMake.length})</h3>
+                        <h3 className="font-semibold text-green-600">Ready to Cook ({recipes.canMake.length})</h3>
                       </div>
                       {recipes.canMake.map((recipe, index) => (
-                        <div key={`can-${index}`} className="mb-4 p-4 border border-green-200 rounded-lg bg-green-50/50">
+                        <div key={`can-${index}`} className="mb-4 p-4 border rounded-lg">
                           <div className="flex items-start justify-between mb-2">
                             <h4 className="font-semibold text-lg">{recipe.title}</h4>
-                            <Badge variant="outline" className="text-green-700 border-green-300">
+                            <Badge variant="outline">
                               {recipe.difficulty} • {recipe.prepTime}min
                             </Badge>
                           </div>
-                          <p className="text-sm text-gray-600 mb-3">{recipe.description}</p>
+                          <p className="text-sm text-gray-400 mb-3">{recipe.description}</p>
 
                           <div className="space-y-2">
                             <div>
                               <h5 className="font-medium text-sm">Required Equipment:</h5>
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {recipe.requiredEquipment.map((eq, i) => (
-                                  <Badge key={i} variant="secondary" className="bg-green-100 text-green-800">
+                                  <Badge key={i} variant="secondary">
                                     {eq}
                                   </Badge>
                                 ))}
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
+                            <div className="grid grid-cols-2 gap-2 text-sm">
                               <div>Calories: {recipe.nutritionInfo.calories}</div>
                               <div>Protein: {recipe.nutritionInfo.protein}g</div>
                               <div>Carbs: {recipe.nutritionInfo.carbs}g</div>
@@ -882,31 +882,31 @@ const KitchenEquipmentPage = () => {
                     <div className="mb-4">
                       <div className="flex items-center gap-2 mb-3">
                         <XCircle className="h-5 w-5 text-orange-600" />
-                        <h3 className="font-semibold text-orange-700">Need Equipment ({recipes.needsEquipment.length})</h3>
+                        <h3 className="font-semibold text-orange-600">Need Equipment ({recipes.needsEquipment.length})</h3>
                       </div>
                       {recipes.needsEquipment.map((recipe, index) => (
-                        <div key={`need-${index}`} className="mb-4 p-4 border border-orange-200 rounded-lg bg-orange-50/50">
+                        <div key={`need-${index}`} className="mb-4 p-4 border rounded-lg">
                           <div className="flex items-start justify-between mb-2">
                             <h4 className="font-semibold text-lg">{recipe.title}</h4>
-                            <Badge variant="outline" className="text-orange-700 border-orange-300">
+                            <Badge variant="outline">
                               {recipe.difficulty} • {recipe.prepTime}min
                             </Badge>
                           </div>
-                          <p className="text-sm text-gray-600 mb-3">{recipe.description}</p>
+                          <p className="text-sm text-gray-400 mb-3">{recipe.description}</p>
 
                           <div className="space-y-2">
                             <div>
                               <h5 className="font-medium text-sm">Missing Equipment:</h5>
                               <div className="flex flex-wrap gap-1 mt-1">
                                 {recipe.missingEquipment.map((eq, i) => (
-                                  <Badge key={i} variant="destructive" className="bg-red-100 text-red-800 border-red-300">
+                                  <Badge key={i} variant="destructive">
                                     {eq}
                                   </Badge>
                                 ))}
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
+                            <div className="grid grid-cols-2 gap-2 text-sm">
                               <div>Calories: {recipe.nutritionInfo.calories}</div>
                               <div>Protein: {recipe.nutritionInfo.protein}g</div>
                               <div>Carbs: {recipe.nutritionInfo.carbs}g</div>
@@ -921,7 +921,7 @@ const KitchenEquipmentPage = () => {
                   {/* No recipes found */}
                   {(!recipes?.canMake || recipes.canMake.length === 0) &&
                    (!recipes?.needsEquipment || recipes.needsEquipment.length === 0) && (
-                    <div className="text-center py-8 text-gray-500">
+                    <div className="text-center py-8 text-muted-foreground">
                       <Utensils className="h-12 w-12 mx-auto mb-3 opacity-50" />
                       <p>No recipe matches found. Add more equipment to see suggestions!</p>
                     </div>
