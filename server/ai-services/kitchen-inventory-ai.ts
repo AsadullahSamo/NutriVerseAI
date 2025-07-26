@@ -22,18 +22,22 @@ export async function analyzeKitchenInventory(
 }
 
 export async function getMaintenanceTips(equipment) {
-  console.log('[AI Service] Getting maintenance tips for:', equipment.name)
+  console.log('[AI Service] Getting maintenance tips for:', equipment.name, 'Condition:', equipment.condition)
+
+  const conditionContext = getConditionContext(equipment.condition);
 
   const prompt = `You are a kitchen equipment maintenance expert. Provide 4-5 specific maintenance tips for this equipment:
 
 Equipment: ${equipment.name}
 Category: ${equipment.category || 'General'}
-Condition: ${equipment.condition || 'Unknown'}
+Current Condition: ${equipment.condition || 'Unknown'}
+
+${conditionContext}
 
 Return ONLY a JSON array of strings. Each string should be a specific, actionable maintenance tip.
 Example: ["Clean after each use", "Check for wear monthly", "Store in dry place"]
 
-Focus on practical, equipment-specific advice. No explanations, just the JSON array.`
+Focus on practical, equipment-specific advice tailored to the current condition. No explanations, just the JSON array.`
 
   try {
     console.log('[AI Service] Sending prompt to Gemini...')
@@ -63,48 +67,185 @@ Focus on practical, equipment-specific advice. No explanations, just the JSON ar
   } catch (error) {
     console.error("[AI Service] Failed to get maintenance tips:", error.message)
 
-    // Generate contextual fallback tips
+    // Generate contextual fallback tips based on equipment and condition
     const equipmentName = equipment.name?.toLowerCase() || 'equipment'
     const category = equipment.category?.toLowerCase() || ''
+    const condition = equipment.condition?.toLowerCase() || 'unknown'
 
     let fallbackTips = []
 
     if (equipmentName.includes('knife') || category.includes('cutlery')) {
-      fallbackTips = [
-        `Keep your ${equipment.name} sharp with regular honing`,
-        `Hand wash immediately after use and dry thoroughly`,
-        `Store in a knife block or magnetic strip to protect the blade`,
-        `Never put in dishwasher as it can damage the blade`,
-        `Use appropriate cutting boards (wood or plastic, not glass)`
-      ]
+      fallbackTips = getKnifeTips(equipment.name, condition)
     } else if (equipmentName.includes('pan') || equipmentName.includes('pot') || category.includes('cookware')) {
-      fallbackTips = [
-        `Season your ${equipment.name} regularly if it's cast iron or carbon steel`,
-        `Avoid using metal utensils on non-stick surfaces`,
-        `Clean while still warm but not hot to prevent warping`,
-        `Store with pan protectors to prevent scratching`,
-        `Check handles and rivets regularly for looseness`
-      ]
+      fallbackTips = getCookwareTips(equipment.name, condition)
     } else if (category.includes('appliance')) {
-      fallbackTips = [
-        `Clean your ${equipment.name} regularly according to manufacturer instructions`,
-        `Check power cord and plug for damage monthly`,
-        `Keep vents and air passages clear of debris`,
-        `Schedule professional maintenance annually if applicable`,
-        `Store in a dry location when not in use`
-      ]
+      fallbackTips = getApplianceTips(equipment.name, condition)
     } else {
-      fallbackTips = [
-        `Clean your ${equipment.name} thoroughly after each use`,
-        `Inspect for wear and damage every few months`,
-        `Store in a clean, dry place to prevent deterioration`,
-        `Follow manufacturer's care instructions when available`,
-        `Replace when showing signs of significant wear`
-      ]
+      fallbackTips = getGeneralTips(equipment.name, condition)
     }
 
     console.log('[AI Service] Returning fallback tips:', fallbackTips.length)
     return fallbackTips
+  }
+}
+
+// Helper function to provide condition-specific context
+function getConditionContext(condition) {
+  switch (condition?.toLowerCase()) {
+    case 'excellent':
+      return 'CONDITION FOCUS: Equipment is in excellent condition. Provide preventive maintenance tips to keep it that way.';
+
+    case 'good':
+      return 'CONDITION FOCUS: Equipment is in good condition. Provide maintenance tips to prevent deterioration and maintain performance.';
+
+    case 'fair':
+      return 'CONDITION FOCUS: Equipment is in fair condition with some wear. Provide maintenance tips to prevent further deterioration and restore performance where possible.';
+
+    case 'needs-maintenance':
+      return 'CONDITION FOCUS: Equipment needs maintenance. Provide specific repair and restoration tips to improve its condition.';
+
+    case 'replace':
+      return 'CONDITION FOCUS: Equipment is in poor condition and may need replacement. Provide tips for safe usage until replacement and signs to watch for immediate replacement.';
+
+    default:
+      return 'CONDITION FOCUS: Equipment condition is unknown. Provide general maintenance tips covering inspection, cleaning, and preventive care.';
+  }
+}
+
+// Condition-specific fallback tip generators
+function getKnifeTips(name, condition) {
+  const baseTips = [
+    `Keep your ${name} sharp with regular honing`,
+    `Hand wash immediately after use and dry thoroughly`,
+    `Store in a knife block or magnetic strip to protect the blade`,
+    `Never put in dishwasher as it can damage the blade`
+  ];
+
+  switch (condition) {
+    case 'excellent':
+      return [...baseTips, `Maintain the excellent condition with weekly honing`];
+    case 'good':
+      return [...baseTips, `Check blade alignment and handle tightness monthly`];
+    case 'fair':
+      return [...baseTips, `Consider professional sharpening to restore performance`];
+    case 'needs-maintenance':
+      return [
+        `Professional sharpening needed to restore cutting performance`,
+        `Check for loose handle or damaged blade`,
+        `Clean thoroughly and oil if carbon steel`,
+        `Store properly to prevent further damage`
+      ];
+    case 'replace':
+      return [
+        `Use with extreme caution - blade may be damaged`,
+        `Consider immediate replacement for safety`,
+        `Do not use if handle is loose or blade is chipped`,
+        `Keep away from children until replaced`
+      ];
+    default:
+      return baseTips;
+  }
+}
+
+function getCookwareTips(name, condition) {
+  const baseTips = [
+    `Clean while still warm but not hot to prevent warping`,
+    `Avoid using metal utensils on non-stick surfaces`,
+    `Store with pan protectors to prevent scratching`,
+    `Check handles and rivets regularly for looseness`
+  ];
+
+  switch (condition) {
+    case 'excellent':
+      return [...baseTips, `Season regularly if cast iron to maintain excellent condition`];
+    case 'good':
+      return [...baseTips, `Inspect non-stick coating for any wear spots`];
+    case 'fair':
+      return [...baseTips, `Re-season if cast iron, or consider replacing if non-stick coating is worn`];
+    case 'needs-maintenance':
+      return [
+        `Re-season cast iron cookware or replace if non-stick coating is damaged`,
+        `Tighten loose handles or rivets if possible`,
+        `Clean thoroughly to remove any buildup`,
+        `Check for warping by placing on flat surface`
+      ];
+    case 'replace':
+      return [
+        `Use with caution - may have loose handles or damaged coating`,
+        `Consider immediate replacement for safety and performance`,
+        `Do not use if handle is very loose or coating is flaking`,
+        `Avoid high heat until replaced`
+      ];
+    default:
+      return baseTips;
+  }
+}
+
+function getApplianceTips(name, condition) {
+  const baseTips = [
+    `Clean regularly according to manufacturer instructions`,
+    `Check power cord and plug for damage monthly`,
+    `Keep vents and air passages clear of debris`,
+    `Store in a dry location when not in use`
+  ];
+
+  switch (condition) {
+    case 'excellent':
+      return [...baseTips, `Schedule annual professional maintenance to keep in excellent condition`];
+    case 'good':
+      return [...baseTips, `Monitor performance and clean filters regularly`];
+    case 'fair':
+      return [...baseTips, `Consider professional servicing to restore optimal performance`];
+    case 'needs-maintenance':
+      return [
+        `Schedule professional maintenance or repair immediately`,
+        `Check all electrical connections and cords`,
+        `Clean thoroughly including internal components if accessible`,
+        `Replace worn parts like filters or gaskets`
+      ];
+    case 'replace':
+      return [
+        `Use with extreme caution - may have electrical or mechanical issues`,
+        `Consider immediate replacement for safety`,
+        `Do not use if making unusual noises or sparking`,
+        `Unplug when not in use until replaced`
+      ];
+    default:
+      return baseTips;
+  }
+}
+
+function getGeneralTips(name, condition) {
+  const baseTips = [
+    `Clean your ${name} thoroughly after each use`,
+    `Store in a clean, dry place to prevent deterioration`,
+    `Follow manufacturer's care instructions when available`,
+    `Inspect for wear and damage regularly`
+  ];
+
+  switch (condition) {
+    case 'excellent':
+      return [...baseTips, `Continue current maintenance routine to preserve excellent condition`];
+    case 'good':
+      return [...baseTips, `Increase inspection frequency to maintain good condition`];
+    case 'fair':
+      return [...baseTips, `Address any visible wear or damage promptly`];
+    case 'needs-maintenance':
+      return [
+        `Perform thorough cleaning and inspection`,
+        `Address any visible damage or wear immediately`,
+        `Consider professional repair if applicable`,
+        `Replace worn components if possible`
+      ];
+    case 'replace':
+      return [
+        `Use with caution - equipment may be unsafe or ineffective`,
+        `Plan for immediate replacement`,
+        `Monitor closely for any safety issues`,
+        `Consider temporary alternatives until replacement`
+      ];
+    default:
+      return baseTips;
   }
 }
 
