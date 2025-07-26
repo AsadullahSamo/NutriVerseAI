@@ -39,8 +39,7 @@ const KitchenEquipmentPage = () => {
     const [selectedEquipment, setSelectedEquipment] = useState(null);
     const [maintenanceTips, setMaintenanceTips] = useState([]);
     const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
-    const [aiAnalysis, setAiAnalysis] = useState(null);
-    const [analysisDialogOpen, setAnalysisDialogOpen] = useState(false);
+
     const [notification, setNotification] = useState(null);
     const [addingToList, setAddingToList] = useState(null);
     const [shoppingList, setShoppingList] = useState([]);
@@ -204,53 +203,112 @@ const KitchenEquipmentPage = () => {
             default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
         }
     };
-    const getPriorityColor = (priority) => {
-        switch (priority) {
-            case 'high': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
-            case 'medium': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300';
-            case 'low': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
-            default: return 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300';
-        }
-    };
+
     const handleUpdateStatus = async (item) => {
         setSelectedEquipment(item);
         setAiLoading(true);
+
+        // Set a timeout for the AI request
+        const timeoutPromise = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Request timeout')), 15000) // 15 second timeout
+        );
+
         try {
             console.log('Getting maintenance tips for:', item.name);
 
-            // Call server endpoint for maintenance tips
-            const response = await apiRequest('POST', '/api/kitchen-equipment/maintenance-tips', {
+            // Race between the API request and timeout
+            const apiPromise = apiRequest('POST', '/api/kitchen-equipment/maintenance-tips', {
                 equipment: item
             });
 
+            const response = await Promise.race([apiPromise, timeoutPromise]);
+
             if (response.ok) {
                 const tips = await response.json();
-                setMaintenanceTips(tips);
+                console.log('Received maintenance tips:', tips);
+
+                // Ensure tips is an array of strings
+                let processedTips = [];
+                if (Array.isArray(tips) && tips.length > 0) {
+                    processedTips = tips.filter(tip => tip && tip.trim()).map(tip => String(tip).trim());
+                } else {
+                    throw new Error('No valid tips received');
+                }
+
+                console.log('Processed tips:', processedTips);
+                setMaintenanceTips(processedTips);
                 setMaintenanceDialogOpen(true);
+
+                setNotification({
+                    type: 'success',
+                    message: 'AI maintenance tips loaded successfully!'
+                });
             } else {
-                throw new Error('Failed to get maintenance tips from server');
+                throw new Error(`Server error: ${response.status}`);
             }
         }
         catch (error) {
             console.error('Error getting maintenance tips:', error);
-            // Fallback to sample tips if AI fails
-            const fallbackTips = [
-                `Clean ${item.name} regularly to maintain optimal performance`,
-                `Check for wear and tear every 3 months`,
-                `Store in a dry place when not in use`,
-                `Follow manufacturer's maintenance guidelines`
-            ];
+
+            // Generate contextual fallback tips based on equipment type
+            const fallbackTips = generateFallbackTips(item);
             setMaintenanceTips(fallbackTips);
             setMaintenanceDialogOpen(true);
 
             setNotification({
                 type: 'warning',
-                message: 'Using sample maintenance tips. AI service temporarily unavailable.'
+                message: error.message.includes('timeout')
+                    ? 'AI service is taking too long. Using sample tips.'
+                    : 'AI service temporarily unavailable. Using sample tips.'
             });
         }
         finally {
             setAiLoading(false);
         }
+    };
+
+    // Helper function to generate contextual fallback tips
+    const generateFallbackTips = (item) => {
+        const equipmentName = item.name.toLowerCase();
+        const baseCategory = item.category?.toLowerCase() || '';
+
+        let tips = [];
+
+        if (equipmentName.includes('knife') || baseCategory.includes('cutlery')) {
+            tips = [
+                `Keep your ${item.name} sharp with regular honing`,
+                `Hand wash immediately after use and dry thoroughly`,
+                `Store in a knife block or magnetic strip to protect the blade`,
+                `Never put knives in the dishwasher as it can damage the blade`,
+                `Use appropriate cutting boards (wood or plastic, not glass or stone)`
+            ];
+        } else if (equipmentName.includes('pan') || equipmentName.includes('pot') || baseCategory.includes('cookware')) {
+            tips = [
+                `Season your ${item.name} regularly if it's cast iron or carbon steel`,
+                `Avoid using metal utensils on non-stick surfaces`,
+                `Clean while still warm but not hot to prevent warping`,
+                `Store with pan protectors to prevent scratching`,
+                `Check handles and rivets regularly for looseness`
+            ];
+        } else if (baseCategory.includes('appliance')) {
+            tips = [
+                `Clean your ${item.name} regularly according to manufacturer instructions`,
+                `Check power cord and plug for any damage monthly`,
+                `Keep vents and air passages clear of debris`,
+                `Schedule professional maintenance annually if applicable`,
+                `Store in a dry location when not in use`
+            ];
+        } else {
+            tips = [
+                `Clean your ${item.name} thoroughly after each use`,
+                `Inspect for wear and damage every few months`,
+                `Store in a clean, dry place to prevent deterioration`,
+                `Follow manufacturer's care instructions when available`,
+                `Replace when showing signs of significant wear or damage`
+            ];
+        }
+
+        return tips;
     };
     const handleAddToShoppingList = async (rec) => {
         const recId = hashCode(`${rec.name}-${rec.category}`);
@@ -426,73 +484,7 @@ const KitchenEquipmentPage = () => {
             });
         }
     };
-    const handleRunAIAnalysis = async () => {
-        setAiLoading(true);
-        try {
-            console.log('Running AI analysis on kitchen equipment...');
 
-            // Call server endpoint for kitchen analysis
-            const enrichedEquipment = enrichEquipmentData(equipment);
-            const userPreferences = ['Italian', 'Healthy']; // You can make this dynamic
-
-            const response = await apiRequest('POST', '/api/kitchen-equipment/analysis', {
-                equipment: enrichedEquipment,
-                userPreferences: userPreferences
-            });
-
-            if (response.ok) {
-                const analysis = await response.json();
-                console.log('AI analysis complete:', analysis);
-
-                // Ensure analysis has the expected structure
-                const validatedAnalysis = {
-                    maintenanceRecommendations: Array.isArray(analysis.maintenanceRecommendations)
-                        ? analysis.maintenanceRecommendations
-                        : [],
-                    shoppingRecommendations: Array.isArray(analysis.shoppingRecommendations)
-                        ? analysis.shoppingRecommendations
-                        : [],
-                    recipeRecommendations: Array.isArray(analysis.recipeRecommendations)
-                        ? analysis.recipeRecommendations
-                        : []
-                };
-
-                setAiAnalysis(validatedAnalysis);
-                setAnalysisDialogOpen(true);
-                setNotification({
-                    type: 'success',
-                    message: 'AI analysis completed successfully!'
-                });
-            } else {
-                throw new Error('Failed to get analysis from server');
-            }
-        }
-        catch (error) {
-            console.error('Error running AI analysis:', error);
-            // Fallback to sample analysis
-            const fallbackAnalysis = {
-                maintenanceRecommendations: [
-                    { equipmentId: '1', recommendation: 'Clean regularly', priority: 'medium', suggestedAction: 'Weekly cleaning' }
-                ],
-                shoppingRecommendations: [
-                    { itemName: 'Kitchen Scale', reason: 'For precise measurements', priority: 'low', estimatedPrice: '$25' }
-                ],
-                recipeRecommendations: [
-                    { recipeName: 'Basic Pasta', possibleWithCurrent: true, requiredEquipment: ['Pot', 'Stove'] }
-                ]
-            };
-
-            setAiAnalysis(fallbackAnalysis);
-            setAnalysisDialogOpen(true);
-            setNotification({
-                type: 'warning',
-                message: 'Using sample analysis. AI service temporarily unavailable.'
-            });
-        }
-        finally {
-            setAiLoading(false);
-        }
-    };
     // New functions for equipment form
     const openAddEquipmentDialog = () => {
         setFormData({
@@ -724,12 +716,7 @@ const KitchenEquipmentPage = () => {
           <AlertDescription className="ml-6">{notification.message}</AlertDescription>
         </Alert>)}
       
-      <div className="flex justify-between items-center mb-6">
-        <Button onClick={handleRunAIAnalysis} disabled={aiLoading} className="flex items-center gap-2">
-          {aiLoading ? <Loader2 className="h-4 w-4 animate-spin"/> : <AlertTriangle className="h-4 w-4"/>}
-          Run AI Analysis on Your Kitchen
-        </Button>
-        
+      <div className="flex justify-end items-center mb-6">
         <Button onClick={openAddEquipmentDialog} className="flex items-center gap-2" variant="outline">
           <PlusCircle className="h-4 w-4"/>
           Add Equipment
@@ -953,7 +940,7 @@ const KitchenEquipmentPage = () => {
                       </div>
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm leading-relaxed">{String(tip)}</p>
+                      <p className="text-sm leading-relaxed">{tip}</p>
                     </div>
                   </div>
                 ))
@@ -1055,121 +1042,7 @@ const KitchenEquipmentPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* AI Analysis Dialog */}
-      <Dialog open={analysisDialogOpen} onOpenChange={setAnalysisDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col">
-          <DialogHeader className="flex-shrink-0 pb-4 border-b">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <AlertTriangle className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <DialogTitle className="text-xl font-semibold">
-                  AI Kitchen Analysis
-                </DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground">
-                  Comprehensive insights and recommendations for your kitchen equipment
-                </DialogDescription>
-              </div>
-            </div>
-          </DialogHeader>
-          <div className="flex-1 dialog-scroll-area pr-2 min-h-0">
-            {aiAnalysis && (<div className="space-y-8 mt-4">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Wrench className="h-5 w-5 text-primary" />
-                    <h3 className="text-lg font-semibold">Maintenance Recommendations</h3>
-                  </div>
-                  <div className="space-y-3">
-                    {aiAnalysis.maintenanceRecommendations && aiAnalysis.maintenanceRecommendations.length > 0 ? (
-                      aiAnalysis.maintenanceRecommendations.map((rec, index) => (
-                        <div key={index} className="p-4 bg-accent/50 rounded-lg border space-y-2">
-                          <div className="flex items-start justify-between">
-                            <div className="font-medium">{rec.equipmentId}: {rec.recommendation}</div>
-                            <Badge className={getPriorityColor(rec.priority)}>{rec.priority}</Badge>
-                          </div>
-                          <div className="text-sm text-muted-foreground">Action: {rec.suggestedAction}</div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-6 text-muted-foreground">
-                        <Wrench className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p>No maintenance recommendations available.</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <PlusCircle className="h-5 w-5 text-primary" />
-                    <h3 className="text-lg font-semibold">Shopping Recommendations</h3>
-                  </div>
-                  <div className="space-y-3">
-                    {aiAnalysis.shoppingRecommendations && aiAnalysis.shoppingRecommendations.length > 0 ? (
-                      aiAnalysis.shoppingRecommendations.map((rec, index) => (
-                        <div key={index} className="p-4 bg-accent/50 rounded-lg border space-y-2">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <div className="font-medium">{rec.itemName}</div>
-                              <div className="text-sm text-muted-foreground">{rec.reason}</div>
-                            </div>
-                            <Badge className={getPriorityColor(rec.priority)}>{rec.priority}</Badge>
-                          </div>
-                          {rec.estimatedPrice && (
-                            <div className="text-sm font-medium text-green-600">Est. price: {rec.estimatedPrice}</div>
-                          )}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-6 text-muted-foreground">
-                        <PlusCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p>No shopping recommendations available.</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Utensils className="h-5 w-5 text-primary" />
-                    <h3 className="text-lg font-semibold">Recipe Recommendations</h3>
-                  </div>
-                  <div className="space-y-3">
-                    {aiAnalysis.recipeRecommendations && aiAnalysis.recipeRecommendations.length > 0 ? (
-                      aiAnalysis.recipeRecommendations.map((rec, index) => (
-                        <div key={index} className="p-4 bg-accent/50 rounded-lg border space-y-2">
-                          <div className="font-medium">{rec.recipeName}</div>
-                          <div className="flex items-center gap-2">
-                            <div className={`text-xs px-2 py-1 rounded-full ${
-                              rec.possibleWithCurrent
-                                ? 'bg-green-100 text-green-700 border border-green-200'
-                                : 'bg-orange-100 text-orange-700 border border-orange-200'
-                            }`}>
-                              {rec.possibleWithCurrent ? 'Ready to cook!' : 'Needs equipment'}
-                            </div>
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            Required: {rec.requiredEquipment && rec.requiredEquipment.length > 0 ? rec.requiredEquipment.join(', ') : 'None specified'}
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-6 text-muted-foreground">
-                        <Utensils className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p>No recipe recommendations available.</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>)}
-          </div>
-          <DialogFooter className="flex-shrink-0 pt-4 border-t">
-            <Button onClick={() => setAnalysisDialogOpen(false)} className="w-full">
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Close Analysis
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
     </div>);
 };
 export default KitchenEquipmentPage;

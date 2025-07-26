@@ -22,17 +22,89 @@ export async function analyzeKitchenInventory(
 }
 
 export async function getMaintenanceTips(equipment) {
-  const prompt = `Provide maintenance tips for this kitchen equipment:
-    ${JSON.stringify(equipment)}
-    Return an array of specific, actionable maintenance tips.`
+  console.log('[AI Service] Getting maintenance tips for:', equipment.name)
+
+  const prompt = `You are a kitchen equipment maintenance expert. Provide 4-5 specific maintenance tips for this equipment:
+
+Equipment: ${equipment.name}
+Category: ${equipment.category || 'General'}
+Condition: ${equipment.condition || 'Unknown'}
+
+Return ONLY a JSON array of strings. Each string should be a specific, actionable maintenance tip.
+Example: ["Clean after each use", "Check for wear monthly", "Store in dry place"]
+
+Focus on practical, equipment-specific advice. No explanations, just the JSON array.`
 
   try {
+    console.log('[AI Service] Sending prompt to Gemini...')
     const result = await model.generateContent(prompt)
     const response = await result.response.text()
-    return await safeJsonParse(response)
+    console.log('[AI Service] Raw response:', response)
+
+    const tips = await safeJsonParse(response)
+    console.log('[AI Service] Parsed tips:', tips)
+
+    // Ensure we return an array of strings
+    if (Array.isArray(tips) && tips.length > 0) {
+      const validTips = tips
+        .filter(tip => tip && typeof tip === 'string' && tip.trim().length > 0)
+        .map(tip => tip.trim())
+
+      if (validTips.length > 0) {
+        console.log('[AI Service] Returning valid AI tips:', validTips.length)
+        return validTips
+      }
+    }
+
+    // If we get here, AI didn't return valid tips
+    console.log('[AI Service] AI response invalid, using fallback')
+    throw new Error('Invalid AI response format')
+
   } catch (error) {
-    console.error("Failed to get maintenance tips:", error)
-    throw error
+    console.error("[AI Service] Failed to get maintenance tips:", error.message)
+
+    // Generate contextual fallback tips
+    const equipmentName = equipment.name?.toLowerCase() || 'equipment'
+    const category = equipment.category?.toLowerCase() || ''
+
+    let fallbackTips = []
+
+    if (equipmentName.includes('knife') || category.includes('cutlery')) {
+      fallbackTips = [
+        `Keep your ${equipment.name} sharp with regular honing`,
+        `Hand wash immediately after use and dry thoroughly`,
+        `Store in a knife block or magnetic strip to protect the blade`,
+        `Never put in dishwasher as it can damage the blade`,
+        `Use appropriate cutting boards (wood or plastic, not glass)`
+      ]
+    } else if (equipmentName.includes('pan') || equipmentName.includes('pot') || category.includes('cookware')) {
+      fallbackTips = [
+        `Season your ${equipment.name} regularly if it's cast iron or carbon steel`,
+        `Avoid using metal utensils on non-stick surfaces`,
+        `Clean while still warm but not hot to prevent warping`,
+        `Store with pan protectors to prevent scratching`,
+        `Check handles and rivets regularly for looseness`
+      ]
+    } else if (category.includes('appliance')) {
+      fallbackTips = [
+        `Clean your ${equipment.name} regularly according to manufacturer instructions`,
+        `Check power cord and plug for damage monthly`,
+        `Keep vents and air passages clear of debris`,
+        `Schedule professional maintenance annually if applicable`,
+        `Store in a dry location when not in use`
+      ]
+    } else {
+      fallbackTips = [
+        `Clean your ${equipment.name} thoroughly after each use`,
+        `Inspect for wear and damage every few months`,
+        `Store in a clean, dry place to prevent deterioration`,
+        `Follow manufacturer's care instructions when available`,
+        `Replace when showing signs of significant wear`
+      ]
+    }
+
+    console.log('[AI Service] Returning fallback tips:', fallbackTips.length)
+    return fallbackTips
   }
 }
 
