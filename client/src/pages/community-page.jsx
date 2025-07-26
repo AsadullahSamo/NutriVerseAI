@@ -143,26 +143,8 @@ export default function CommunityPage() {
               </div>
             )}
 
-          <div className="space-y-4 mt-6">
-            {/* View Filter */}
-            <div className="flex gap-2">
-              <Button
-                variant={viewFilter === "all" ? "default" : "outline"}
-                onClick={() => setViewFilter("all")}
-                size="sm"
-              >
-                All Posts
-              </Button>
-              <Button
-                variant={viewFilter === "my" ? "default" : "outline"}
-                onClick={() => setViewFilter("my")}
-                size="sm"
-              >
-                My Posts
-              </Button>
-            </div>
-
-            {/* Type Filter */}
+          <div className="flex flex-wrap items-center justify-between gap-4 mt-6">
+            {/* Type Filter - Left side */}
             <div className="flex gap-2">
               <Button
                 variant={selectedType === null ? "default" : "outline"}
@@ -187,6 +169,24 @@ export default function CommunityPage() {
                 onClick={() => setSelectedType("COOKING_TIP")}
               >
                 Tips
+              </Button>
+            </div>
+
+            {/* View Filter - Right side */}
+            <div className="flex gap-2">
+              <Button
+                variant={viewFilter === "all" ? "default" : "outline"}
+                onClick={() => setViewFilter("all")}
+                size="sm"
+              >
+                All Posts
+              </Button>
+              <Button
+                variant={viewFilter === "my" ? "default" : "outline"}
+                onClick={() => setViewFilter("my")}
+                size="sm"
+              >
+                My Posts
               </Button>
             </div>
           </div>
