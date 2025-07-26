@@ -3,7 +3,6 @@ import { Card, CardHeader } from "@/components/ui/card"
 import {
   Clock,
   Users,
-  GitFork,
   ListOrdered,
   Utensils,
   Loader2,
@@ -220,12 +219,6 @@ export function RecipeCard({
                     <h3 className="font-medium text-lg tracking-tight">
                       {recipe.title}
                     </h3>
-                    {recipe.forkedFrom && !compact && (
-                      <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1.5">
-                        <GitFork className="h-3 w-3 flex-shrink-0" />
-                        Forked recipe
-                      </p>
-                    )}
                   </div>
                   <div className="flex flex-col items-end">
                     <span className="text-xs font-medium text-muted-foreground">
