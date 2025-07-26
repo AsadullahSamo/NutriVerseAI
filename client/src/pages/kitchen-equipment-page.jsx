@@ -615,7 +615,7 @@ const KitchenEquipmentPage = () => {
             const userPreferences = ['Italian', 'Healthy']; // You can make this dynamic based on user settings
             const [equipRecResults, recipeResults] = await Promise.all([
                 getEquipmentRecommendations(enrichedEquipment, userPreferences, 500), // $500 budget
-                getRecipesByEquipment(enrichedEquipment, userPreferences)
+                fetchRecipeMatches(enrichedEquipment)
             ]);
 
             console.log('Equipment recommendations:', equipRecResults);
@@ -623,11 +623,11 @@ const KitchenEquipmentPage = () => {
 
             // Update recommendations and recipes
             setRecommendations(equipRecResults || []);
-            setRecipes(recipeResults?.possibleRecipes || []);
+            setRecipes(recipeResults || []);
 
             // Save to local storage for persistence
             localStorage.setItem('kitchen-recommendations', JSON.stringify(equipRecResults || []));
-            localStorage.setItem('kitchen-recipes', JSON.stringify(recipeResults?.possibleRecipes || []));
+            localStorage.setItem('kitchen-recipes', JSON.stringify(recipeResults || []));
 
             setNotification({
                 type: 'success',
@@ -649,6 +649,30 @@ const KitchenEquipmentPage = () => {
             setAiLoading(false);
         }
     };
+
+    // New function to fetch recipe matches based on current equipment
+    const fetchRecipeMatches = async (currentEquipment) => {
+        try {
+            console.log('Fetching recipe matches for current equipment:', currentEquipment);
+
+            const response = await apiRequest('POST', '/api/kitchen-equipment/recipe-matches', {
+                equipment: currentEquipment,
+                userPreferences: ['Italian', 'Healthy'] // You can make this dynamic
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                console.log('Recipe matches from server:', result);
+                return result;
+            } else {
+                throw new Error('Failed to get recipe matches from server');
+            }
+        } catch (error) {
+            console.error('Error fetching recipe matches:', error);
+            return [];
+        }
+    };
+
     const addToShoppingList = (item, description, priority, estimatedPrice) => {
         setShoppingList(prev => [...prev, { item, description, priority, estimatedPrice }]);
         setNotification({
@@ -806,37 +830,102 @@ const KitchenEquipmentPage = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Recipe Matches</CardTitle>
-                <CardDescription className="text-gray-600 dark:text-gray-300">Recipes you can make with your current equipment</CardDescription>
+                <CardDescription className="text-gray-600 dark:text-gray-300">
+                  Recipes based on your current equipment
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-[400px]">
-                  {recipes.map((recipe, index) => (<div key={index} className="mb-4 p-4 border rounded-lg">
-                      <h3 className="font-semibold text-lg">{recipe.title}</h3>
-                      <p className="text-sm text-gray-400 mb-2">{recipe.description}</p>
-                      
-                      <div className="space-y-2">
-                        <div>
-                          <h4 className="font-medium">Required Equipment:</h4>
-                          <div className="flex flex-wrap gap-1">
-                            {recipe.requiredEquipment.map((eq, i) => (<Badge key={i} variant="secondary">{eq}</Badge>))}
-                          </div>
-                        </div>
-                        
-                        <div className="mt-2">
-                          <div className="grid grid-cols-2 gap-2 text-sm">
-                            <div>Calories: {recipe.nutritionInfo.calories}</div>
-                            <div>Protein: {recipe.nutritionInfo.protein}g</div>
-                            <div>Carbs: {recipe.nutritionInfo.carbs}g</div>
-                            <div>Fat: {recipe.nutritionInfo.fat}g</div>
-                          </div>
-                          <div className="mt-1">
-                            <Badge variant="outline">
-                              Sustainability Score: {recipe.nutritionInfo.sustainabilityScore}
+                  {/* Recipes you can make */}
+                  {recipes?.canMake && recipes.canMake.length > 0 && (
+                    <div className="mb-6">
+                      <div className="flex items-center gap-2 mb-3">
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        <h3 className="font-semibold text-green-700">Ready to Cook ({recipes.canMake.length})</h3>
+                      </div>
+                      {recipes.canMake.map((recipe, index) => (
+                        <div key={`can-${index}`} className="mb-4 p-4 border border-green-200 rounded-lg bg-green-50/50">
+                          <div className="flex items-start justify-between mb-2">
+                            <h4 className="font-semibold text-lg">{recipe.title}</h4>
+                            <Badge variant="outline" className="text-green-700 border-green-300">
+                              {recipe.difficulty} • {recipe.prepTime}min
                             </Badge>
                           </div>
+                          <p className="text-sm text-gray-600 mb-3">{recipe.description}</p>
+
+                          <div className="space-y-2">
+                            <div>
+                              <h5 className="font-medium text-sm">Required Equipment:</h5>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {recipe.requiredEquipment.map((eq, i) => (
+                                  <Badge key={i} variant="secondary" className="bg-green-100 text-green-800">
+                                    {eq}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
+                              <div>Calories: {recipe.nutritionInfo.calories}</div>
+                              <div>Protein: {recipe.nutritionInfo.protein}g</div>
+                              <div>Carbs: {recipe.nutritionInfo.carbs}g</div>
+                              <div>Fat: {recipe.nutritionInfo.fat}g</div>
+                            </div>
+                          </div>
                         </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Recipes that need equipment */}
+                  {recipes?.needsEquipment && recipes.needsEquipment.length > 0 && (
+                    <div className="mb-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <XCircle className="h-5 w-5 text-orange-600" />
+                        <h3 className="font-semibold text-orange-700">Need Equipment ({recipes.needsEquipment.length})</h3>
                       </div>
-                    </div>))}
+                      {recipes.needsEquipment.map((recipe, index) => (
+                        <div key={`need-${index}`} className="mb-4 p-4 border border-orange-200 rounded-lg bg-orange-50/50">
+                          <div className="flex items-start justify-between mb-2">
+                            <h4 className="font-semibold text-lg">{recipe.title}</h4>
+                            <Badge variant="outline" className="text-orange-700 border-orange-300">
+                              {recipe.difficulty} • {recipe.prepTime}min
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-gray-600 mb-3">{recipe.description}</p>
+
+                          <div className="space-y-2">
+                            <div>
+                              <h5 className="font-medium text-sm">Missing Equipment:</h5>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {recipe.missingEquipment.map((eq, i) => (
+                                  <Badge key={i} variant="destructive" className="bg-red-100 text-red-800 border-red-300">
+                                    {eq}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
+                              <div>Calories: {recipe.nutritionInfo.calories}</div>
+                              <div>Protein: {recipe.nutritionInfo.protein}g</div>
+                              <div>Carbs: {recipe.nutritionInfo.carbs}g</div>
+                              <div>Fat: {recipe.nutritionInfo.fat}g</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* No recipes found */}
+                  {(!recipes?.canMake || recipes.canMake.length === 0) &&
+                   (!recipes?.needsEquipment || recipes.needsEquipment.length === 0) && (
+                    <div className="text-center py-8 text-gray-500">
+                      <Utensils className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                      <p>No recipe matches found. Add more equipment to see suggestions!</p>
+                    </div>
+                  )}
                 </ScrollArea>
               </CardContent>
             </Card>
