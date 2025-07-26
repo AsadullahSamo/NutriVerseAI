@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"
 import { useMutation } from "@tanstack/react-query"
 import { apiRequest, queryClient } from "@/lib/queryClient"
-import { GitFork, Trash2, Pencil } from "lucide-react"
+import { Trash2, Pencil } from "lucide-react"
 import { toast } from "sonner"
 import { useState } from "react"
 import { EditRecipeDialog } from "./edit-recipe-dialog"
@@ -44,46 +44,12 @@ export function RecipeActions({
     }
   })
 
-  const forkMutation = useMutation({
-    mutationFn: async () => {
-      try {
-        const res = await apiRequest("POST", `/api/recipes/${recipe.id}/fork`)
-        return res.json()
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to fork recipe. Please try again.",
-          variant: "destructive"
-        })
-        throw error
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/recipes"] })
-      queryClient.invalidateQueries({ queryKey: ["/api/community"] })
-      queryClient.invalidateQueries({ queryKey: ["recommendedRecipes"] })
-      toast({
-        title: "Recipe forked!",
-        description: "The recipe has been added to your collection."
-      })
-    }
-  })
+
 
   if (!user) return null
 
   return (
     <div className="flex items-center justify-end -mr-1">
-      <Button
-        variant="ghost"
-        size={size}
-        onClick={() => forkMutation.mutate()}
-        disabled={forkMutation.isPending}
-        className="h-7 px-3 text-sm hover:bg-secondary"
-      >
-        <GitFork className="h-4 w-4" />
-        <span className="ml-2">Fork</span>
-      </Button>
-
       {!hideEditDelete && showDelete && (
         <>
           <EditRecipeDialog
