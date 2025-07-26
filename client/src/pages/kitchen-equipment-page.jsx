@@ -1002,34 +1002,34 @@ const KitchenEquipmentPage = () => {
       {/* Maintenance Tips Dialog */}
       <Dialog open={maintenanceDialogOpen} onOpenChange={setMaintenanceDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
-          <DialogHeader className="flex-shrink-0 pb-4 border-b">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Wrench className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <DialogTitle className="text-xl font-semibold">
-                  AI Maintenance Tips
-                </DialogTitle>
-                <DialogDescription className="text-sm text-muted-foreground">
-                  Personalized maintenance guidance for {selectedEquipment?.name}
-                </DialogDescription>
-              </div>
-            </div>
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Wrench className="h-5 w-5" />
+              AI Maintenance Tips - {selectedEquipment?.name}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedEquipment?.condition && (
+                <span className="text-sm">
+                  Current condition: <span className="font-medium">{selectedEquipment.condition}</span>
+                </span>
+              )}
+            </DialogDescription>
           </DialogHeader>
 
           <div className="flex-1 dialog-scroll-area pr-2 min-h-0">
             <div className="space-y-4 mt-4">
               {maintenanceTips.length > 0 ? (
                 maintenanceTips.map((tip, index) => (
-                  <div key={index} className="flex gap-3 p-4 bg-accent/50 rounded-lg border">
-                    <div className="flex-shrink-0 mt-0.5">
-                      <div className="w-6 h-6 bg-primary/20 rounded-full flex items-center justify-center">
-                        <span className="text-xs font-medium text-primary">{index + 1}</span>
+                  <div key={index} className="p-4 border rounded-lg">
+                    <div className="flex gap-3">
+                      <div className="flex-shrink-0 mt-0.5">
+                        <div className="w-6 h-6 bg-muted rounded-full flex items-center justify-center">
+                          <span className="text-xs font-medium">{index + 1}</span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm leading-relaxed">{tip}</p>
+                      <div className="flex-1">
+                        <p className="text-sm leading-relaxed">{tip}</p>
+                      </div>
                     </div>
                   </div>
                 ))
@@ -1042,7 +1042,7 @@ const KitchenEquipmentPage = () => {
             </div>
           </div>
 
-          <DialogFooter className="flex-shrink-0 pt-4 border-t">
+          <DialogFooter className="flex-shrink-0 pt-4">
             <Button onClick={() => setMaintenanceDialogOpen(false)} className="w-full">
               <CheckCircle className="h-4 w-4 mr-2" />
               Got it, thanks!
