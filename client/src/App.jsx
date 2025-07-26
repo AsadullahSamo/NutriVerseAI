@@ -24,7 +24,7 @@ import CulturalCuisinePage from "@/pages/cultural-cuisine-page"
 import KitchenStoragePage from "@/pages/kitchen-storage-page"
 import ProfilePage from "@/pages/profile-page"
 import UserSettings from "@/pages/user-settings"
-import FeaturesPage from "@/pages/features-page"
+
 import ProjectThumbnail from "@/pages/ProjectThumbnail"
 import ProjectThumbnailAI from "@/pages/ProjectThumbnailAI"
 import ProjectThumbnailUX from "@/pages/ProjectThumbnailUX"
@@ -70,7 +70,7 @@ function Router() {
                 />
                 <ProtectedRoute path="/profile" component={ProfilePage} />
                 <ProtectedRoute path="/settings" component={UserSettings} />
-                <ProtectedRoute path="/features" component={FeaturesPage} />
+
                 <Route component={NotFound} />
               </Switch>
             </main>
