@@ -752,10 +752,9 @@ const KitchenEquipmentPage = () => {
                 handleGetRecommendations();
             }
         }}>
-        <TabsList className="grid grid-cols-3 mb-6">
+        <TabsList className="grid grid-cols-2 mb-6">
           <TabsTrigger value="equipment">Equipment</TabsTrigger>
           <TabsTrigger value="recommendations">Recommendations</TabsTrigger>
-          <TabsTrigger value="recipes">Recipe Matches</TabsTrigger>
         </TabsList>
 
         <TabsContent value="equipment" className="space-y-4">
@@ -957,45 +956,7 @@ const KitchenEquipmentPage = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="recipes" className="space-y-4">
-          <div className="grid md:grid-cols-2 gap-4">
-            {recipes.length > 0 ? (recipes.map(recipe => (<Card key={recipe.id} className="flex flex-col h-full">
-                  <CardHeader className="p-5">
-                    <div className="space-y-4">
-                      <div>
-                        <h3 className="font-medium text-lg tracking-tight">
-                          {recipe.title}
-                        </h3>
-                        <p className="text-sm text-muted-foreground leading-relaxed mt-1">
-                          {recipe.description}
-                        </p>
-                      </div>
-                    </div>
-                  </CardHeader>
 
-                  <div className="px-4 py-2.5 border-t bg-muted/5">
-                    <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary">Required Equipment</Badge>
-                        {recipe.requiredEquipment.map((eq, i) => (<Badge key={i} variant="outline">{eq}</Badge>))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="p-4 border-t">
-                    <NutritionDisplay nutrition={recipe.nutritionInfo}/>
-                  </div>
-                </Card>))) : (<div className="text-center py-12">
-                <div className="rounded-full bg-primary/10 w-12 h-12 mx-auto mb-4 flex items-center justify-center">
-                  <Utensils className="h-6 w-6 text-primary"/>
-                </div>
-                <h3 className="text-lg font-medium mb-2">No Recipes Found</h3>
-                <p className="text-muted-foreground">
-                  No recipes are available for your current kitchen equipment.
-                </p>
-              </div>)}
-          </div>
-        </TabsContent>
 
       </Tabs>
 
