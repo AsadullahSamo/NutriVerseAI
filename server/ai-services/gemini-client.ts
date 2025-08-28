@@ -2,7 +2,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai"
 
 // Initialize the Google Generative AI client
 export const genAI = new GoogleGenerativeAI(
-  process.env.GEMINI_API_KEY || "AIzaSyDKcf0RjTq9yT4kXv4ANfT1ZB4Y6SQDKwc"
+  process.env.GEMINI_API_KEY || "AIzaSyC4r12YtLcuYKni5gZiUZiRFxxI8i6kq64"
 )
 
 // Get the generative model with retry configuration
