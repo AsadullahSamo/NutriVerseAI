@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trash2, Edit, Brain, ChefHat, PlusCircle, Globe2, UtensilsCrossed, MapPin, Scroll, History, Loader2, AlertTriangle, ListOrdered, Ban, Info, Sparkles, ScrollText } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { generateCulturalDetails } from "@ai-services/cultural-cuisine-service";
+import { generateCulturalDetails } from "@/ai-services/cultural-cuisine-service";
 import { generateCulturalRecipeDetails } from "@/lib/generateCulturalRecipeDetails";
 import { RecipeDetails } from "./RecipeDetails";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -1024,3 +1024,4 @@ const getEtiquetteDisplay = (key, value) => {
     </ul>) : (<p className="text-muted-foreground">{String(value)}</p>)
   };
 };
+

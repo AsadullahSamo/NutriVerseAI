@@ -48,9 +48,9 @@ import {
   getSubstitutions,
   getPairings,
   getEtiquette
-} from "@ai-services/cultural-cuisine-service"
+} from "@/ai-services/cultural-cuisine-service"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { generateCulturalRecipeDetails } from "@ai-services/cultural-cuisine-service"
+import { generateCulturalRecipeDetails } from "@/ai-services/cultural-cuisine-service"
 import config from "@/lib/config"
 
 export function RecipeDetails({ recipe, cuisine, onBack }) {
@@ -1302,3 +1302,4 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
     </TooltipProvider>
   )
 }
+

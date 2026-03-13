@@ -27,7 +27,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Loader2, AlertCircle, Info, Sparkles } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { generateRecipeDetails } from "@ai-services/recipe-ai";
+import { generateRecipeDetails } from "@/ai-services/recipe-ai";
 
 export function CreateRecipeDialog({ trigger }) {
   const [open, setOpen] = useState(false);
@@ -647,3 +647,4 @@ export function CreateRecipeDialog({ trigger }) {
     </Dialog>
   );
 }
+

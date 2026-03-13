@@ -1,68 +1,56 @@
-import { model, safeJsonParse } from "@ai-services/gemini-client"
+import config from "@/lib/config"
 
 export async function analyzeKitchenInventory(
   equipment,
   userCookingPreferences
 ) {
   try {
-    console.log("Calling Gemini API for kitchen inventory analysis...")
-    const prompt = `You are a JSON API that must only return a valid JSON object without any explanation or additional text. Analyze this kitchen equipment inventory and provide maintenance recommendations, shopping suggestions, and recipe possibilities.
+    const response = await fetch(
+      `${config.apiBaseUrl}/api/kitchen-equipment/analysis`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify({ equipment, userPreferences: userCookingPreferences })
+      }
+    )
 
-    Equipment: ${JSON.stringify(equipment)}
-    Cooking Preferences: ${userCookingPreferences?.join(", ") ||
-      "None specified"}
+    if (!response.ok) {
+      throw new Error("Failed to analyze kitchen inventory")
+    }
 
-    RESPOND WITH EXACTLY THIS JSON STRUCTURE AND NOTHING ELSE (no explanation, no markdown):
-    {
-      "maintenanceRecommendations": [
-        {
-          "equipmentId": "string",
-          "recommendation": "string",
-          "priority": "high|medium|low",
-          "suggestedAction": "string"
-        }
-      ],
-      "shoppingRecommendations": [
-        {
-          "itemName": "string",
-          "reason": "string",
-          "priority": "high|medium|low",
-          "estimatedCost": "string"
-        }
-      ],
-      "recipeRecommendations": [
-        {
-          "recipeName": "string",
-          "possibleWithCurrentEquipment": boolean,
-          "requiredEquipment": ["string"],
-          "difficulty": "easy|medium|hard"
-        }
-      ]
-    }`
-
-    const result = await model.generateContent(prompt)
-    const response = await result.response.text()
-    return await safeJsonParse(response)
+    return response.json()
   } catch (error) {
-    console.error("Error with Gemini API:", error)
+    console.error("Backend API failed for kitchen inventory analysis:", error)
     return getMockAnalysis(equipment, userCookingPreferences)
   }
 }
 
 export async function getMaintenanceTips(equipment) {
   try {
-    console.log("Calling Gemini API for maintenance tips...")
-    const prompt = `Provide maintenance tips for this kitchen equipment:
-    ${JSON.stringify(equipment)}
-    
-    Return an array of strings, each containing a specific maintenance tip.
-    The response should be a valid JSON array of strings with no additional text or explanation.`
+    const response = await fetch(
+      `${config.apiBaseUrl}/api/kitchen-equipment/maintenance-tips`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify({ equipment })
+      }
+    )
 
-    const result = await model.generateContent(prompt)
-    const response = await result.response.text()
-    return await safeJsonParse(response)
+    if (!response.ok) {
+      throw new Error("Failed to get maintenance tips")
+    }
+
+    return response.json()
   } catch (error) {
-    console.error("Error with Gemini API for maintenance tips:", error)
+    console.error("Backend API failed for maintenance tips:", error)
     return getMockMaintenanceTips(equipment)
   }
 }

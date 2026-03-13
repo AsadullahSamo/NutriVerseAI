@@ -1,4 +1,4 @@
-import { model, safeJsonParse, generateContent } from "./gemini-client.js"
+import { model, safeJsonParse, generateContent } from "./groq-client.js"
 import { db } from "../db.js"
 import { 
   recipeRecommendations, 
@@ -349,7 +349,7 @@ export async function getPersonalizedRecipeRecommendations(options) {
     const topRecipes = filteredRecipes.slice(0, 20);
     console.log("Sending top recipes to AI:", topRecipes.length);
 
-    // Prepare the prompt for Gemini
+    // Prepare the prompt for Groq
     const prompt = `You are a recipe recommendation system. Your task is to suggest personalized recipes from our available recipes.
 
 User Profile:
@@ -380,7 +380,7 @@ Your response must be a JSON array:
 ]`;
 
     try {
-      console.log("Sending request to Gemini API for personalized recommendations");
+      console.log("Sending request to Groq API for personalized recommendations");
       const result = await generateContent(prompt);
       const response = await result.response.text();
       console.log("Raw AI response received, parsing...");

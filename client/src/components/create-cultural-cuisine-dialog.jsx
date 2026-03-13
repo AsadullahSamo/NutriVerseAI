@@ -23,7 +23,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { z } from "zod"
-import { generateCuisineDetailsFromName } from "@ai-services/cultural-cuisine-service"
+import { generateCuisineDetailsFromName } from "@/ai-services/cultural-cuisine-service"
 
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -425,3 +425,4 @@ export function CreateCulturalCuisineDialog({ trigger }) {
     </Dialog>
   )
 }
+

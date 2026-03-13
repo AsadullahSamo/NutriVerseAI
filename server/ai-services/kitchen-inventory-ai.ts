@@ -1,4 +1,4 @@
-import { model, safeJsonParse } from "./gemini-client"
+import { model, safeJsonParse } from "./groq-client"
 
 export async function analyzeKitchenInventory(
   equipment,
@@ -40,7 +40,7 @@ Example: ["Clean after each use", "Check for wear monthly", "Store in dry place"
 Focus on practical, equipment-specific advice tailored to the current condition. No explanations, just the JSON array.`
 
   try {
-    console.log('[AI Service] Sending prompt to Gemini...')
+    console.log('[AI Service] Sending prompt to Groq...')
     const result = await model.generateContent(prompt)
     const response = await result.response.text()
     console.log('[AI Service] Raw response:', response)
@@ -481,3 +481,4 @@ export async function getStorageRecommendations(items) {
     throw error
   }
 }
+

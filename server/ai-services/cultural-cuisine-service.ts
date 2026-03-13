@@ -1,8 +1,8 @@
-import { generateContent, safeJsonParse } from "./gemini-client"
+import { generateContent, safeJsonParse } from "./groq-client"
 
 export async function generateCuisineDetailsFromName(name, region) {
   try {
-    console.log(`[Server] Generating cuisine details for ${name} cuisine from ${region} using Gemini`);
+    console.log(`[Server] Generating cuisine details for ${name} cuisine from ${region} using Groq`);
     const prompt = `Generate detailed information about ${name} cuisine from ${region}.
 
 For key ingredients and cooking techniques, put each item on a separate line WITHOUT any numbering, bullets, or other markers.
@@ -38,13 +38,13 @@ For keyIngredients and cookingTechniques, make sure they are plain strings with 
 Do NOT use bullet points, numbers or any prefixes for the ingredients or techniques.
 STRICTLY FOLLOW THE EXACT FORMAT SHOWN ABOVE for keyIngredients and cookingTechniques.`;
 
-    console.log("[Server] Sending prompt to Gemini:", prompt);
+    console.log("[Server] Sending prompt to Groq:", prompt);
     const result = await generateContent(prompt)
     
     // Handle the result properly
     if (!result || !result.response) {
-      console.error("[Server] Invalid Gemini response structure:", result);
-      throw new Error("Invalid response from Gemini API");
+      console.error("[Server] Invalid Groq response structure:", result);
+      throw new Error("Invalid response from Groq API");
     }
     
     // Safely extract text content
@@ -52,23 +52,23 @@ STRICTLY FOLLOW THE EXACT FORMAT SHOWN ABOVE for keyIngredients and cookingTechn
     try {
       responseText = await result.response.text();
     } catch (error) {
-      console.error("[Server] Error extracting text from Gemini response:", error);
+      console.error("[Server] Error extracting text from Groq response:", error);
       throw new Error("Failed to extract text from AI response");
     }
     
     if (!responseText) {
-      console.error("[Server] Empty response text from Gemini");
+      console.error("[Server] Empty response text from Groq");
       throw new Error("Received empty response from AI service");
     }
     
-    console.log("[Server] Raw Gemini response:", responseText);
+    console.log("[Server] Raw Groq response:", responseText);
     
     const parsedResponse = await safeJsonParse(responseText)
-    console.log("[Server] Parsed Gemini response:", parsedResponse);
+    console.log("[Server] Parsed Groq response:", parsedResponse);
     
     // Validate the response structure and ensure formatting
     if (!parsedResponse || !parsedResponse.description) {
-      console.error("[Server] Invalid Gemini response structure:", parsedResponse);
+      console.error("[Server] Invalid Groq response structure:", parsedResponse);
       throw new Error("Invalid response from AI service - missing required fields");
     }
     
@@ -115,8 +115,8 @@ export const getCulturalContext = async (recipe, cuisine) => {
     
     // Handle the result properly
     if (!result || !result.response) {
-      console.error("[Server] Invalid Gemini response structure:", result);
-      throw new Error("Invalid response from Gemini API");
+      console.error("[Server] Invalid Groq response structure:", result);
+      throw new Error("Invalid response from Groq API");
     }
     
     // Safely extract text content
@@ -124,12 +124,12 @@ export const getCulturalContext = async (recipe, cuisine) => {
     try {
       responseText = await result.response.text();
     } catch (error) {
-      console.error("[Server] Error extracting text from Gemini response:", error);
+      console.error("[Server] Error extracting text from Groq response:", error);
       throw new Error("Failed to extract text from AI response");
     }
     
     if (!responseText) {
-      console.error("[Server] Empty response text from Gemini");
+      console.error("[Server] Empty response text from Groq");
       throw new Error("Received empty response from AI service");
     }
     
@@ -162,8 +162,8 @@ export async function analyzeCulturalCuisine(cuisine) {
     
     // Handle the result properly
     if (!result || !result.response) {
-      console.error("[Server] Invalid Gemini response structure:", result);
-      throw new Error("Invalid response from Gemini API");
+      console.error("[Server] Invalid Groq response structure:", result);
+      throw new Error("Invalid response from Groq API");
     }
     
     // Safely extract text content
@@ -171,12 +171,12 @@ export async function analyzeCulturalCuisine(cuisine) {
     try {
       responseText = await result.response.text();
     } catch (error) {
-      console.error("[Server] Error extracting text from Gemini response:", error);
+      console.error("[Server] Error extracting text from Groq response:", error);
       throw new Error("Failed to extract text from AI response");
     }
     
     if (!responseText) {
-      console.error("[Server] Empty response text from Gemini");
+      console.error("[Server] Empty response text from Groq");
       throw new Error("Received empty response from AI service");
     }
     
@@ -214,8 +214,8 @@ export async function getTechniqueTips(technique, cuisine) {
     
     // Handle the result properly
     if (!result || !result.response) {
-      console.error("[Server] Invalid Gemini response structure:", result);
-      throw new Error("Invalid response from Gemini API");
+      console.error("[Server] Invalid Groq response structure:", result);
+      throw new Error("Invalid response from Groq API");
     }
     
     // Safely extract text content
@@ -223,12 +223,12 @@ export async function getTechniqueTips(technique, cuisine) {
     try {
       responseText = await result.response.text();
     } catch (error) {
-      console.error("[Server] Error extracting text from Gemini response:", error);
+      console.error("[Server] Error extracting text from Groq response:", error);
       throw new Error("Failed to extract text from AI response");
     }
     
     if (!responseText) {
-      console.error("[Server] Empty response text from Gemini");
+      console.error("[Server] Empty response text from Groq");
       throw new Error("Received empty response from AI service");
     }
     
@@ -275,8 +275,8 @@ export async function generateCulturalDetails(cuisine) {
     
     // Handle the result properly
     if (!result || !result.response) {
-      console.error("[Server] Invalid Gemini response structure:", result);
-      throw new Error("Invalid response from Gemini API");
+      console.error("[Server] Invalid Groq response structure:", result);
+      throw new Error("Invalid response from Groq API");
     }
     
     // Safely extract text content
@@ -284,12 +284,12 @@ export async function generateCulturalDetails(cuisine) {
     try {
       responseText = await result.response.text();
     } catch (error) {
-      console.error("[Server] Error extracting text from Gemini response:", error);
+      console.error("[Server] Error extracting text from Groq response:", error);
       throw new Error("Failed to extract text from AI response");
     }
     
     if (!responseText) {
-      console.error("[Server] Empty response text from Gemini");
+      console.error("[Server] Empty response text from Groq");
       throw new Error("Received empty response from AI service");
     }
     
@@ -1090,8 +1090,8 @@ export async function generateCulturalRecipeDetails(recipeName, cuisineName) {
     
     // Handle the result properly
     if (!result || !result.response) {
-      console.error("[Server] Invalid Gemini response structure:", result);
-      throw new Error("Invalid response from Gemini API");
+      console.error("[Server] Invalid Groq response structure:", result);
+      throw new Error("Invalid response from Groq API");
     }
     
     // Safely extract text content
@@ -1099,12 +1099,12 @@ export async function generateCulturalRecipeDetails(recipeName, cuisineName) {
     try {
       responseText = await result.response.text();
     } catch (error) {
-      console.error("[Server] Error extracting text from Gemini response:", error);
+      console.error("[Server] Error extracting text from Groq response:", error);
       throw new Error("Failed to extract text from AI response");
     }
     
     if (!responseText) {
-      console.error("[Server] Empty response text from Gemini");
+      console.error("[Server] Empty response text from Groq");
       throw new Error("Received empty response from AI service");
     }
     
@@ -1149,3 +1149,4 @@ export default {
   getCulturalCookingTips,
   generateCulturalRecipeDetails
 };
+

@@ -1,5 +1,5 @@
 // filepath: d:\NutriVerseAI\server\ai-services\recipe-recommendation-ai.js
-import { model, safeJsonParse, generateContent } from "./gemini-client"
+import { model, safeJsonParse, generateContent } from "./groq-client"
 import { db } from "../db"
 import { 
   recipeRecommendations, 
@@ -185,7 +185,7 @@ export async function getPersonalizedRecipeRecommendations(options) {
       return [];
     }
 
-    // Prepare the prompt for Gemini to generate new recipes based on available ones
+    // Prepare the prompt for Groq to generate new recipes based on available ones
     const prompt = `You are a creative recipe recommendation system. Your task is to generate NEW, UNIQUE recipes based on the user's preferences and the available recipes in our system.
 
 User Profile:
@@ -235,7 +235,7 @@ Your response must be a JSON array:
 
     let response;
     try {
-      console.log("Sending request to Gemini API for personalized recommendations");
+      console.log("Sending request to Groq API for personalized recommendations");
       const result = await model.generateContent(prompt);
       response = await result.response.text();
       console.log("Raw AI response:", response);
@@ -249,7 +249,7 @@ Your response must be a JSON array:
         .replace(/['']/g, "'")       // Replace smart single quotes with regular single quotes
         .replace(/['']/g, "'");      // Replace other smart single quotes with regular single quotes
       
-      console.log("Cleaned Gemini response:", cleanedResponse);
+      console.log("Cleaned Groq response:", cleanedResponse);
       
       let newRecipes;
       try {
@@ -445,3 +445,4 @@ export default {
   updateRecommendationDisplayStatus,
   processRecommendationTriggers
 };
+

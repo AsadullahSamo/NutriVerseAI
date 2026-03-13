@@ -1,4 +1,4 @@
-import { model, safeJsonParse } from "./gemini-client"
+import { model, safeJsonParse } from "./groq-client"
 
 export async function getRecipeRecommendations(
   ingredients,
@@ -22,12 +22,12 @@ IMPORTANT: Your response must be a valid JSON array containing EXACTLY 3 recipes
 }`
 
   try {
-    console.log("Sending request to Gemini API with ingredients:", ingredients)
+    console.log("Sending request to Groq API with ingredients:", ingredients)
     const result = await model.generateContent(prompt)
     const response = await result.response.text()
     return await safeJsonParse(response)
   } catch (error) {
-    console.error("Gemini API Error:", error)
+    console.error("Groq API Error:", error)
     throw error
   }
 }
@@ -503,7 +503,7 @@ IMPORTANT: Your response must be a valid JSON array containing EXACTLY 3 recipe 
 }`
 
   try {
-    console.log("Sending request to Gemini API for personalized recommendations");
+    console.log("Sending request to Groq API for personalized recommendations");
     const result = await model.generateContent(prompt);
     const response = await result.response.text();
     console.log("Raw AI response:", response);
@@ -511,7 +511,7 @@ IMPORTANT: Your response must be a valid JSON array containing EXACTLY 3 recipe 
     console.log("Generated recommendations:", recommendations);
     return recommendations;
   } catch (error) {
-    console.error("Gemini API Error:", error);
+    console.error("Groq API Error:", error);
     throw error;
   }
 }
@@ -536,3 +536,4 @@ const recipeAI = {
 };
 
 export default recipeAI;
+

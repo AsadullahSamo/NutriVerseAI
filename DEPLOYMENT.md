@@ -111,7 +111,7 @@ NODE_ENV=production
 DATABASE_URL=your_database_url
 SESSION_SECRET=your_secure_session_secret
 BACKEND_PORT=8000
-GEMINI_API_KEY=your_gemini_api_key
+GROQ_API_KEY=your_groq_api_key
 VITE_API_URL=your_backend_url
 VITE_API_BASE_URL=your_backend_url
 ```

@@ -28,7 +28,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/hooks/use-auth"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { generateCuisineDetailsFromName } from "@ai-services/cultural-cuisine-service"
+import { generateCuisineDetailsFromName } from "@/ai-services/cultural-cuisine-service"
 
 export function CuisineList({ cuisines, onSelectCuisine, viewFilter = "all" }) {
   const [isAddingCuisine, setIsAddingCuisine] = useState(false)
@@ -412,3 +412,4 @@ export function CuisineList({ cuisines, onSelectCuisine, viewFilter = "all" }) {
     </div>
   )
 }
+

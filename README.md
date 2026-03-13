@@ -137,11 +137,8 @@ SESSION_SECRET=your_secret_key
 BACKEND_PORT=8000
 DATABASE_URL=your_neon_db_url (connection string)
 VITE_API_BASE_URL=http://localhost:8000
-VITE_GROQ_API_KEY=your_groq_api_key
 VITE_API_URL=http://localhost:8000
 NODE_ENV=development
-GEMINI_API_KEY=your_gemini_api_key
-VITE_GEMINI_API_KEY=your_gemini_api_key
 
 ```
 

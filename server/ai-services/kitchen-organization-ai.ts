@@ -1,4 +1,4 @@
-import { model, safeJsonParse } from "./gemini-client"
+import { model, safeJsonParse } from "./groq-client"
 
 export async function getOptimalStorageLocation(item, locations) {
   const prompt = `
@@ -236,3 +236,4 @@ function getRecommendationForSpoilage(foodType, daysUntilSpoilage) {
     return `Your ${foodType} should be used within ${daysUntilSpoilage} days`
   }
 }
+

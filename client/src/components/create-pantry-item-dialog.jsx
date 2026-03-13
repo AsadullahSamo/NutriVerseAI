@@ -34,7 +34,7 @@ import {
   DialogTrigger
 } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { generatePantryItemDetails } from "@ai-services/recipe-ai"
+import { generatePantryItemDetails } from "@/ai-services/recipe-ai"
 
 export function CreatePantryItemDialog({ trigger }) {
   const [open, setOpen] = useState(false)
@@ -672,3 +672,4 @@ export function CreatePantryItemDialog({ trigger }) {
     </Dialog>
   )
 }
+

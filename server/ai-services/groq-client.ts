@@ -1,24 +1,13 @@
-import { GoogleGenerativeAI } from "@google/generative-ai"
+import Groq from "groq-sdk"
 
-// Initialize the Google Generative AI client
-export const genAI = new GoogleGenerativeAI(
-  process.env.GEMINI_API_KEY || "AIzaSyC4r12YtLcuYKni5gZiUZiRFxxI8i6kq64"
-)
-
-// Get the generative model with retry configuration
-export const model = genAI.getGenerativeModel({
-  model: "gemini-2.0-flash-lite",
-  safetySettings: [
-    {
-      category: "HARM_CATEGORY_HARASSMENT" as any,
-      threshold: "BLOCK_MEDIUM_AND_ABOVE" as any
-    }
-  ]
+// Initialize the Groq client
+export const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY
 })
 
 // Queue management for rate limiting
 let requestQueue = []
-const MIN_DELAY_BETWEEN_REQUESTS = 2000 // Increase to 2 seconds between requests
+const MIN_DELAY_BETWEEN_REQUESTS = 1000 // 1 second between requests
 const MAX_RETRIES = 3
 const INITIAL_RETRY_DELAY = 1000
 let lastRequestTime = 0
@@ -38,7 +27,8 @@ async function retryWithExponentialBackoff(operation, retryCount = 0) {
     // Check if it's a rate limit error
     if (
       error?.status === 429 ||
-      error?.message?.includes("Resource has been exhausted")
+      error?.message?.includes("Rate limit") ||
+      error?.message?.includes("rate")
     ) {
       const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount)
       console.log(`Rate limit hit, retrying in ${delay}ms...`)
@@ -140,19 +130,36 @@ export async function generateContent(prompt) {
 
   return retryWithExponentialBackoff(async () => {
     try {
-      const result = await model.generateContent(prompt)
+      const completion = await groq.chat.completions.create({
+        messages: [
+          {
+            role: "user",
+            content: prompt
+          }
+        ],
+        model: "llama-3.3-70b-versatile",
+        temperature: 0.7,
+        max_tokens: 2048
+      })
       lastRequestTime = Date.now()
       
-      // Check if result exists and has a response property
-      if (!result || !result.response) {
-        console.error("Invalid Gemini response structure:", result);
-        throw new Error("Invalid response from Gemini API");
-      }
-      
-      return result;
+      return completion;
     } catch (error) {
       console.error("Error generating content:", error);
       throw error;
     }
   })
 }
+
+// Export a model-like object for backward compatibility
+export const model = {
+  generateContent: async (prompt) => {
+    const completion = await generateContent(prompt)
+    return {
+      response: {
+        text: async () => completion.choices[0]?.message?.content || ""
+      }
+    }
+  }
+}
+

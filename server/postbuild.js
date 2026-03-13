@@ -312,10 +312,10 @@ if (fs.existsSync(publicPath)) {
         let modified = false;
         
         // Fix specific imports in AI service files
-        if (content.includes('from "./gemini-client"')) {
+        if (content.includes('from "./groq-client"')) {
           content = content.replace(
-            'from "./gemini-client"',
-            'from "./gemini-client.js"'
+            'from "./groq-client"',
+            'from "./groq-client.js"'
           );
           modified = true;
         }

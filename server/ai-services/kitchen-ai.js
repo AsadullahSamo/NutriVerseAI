@@ -1,4 +1,4 @@
-import { model, safeJsonParse } from "./gemini-client.js";
+import { model, safeJsonParse } from "./groq-client.js";
 
 export async function getRecipesByEquipment(equipment, userPreferences) {
     console.log('[AI Service] Analyzing recipes for current equipment:', equipment.length, 'items');

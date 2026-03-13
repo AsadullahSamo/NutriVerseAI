@@ -1,8 +1,8 @@
 import * as recipeAI from '../../../server/ai-services/recipe-ai';
-import { model, safeJsonParse } from '../../../server/ai-services/gemini-client';
+import { model, safeJsonParse } from '../../../server/ai-services/groq-client';
 
-// Mock the Gemini client
-jest.mock('../../../server/ai-services/gemini-client', () => {
+// Mock the Groq client
+jest.mock('../../../server/ai-services/groq-client', () => {
   return {
     model: {
       generateContent: jest.fn()

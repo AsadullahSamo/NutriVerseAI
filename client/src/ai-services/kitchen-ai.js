@@ -1,4 +1,3 @@
-import { model, safeJsonParse } from "@ai-services/gemini-client"
 import config from "@/lib/config"
 
 export async function getEquipmentRecommendations(
@@ -45,25 +44,27 @@ export async function generateMaintenanceSchedule(
   endDate
 ) {
   try {
-    console.log("Calling Gemini API for maintenance schedule...")
-    const prompt = `Generate a maintenance schedule for these kitchen equipment items from ${startDate} to ${endDate}:
-      Equipment: ${JSON.stringify(equipment)}
-      
-      Return a maintenance schedule in JSON format as an array of objects with these properties:
-      - equipmentId: number (matching the id in the equipment array)
-      - date: string (ISO format date when maintenance should be performed)
-      - tasks: string[] (array of specific maintenance tasks to perform)
-      
-      IMPORTANT: Your response MUST be a valid JSON array with no additional text. 
-      Do not include any explanations, headers, or non-JSON content.
-      Just the raw JSON array, nothing else.`
+    const response = await fetch(
+      `${config.apiBaseUrl}/api/kitchen-equipment/maintenance-schedule`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify({ equipment, startDate, endDate })
+      }
+    )
 
-    const result = await model.generateContent(prompt)
-    const response = await result.response.text()
-    return await safeJsonParse(response)
+    if (!response.ok) {
+      throw new Error("Failed to generate maintenance schedule")
+    }
+
+    return response.json()
   } catch (error) {
-    console.error("Error with Gemini API for maintenance schedule:", error)
-    throw error
+    console.error("Backend API failed for maintenance schedule:", error)
+    return generateMaintenanceScheduleLogic(equipment, startDate, endDate)
   }
 }
 
@@ -225,51 +226,25 @@ function generateMaintenanceScheduleLogic(equipment, startDate, endDate) {
   return schedules
 }
 
-// Skip trying to use the backend since the endpoint doesn't exist
-async function fallbackToBackendMaintenanceSchedule(
-  equipment,
-  startDate,
-  endDate
-) {
-  // Use our own intelligent schedule generation instead of mock data
-  return generateMaintenanceScheduleLogic(equipment, startDate, endDate)
-}
-
 export async function getRecipesByEquipment(equipment, userPreferences) {
-  const prompt = `You are a JSON API that must return recipe recommendations based on available kitchen equipment.
-  Equipment: ${JSON.stringify(equipment)}
-  ${userPreferences ? `User Preferences: ${userPreferences.join(", ")}` : ""}
-  
-  Return EXACTLY this JSON structure with no additional text:
-  {
-    "possibleRecipes": [
-      {
-        "id": number,
-        "title": "string",
-        "description": "A description of the recipe including cooking method and flavors",
-        "requiredEquipment": ["string"],
-        "nutritionInfo": {
-          "calories": number,
-          "protein": number,
-          "carbs": number,
-          "fat": number
-        }
-      }
-    ],
-    "recommendedPurchases": [
-      {
-        "equipment": "string",
-        "enabledRecipes": ["string"]
-      }
-    ]
-  }`
-
   try {
-    const result = await model.generateContent(prompt)
-    const response = await result.response.text()
-    return await safeJsonParse(response)
+    const response = await fetch(
+      `${config.apiBaseUrl}/api/kitchen-equipment/recipe-matches`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify({ equipment, userPreferences })
+      }
+    )
+
+    if (!response.ok) throw new Error("Failed to get recipe matches")
+    return response.json()
   } catch (error) {
-    console.error("Error getting recipes by equipment:", error)
+    console.error("Backend API failed for recipe matches:", error)
     return getMockRecipeMatches(equipment, userPreferences)
   }
 }

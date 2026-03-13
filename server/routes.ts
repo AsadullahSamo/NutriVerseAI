@@ -1025,6 +1025,30 @@ export async function registerRoutes(app) {
     }
   });
 
+  // Kitchen Equipment Maintenance Schedule endpoint
+  app.post('/api/kitchen-equipment/maintenance-schedule', isAuthenticated, async (req, res) => {
+    try {
+      const { equipment, startDate, endDate } = req.body;
+      console.log('[Server] Generating maintenance schedule');
+
+      if (!equipment || !Array.isArray(equipment)) {
+        return res.status(400).json({ error: 'Equipment array is required' });
+      }
+
+      const { generateMaintenanceSchedule } = await import('./ai-services/kitchen-inventory-ai');
+      const schedule = await generateMaintenanceSchedule(equipment, startDate, endDate);
+
+      console.log('[Server] Generated maintenance schedule successfully');
+      res.json(schedule);
+    } catch (error) {
+      console.error('[Server] Error generating maintenance schedule:', error);
+      res.status(500).json({
+        error: 'Failed to generate maintenance schedule',
+        message: error.message
+      });
+    }
+  });
+
   // Kitchen Equipment Analysis endpoint
   app.post('/api/kitchen-equipment/analysis', isAuthenticated, async (req, res) => {
     try {
@@ -1654,6 +1678,38 @@ export async function registerRoutes(app) {
 
 
   // Add recipe generation endpoint
+  app.post('/api/ai/meal-plan', async (req, res) => {
+    try {
+      const { preferences, days, dietaryRestrictions, calorieTarget } = req.body;
+      console.log('[Server] Received request to generate meal plan:', { days });
+
+      if (!Array.isArray(preferences)) {
+        return res.status(400).json({ error: 'Preferences array is required' });
+      }
+
+      if (days && days > 7) {
+        return res.status(400).json({ error: 'Meal plans cannot exceed 7 days' });
+      }
+
+      const plan = await generateAIMealPlan(
+        preferences,
+        days,
+        dietaryRestrictions,
+        calorieTarget
+      );
+
+      console.log('[Server] Generated meal plan successfully');
+      res.json(plan);
+    } catch (error) {
+      console.error('[Server] Error generating meal plan:', error);
+      res.status(500).json({
+        error: 'Failed to generate meal plan',
+        message: error.message
+      });
+    }
+  });
+
+  // Add recipe generation endpoint
   app.post('/api/ai/generate-recipe', async (req, res) => {
     try {
       const { title, cuisine, preferences } = req.body;
@@ -1770,8 +1826,8 @@ export async function registerRoutes(app) {
         console.log('[Server] Detected cuisine details request');
         
         try {
-          // Using generateCuisineDetailsFromName to generate actual details with Gemini
-          console.log('[Server] Generating cuisine details with Gemini...');
+          // Using generateCuisineDetailsFromName to generate actual details with Groq
+          console.log('[Server] Generating cuisine details with Groq...');
           const cuisineDetails = await generateCuisineDetailsFromName(recipeName, cuisineName);
           console.log('[Server] Generated cuisine details:', cuisineDetails);
           console.log('[Server] KeyIngredients type:', typeof cuisineDetails.keyIngredients);
