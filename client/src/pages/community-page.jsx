@@ -168,7 +168,7 @@ export default function CommunityPage() {
                 variant={selectedType === "COOKING_TIP" ? "default" : "outline"}
                 onClick={() => setSelectedType("COOKING_TIP")}
               >
-                Tips
+                Cooking Tips
               </Button>
             </div>
 

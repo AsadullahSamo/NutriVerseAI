@@ -171,11 +171,8 @@ export async function generateContent(prompt) {
 export const model = {
   generateContent: async (prompt) => {
     const completion = await generateContent(prompt)
-    return {
-      response: {
-        text: async () => completion.choices[0]?.message?.content || ""
-      }
-    }
+    return completion
   }
 }
+
 
