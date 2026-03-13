@@ -1,4 +1,13 @@
+import { config as loadEnv } from "dotenv"
+import { resolve, dirname } from "path"
+import { fileURLToPath } from "url"
 import Groq from "groq-sdk"
+
+// Load server env vars early for ESM import order
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+loadEnv({ path: resolve(__dirname, "..", ".env") })
+loadEnv({ path: resolve(__dirname, "..", ".env.local") })
 
 // Initialize the Groq client
 export const groq = new Groq({
@@ -142,8 +151,15 @@ export async function generateContent(prompt) {
         max_tokens: 2048
       })
       lastRequestTime = Date.now()
-      
-      return completion;
+      const text = completion.choices[0]?.message?.content || ""
+
+      // Return a backward-compatible shape
+      return {
+        response: {
+          text: async () => text
+        },
+        raw: completion
+      }
     } catch (error) {
       console.error("Error generating content:", error);
       throw error;

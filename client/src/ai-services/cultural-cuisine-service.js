@@ -2,8 +2,20 @@ import config from "@/lib/config";
 
 export async function generateCuisineDetailsFromName(name, region) {
   try {
-    console.log("[Client] Generating cuisine details for:", { name, region });
-    const apiUrl = `${config.apiBaseUrl}/api/ai/generate-cultural-recipe`;
+    const normalizeName = (value) => {
+      if (typeof value === "string") return value.trim();
+      if (value && typeof value === "object") {
+        if (typeof value.name === "string") return value.name.trim();
+        if (typeof value.region === "string") return value.region.trim();
+      }
+      return "";
+    };
+
+    const nameStr = normalizeName(name);
+    const regionStr = normalizeName(region);
+
+    console.log("[Client] Generating cuisine details for:", { name: nameStr, region: regionStr });
+    const apiUrl = `${config.apiBaseUrl}/api/ai/generate-cuisine-details`;
     
     const response = await fetch(apiUrl, {
       method: "POST",
@@ -13,8 +25,10 @@ export async function generateCuisineDetailsFromName(name, region) {
       },
       credentials: "include",
       body: JSON.stringify({ 
-        recipeName: name, 
-        cuisineName: region
+        cuisine: {
+          name: nameStr,
+          region: regionStr
+        }
       })
     });
 
@@ -48,33 +62,12 @@ export async function analyzeCulturalCuisine(cuisine) {
   return await response.json();
 }
 
-export async function getRecipeAuthenticityScore(recipe, substitutions) {
-  const apiUrl = `${config.apiBaseUrl}/api/cultural-recipes/${recipe.id}/authenticity`;
-  const response = await fetch(apiUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify({ substitutions })
-  });
-  if (!response.ok) throw new Error("Failed to get authenticity score");
-  return await response.json();
-}
-
 export async function getTechniqueTips(technique, cuisine) {
   const apiUrl = `${config.apiBaseUrl}/api/cultural-cuisines/${cuisine.id}/techniques/${technique.id}/tips`;
   const response = await fetch(apiUrl, {
     credentials: "include"
   });
   if (!response.ok) throw new Error("Failed to get technique tips");
-  return await response.json();
-}
-
-export async function getSubstitutions(recipe, pantryItems, region) {
-  const apiUrl = `${config.apiBaseUrl}/api/cultural-recipes/${recipe.id}/substitutions`;
-  const response = await fetch(apiUrl, {
-    credentials: 'include'
-  });
-  if (!response.ok) throw new Error("Failed to get substitutions");
   return await response.json();
 }
 
@@ -155,7 +148,6 @@ const culturalCuisineService = {
   generateCuisineDetailsFromName,
   getCulturalContext,
   analyzeCulturalCuisine,
-  getRecipeAuthenticityScore,
   getTechniqueTips,
   generateCulturalDetails
 };

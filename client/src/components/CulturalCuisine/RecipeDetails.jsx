@@ -34,7 +34,6 @@ import {
   UtensilsCrossed,
   Map,
   Scroll,
-  ArrowRight,
   Info,
   Globe2,
   Wine,
@@ -45,7 +44,6 @@ import {
 } from "lucide-react"
 import {
   getTechniqueTips,
-  getSubstitutions,
   getPairings,
   getEtiquette
 } from "@/ai-services/cultural-cuisine-service"
@@ -53,17 +51,19 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { generateCulturalRecipeDetails } from "@/ai-services/cultural-cuisine-service"
 import config from "@/lib/config"
 
+const stripStepPrefix = step => {
+  if (typeof step !== "string") return step
+  return step.replace(/^\s*step\s*\d+\s*[:.\-)]\s*/i, "").trimStart()
+}
+
 export function RecipeDetails({ recipe, cuisine, onBack }) {
   const { user } = useAuth()
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [isEditingInstructions, setIsEditingInstructions] = useState(false)
   const [isEditingIngredients, setIsEditingIngredients] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [substitutions, setSubstitutions] = useState([])
   const [pairings, setPairings] = useState(null)
   const [etiquette, setEtiquette] = useState(null)
-  const [authenticityAnalysis, setAuthenticityAnalysis] = useState(null)
-  const [authenticityScore, setAuthenticityScore] = useState(null)
   const [techniqueTips, setTechniqueTips] = useState([])
   const [culturalContext, setCulturalContext] = useState(null)
   const [localImageUrl, setLocalImageUrl] = useState(null)
@@ -113,43 +113,6 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
     initialData: recipe
   })
 
-  useEffect(() => {
-    if (user) {
-      fetchSubstitutions()
-    }
-  }, [user, recipe.id])
-
-  const fetchSubstitutions = async () => {
-    if (!recipe || !cuisine) return
-    setLoading(true)
-    try {
-      console.log("Fetching substitutions for:", recipe.name)
-      const data = await getSubstitutions(recipe, [], cuisine.region)
-      console.log("Substitutions response:", data)
-
-      if (data && data.substitutions) {
-        setSubstitutions(data.substitutions)
-        if (typeof data.authenticityScore === "number") {
-          setAuthenticityScore({
-            score: data.authenticityScore,
-            feedback: data.authenticityFeedback || []
-          })
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching substitutions:", error)
-      toast({
-        title: "Error",
-        description:
-          "Could not load ingredient substitutions. Please try again.",
-        variant: "destructive"
-      })
-      setSubstitutions([])
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const fetchPairings = async () => {
     if (!recipe || !cuisine) return
     setLoading(true)
@@ -168,8 +131,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
       }
     } catch (error) {
       console.error("Error fetching pairings:", error)
-      toast({
-        title: "Error",
+      toast("Error", {
         description: "Could not load complementary dishes. Please try again.",
         variant: "destructive"
       })
@@ -197,8 +159,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
       }
     } catch (error) {
       console.error("Error fetching etiquette:", error)
-      toast({
-        title: "Error",
+      toast("Error", {
         description: "Could not load serving etiquette. Please try again.",
         variant: "destructive"
       })
@@ -227,8 +188,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
       const tips = await getTechniqueTips(mockTechnique, cuisine)
       setTechniqueTips([tips])
     } catch (error) {
-      toast({
-        title: "Error",
+      toast("Error", {
         description: "Failed to load technique tips. Please try again.",
         variant: "destructive"
       })
@@ -272,15 +232,13 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
 
       await refetch()
 
-      toast({
-        title: "Recipe Updated",
+      toast("Recipe Updated", {
         description: "Recipe details have been updated successfully."
       })
     } catch (error) {
       console.error("Error updating recipe:", error)
       if (showErrorToast) {
-        toast({
-          title: "Error",
+        toast("Error", {
           description: "Failed to update recipe. Please try again.",
           variant: "destructive"
         })
@@ -338,8 +296,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
         }
       }
 
-      toast({
-        title: result.type === "deleted" ? "Recipe Deleted" : "Recipe Hidden",
+      toast(result.type === "deleted" ? "Recipe Deleted" : "Recipe Hidden", {
         description:
           result.type === "deleted"
             ? "The recipe has been permanently deleted."
@@ -377,25 +334,6 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
     recipeDetails.culturalNotes &&
     Object.keys(recipeDetails.culturalNotes).length > 0
 
-  const renderModernAdaptations = () => {
-    if (!authenticityAnalysis?.modernAdaptations?.length) {
-      return null
-    }
-
-    return (
-      <div className="space-y-2">
-        <h4 className="text-sm font-medium">Modern Adaptations</h4>
-        <div className="flex flex-wrap gap-1">
-          {authenticityAnalysis.modernAdaptations.map((adaptation, i) => (
-            <Badge key={i} variant="secondary">
-              {adaptation}
-            </Badge>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
   const generateAIDetails = async () => {
     setIsGenerating(true)
     try {
@@ -422,17 +360,17 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
           ingredientsTextarea.value = ingredients
         }
         if (instructionsTextarea) {
-          instructionsTextarea.value = details.instructions.join("\n")
+          instructionsTextarea.value = details.instructions
+            .map(stripStepPrefix)
+            .join("\n")
         }
       }
 
-      toast({
-        title: "Recipe Details Generated",
+      toast("Recipe Details Generated", {
         description: "AI has generated recipe details. Feel free to edit them."
       })
     } catch (error) {
-      toast({
-        title: "Generation Failed",
+      toast("Generation Failed", {
         description:
           "Failed to generate recipe details. Please try again or enter manually.",
         variant: "destructive"
@@ -522,14 +460,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
                 <TabsContent value="instructions">
                   <div className="flex justify-between items-center">
                     <h3 className="text-lg font-semibold mt-2 mb-4">Steps</h3>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsEditingInstructions(true)}
-                    >
-                      <Edit className="h-4 w-4 mr-2" />
-                      {hasInstructions ? "Edit Steps" : "Add Steps"}
-                    </Button>
+                    
                   </div>
                   <ol className="space-y-2">
                     {Array.isArray(recipe.instructions)
@@ -538,7 +469,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
                             <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5">
                               {i + 1}
                             </div>
-                            <div>{step}</div>
+                            <div>{stripStepPrefix(step)}</div>
                           </li>
                         ))
                       : recipe.instructions &&
@@ -548,7 +479,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
                             <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5">
                               {i + 1}
                             </div>
-                            <div>{step}</div>
+                            <div>{stripStepPrefix(step)}</div>
                           </li>
                         ))
                       : null}
@@ -563,16 +494,6 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
                         <h3 className="text-lg font-semibold">
                           Authentic Ingredients
                         </h3>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setIsEditingIngredients(true)}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          {hasIngredients
-                            ? "Edit Ingredients"
-                            : "Add Ingredients"}
-                        </Button>
                       </div>
                       <ul className="space-y-3 mt-4">
                         {Array.isArray(recipe.authenticIngredients)
@@ -587,17 +508,6 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
                                     {ingredient}
                                   </span>
                                 </div>
-                                {substitutions.some(
-                                  s => s.original === ingredient
-                                ) && (
-                                  <Badge
-                                    variant="outline"
-                                    className="animate-fadeIn flex items-center gap-1.5"
-                                  >
-                                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                                    <span>Has substitution</span>
-                                  </Badge>
-                                )}
                               </li>
                             ))
                           : recipe.authenticIngredients &&
@@ -614,209 +524,12 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
                                       {name}: {quantity}
                                     </span>
                                   </div>
-                                  {substitutions.some(
-                                    s => s.original === name
-                                  ) && (
-                                    <Badge
-                                      variant="outline"
-                                      className="animate-fadeIn flex items-center gap-1.5"
-                                    >
-                                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                                      <span>Has substitution</span>
-                                    </Badge>
-                                  )}
                                 </li>
                               )
                             )
                           : null}
                       </ul>
                     </div>
-
-                    {recipe.localSubstitutes &&
-                      Object.keys(recipe.localSubstitutes).length > 0 && (
-                        <Card className="mt-6 overflow-hidden">
-                          <CardHeader className="border-b bg-muted/50">
-                            <CardTitle className="text-lg">
-                              Local Substitutes
-                            </CardTitle>
-                            <CardDescription>
-                              Traditional ingredient alternatives available
-                              locally
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent className="p-0">
-                            <div className="divide-y">
-                              {Object.entries(recipe.localSubstitutes).map(
-                                ([original, substitute], i) => {
-                                  const substitutionDetails = substitutions.find(
-                                    s => s.original === original
-                                  )
-                                  return (
-                                    <div
-                                      key={i}
-                                      className="p-4 hover:bg-accent/5 transition-colors"
-                                    >
-                                      <div className="flex items-center justify-between mb-2">
-                                        <div className="flex items-center gap-3">
-                                          <div className="flex items-center text-sm">
-                                            <span className="font-semibold">
-                                              {original}
-                                            </span>
-                                            <ArrowRight className="h-4 w-4 mx-2 text-muted-foreground" />
-                                            <span>{substitute}</span>
-                                          </div>
-                                        </div>
-                                        {substitutionDetails && (
-                                          <Badge
-                                            variant={
-                                              substitutionDetails.flavorImpact ===
-                                              "minimal"
-                                                ? "outline"
-                                                : substitutionDetails.flavorImpact ===
-                                                  "moderate"
-                                                ? "secondary"
-                                                : "destructive"
-                                            }
-                                            className="animate-fadeIn"
-                                          >
-                                            {substitutionDetails.flavorImpact}{" "}
-                                            impact
-                                          </Badge>
-                                        )}
-                                      </div>
-                                      {substitutionDetails?.notes && (
-                                        <div className="pl-4 border-l-2 border-primary/20 mt-2">
-                                          <p className="text-sm text-muted-foreground">
-                                            {substitutionDetails.notes}
-                                          </p>
-                                        </div>
-                                      )}
-                                    </div>
-                                  )
-                                }
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-
-                    {/* Substitutions Section */}
-                    <Card className="overflow-hidden">
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 bg-muted/50 border-b">
-                        <div>
-                          <CardTitle className="text-base font-semibold flex items-center gap-2">
-                            <ArrowRight className="h-4 w-4 text-primary" />
-                            Ingredient Substitutions
-                          </CardTitle>
-                          <CardDescription>
-                            Alternative ingredients and their impact
-                          </CardDescription>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={fetchSubstitutions}
-                          disabled={loading}
-                        >
-                          {loading ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Loading...
-                            </>
-                          ) : (
-                            <>
-                              <Sparkles className="mr-2 h-4 w-4" />
-                              Show Substitutions
-                            </>
-                          )}
-                        </Button>
-                      </CardHeader>
-                      <CardContent className="p-6">
-                        {substitutions.length > 0 ? (
-                          <div className="grid gap-4 md:grid-cols-2">
-                            {substitutions.map((sub, index) => (
-                              <div
-                                key={index}
-                                className="group p-4 rounded-lg border bg-card hover:shadow-md transition-all duration-200"
-                              >
-                                <div className="flex flex-wrap gap-4 items-start justify-between">
-                                  <div className="space-y-3">
-                                    <div className="flex items-center gap-3">
-                                      <Badge className="bg-primary/10 text-primary hover:bg-primary/20 transition-colors">
-                                        {sub.original}
-                                      </Badge>
-                                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                                      <Badge
-                                        variant="outline"
-                                        className="font-normal"
-                                      >
-                                        {sub.substitute}
-                                      </Badge>
-                                    </div>
-                                    <div className="pl-4 border-l-2 border-primary/20">
-                                      <div className="flex items-start gap-2">
-                                        <Info className="h-4 w-4 text-muted-foreground mt-0.5" />
-                                        <p className="text-sm text-muted-foreground">
-                                          {sub.notes}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <Badge
-                                    variant={
-                                      sub.flavorImpact === "minimal"
-                                        ? "outline"
-                                        : sub.flavorImpact === "moderate"
-                                        ? "secondary"
-                                        : "destructive"
-                                    }
-                                    className="transition-all duration-200 group-hover:scale-105"
-                                  >
-                                    <div className="flex items-center gap-1.5">
-                                      <div
-                                        className={`w-2 h-2 rounded-full ${
-                                          sub.flavorImpact === "minimal"
-                                            ? "bg-primary"
-                                            : sub.flavorImpact === "moderate"
-                                            ? "bg-secondary"
-                                            : "bg-destructive"
-                                        }`}
-                                      />
-                                      {sub.flavorImpact} impact
-                                    </div>
-                                  </Badge>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : !loading ? (
-                          <div className="text-center py-8">
-                            <div className="rounded-full bg-primary/10 p-3 w-12 h-12 mx-auto mb-4 flex items-center justify-center">
-                              <ArrowRight className="h-6 w-6 text-primary" />
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              No substitutions added yet
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Click "Show Substitutions" to discover ingredient
-                              alternatives
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="flex justify-center py-8">
-                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                          </div>
-                        )}
-                        {!user && (
-                          <div className="mt-6 pt-6 border-t text-center">
-                            <p className="text-sm text-muted-foreground">
-                              Sign in to view personalized substitutions based
-                              on your pantry
-                            </p>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
 
                     {/* Complementary Dishes Card */}
                     <Card className="overflow-hidden">
@@ -1164,6 +877,7 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
                     const instructionsText = formData.get("instructions")
                     const instructions = instructionsText
                       .split("\n")
+                      .map(line => stripStepPrefix(line))
                       .filter(Boolean)
                     handleUpdateRecipe({ instructions })
                     setIsEditingInstructions(false)
@@ -1194,10 +908,14 @@ export function RecipeDetails({ recipe, cuisine, onBack }) {
                       name="instructions"
                       defaultValue={
                         Array.isArray(recipeDetails.instructions)
-                          ? recipeDetails.instructions.join("\n")
+                          ? recipeDetails.instructions
+                              .map(stripStepPrefix)
+                              .join("\n")
                           : Object.values(
                               recipeDetails.instructions || {}
-                            ).join("\n")
+                            )
+                              .map(stripStepPrefix)
+                              .join("\n")
                       }
                       placeholder="Enter each step on a new line"
                       rows={10}

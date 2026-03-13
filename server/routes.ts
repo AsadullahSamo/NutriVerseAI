@@ -46,10 +46,8 @@ import {
 } from "./ai-services/recipe-recommendation-ai";
 import {
   analyzeCulturalCuisine,
-  getRecipeAuthenticityScore,
   getEtiquette,
   getPairings,
-  getSubstitutions,
   generateCulturalRecipeDetails,
   generateCulturalDetails,
   generateCuisineDetailsFromName
@@ -1251,14 +1249,20 @@ export async function registerRoutes(app) {
 
   app.patch('/api/cultural-cuisines/:id', async (req, res) => {
     try {
-      const { imageUrl, ...otherUpdates } = req.body;
-      
+      const { imageUrl, bannerUrl, ...otherUpdates } = req.body;
+      const updateData = {
+        ...otherUpdates,
+        updatedAt: new Date()
+      };
+      if (imageUrl !== undefined) {
+        updateData.imageUrl = imageUrl;
+      }
+      if (bannerUrl !== undefined) {
+        updateData.bannerUrl = bannerUrl;
+      }
+
       const [updatedCuisine] = await db.update(culturalCuisines)
-        .set({
-          ...otherUpdates,
-          imageUrl: imageUrl || null,
-          updatedAt: new Date()
-        })
+        .set(updateData)
         .where(eq(culturalCuisines.id, parseInt(req.params.id)))
         .returning();
 
@@ -1448,37 +1452,6 @@ export async function registerRoutes(app) {
     }
   });
 
-  app.get('/api/cultural-recipes/:id/substitutions', isAuthenticated, async (req, res) => {
-    try {
-      const [recipe] = await db.select()
-        .from(culturalRecipes)
-        .where(eq(culturalRecipes.id, parseInt(req.params.id)));
-
-                            if (!recipe) {
-        return res.status(404).json({ error: 'Recipe not found' });
-      }
-
-      const userPantry = await db.select()
-        .from(pantryItems)
-        .where(eq(pantryItems.userId, req.user.id));
-
-      const user = await storage.getUser(req.user.id);
-      const userRegion = user?.preferences?.region || 'unknown';
-
-      const result = await getSubstitutions(recipe, userPantry, userRegion);
-      const authenticity = await getRecipeAuthenticityScore(recipe, result.substitutions);
-
-                            res.json({
-                                substitutions: result.substitutions,
-                                authenticityScore: result.authenticityScore,
-                                authenticityFeedback: result.authenticityFeedback
-                            });
-    } catch (error) {
-      console.error('Error finding substitutions:', error);
-                            res.status(500).json({ error: 'Failed to find substitutions' });
-    }
-  });
-
   app.get('/api/cultural-recipes/:id/pairings', async (req, res) => {
     try {
       const [recipe] = await db.select()
@@ -1562,39 +1535,6 @@ export async function registerRoutes(app) {
     } catch (error) {
       console.error('Error deleting recipe:', error);
                             res.status(500).json({ error: 'Failed to delete recipe' });
-    }
-  });
-
-  app.post('/api/cultural-recipes/:id/substitutions', isAuthenticated, async (req, res) => {
-    try {
-      const [recipe] = await db.select()
-        .from(culturalRecipes)
-        .where(eq(culturalRecipes.id, parseInt(req.params.id)));
-
-                            if (!recipe) {
-        return res.status(404).json({ error: 'Recipe not found' });
-      }
-
-      const currentSubstitutes = recipe.localSubstitutes || {};
-      const { original, substitute, notes, flavorImpact } = req.body;
-      
-                            currentSubstitutes[original] = substitute;
-
-      const [updatedRecipe] = await db.update(culturalRecipes)
-                                    .set({
-                                    localSubstitutes: currentSubstitutes,
-                                    updatedAt: new Date()
-                                })
-        .where(eq(culturalRecipes.id, recipe.id))
-        .returning();
-
-                            res.json({
-                                recipe: updatedRecipe,
-        substitution: { original, substitute, notes, flavorImpact }
-      });
-    } catch (error) {
-      console.error('Error adding substitution:', error);
-                            res.status(500).json({ error: 'Failed to add substitution' });
     }
   });
 
@@ -1816,19 +1756,35 @@ export async function registerRoutes(app) {
       const { recipeName, cuisineName } = req.body;
       console.log('[Server] Received request for:', { recipeName, cuisineName });
 
-      if (!recipeName || !cuisineName) {
+      const normalizeName = (value) => {
+        if (typeof value === 'string') return value.trim();
+        if (value && typeof value === 'object') {
+          if (typeof value.name === 'string') return value.name.trim();
+          if (typeof value.region === 'string') return value.region.trim();
+        }
+        return '';
+      };
+
+      const recipeNameStr = normalizeName(recipeName);
+      const cuisineNameStr = normalizeName(cuisineName);
+
+      if (!recipeNameStr || !cuisineNameStr) {
         console.error('[Server] Missing required fields:', { recipeName, cuisineName });
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
       // Check if this is a cuisine details request (when recipeName and cuisineName are the same)
-      if (recipeName === cuisineName || cuisineName.includes(recipeName) || recipeName.includes(cuisineName)) {
+      if (
+        recipeNameStr === cuisineNameStr ||
+        cuisineNameStr.includes(recipeNameStr) ||
+        recipeNameStr.includes(cuisineNameStr)
+      ) {
         console.log('[Server] Detected cuisine details request');
         
         try {
           // Using generateCuisineDetailsFromName to generate actual details with Groq
           console.log('[Server] Generating cuisine details with Groq...');
-          const cuisineDetails = await generateCuisineDetailsFromName(recipeName, cuisineName);
+          const cuisineDetails = await generateCuisineDetailsFromName(recipeNameStr, cuisineNameStr);
           console.log('[Server] Generated cuisine details:', cuisineDetails);
           console.log('[Server] KeyIngredients type:', typeof cuisineDetails.keyIngredients);
           console.log('[Server] CookingTechniques type:', typeof cuisineDetails.cookingTechniques);
@@ -1858,7 +1814,7 @@ export async function registerRoutes(app) {
       }
 
       console.log('[Server] Calling generateCulturalRecipeDetails...');
-      const details = await generateCulturalRecipeDetails(recipeName, cuisineName);
+      const details = await generateCulturalRecipeDetails(recipeNameStr, cuisineNameStr);
       console.log('[Server] Generated details:', details);
       
       res.json(details);

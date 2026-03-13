@@ -49,16 +49,17 @@ import {
       .notNull()
   })
   
-  export const groceryLists = pgTable("grocery_lists", {
-    id: serial("id").primaryKey(),
-    userId: integer("user_id")
-      .references(() => users.id)
-      .notNull(),
-    items: jsonb("items").notNull(),
-    completed: boolean("completed")
-      .default(false)
-      .notNull(),
-    expiryDates: jsonb("expiry_dates"),
+export const groceryLists = pgTable("grocery_lists", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id")
+    .references(() => users.id)
+    .notNull(),
+  title: text("title").notNull().default("Shopping List"),
+  items: jsonb("items").notNull(),
+  completed: boolean("completed")
+    .default(false)
+    .notNull(),
+  expiryDates: jsonb("expiry_dates"),
     smartSubstitutions: jsonb("smart_substitutions")
   })
   
@@ -346,7 +347,9 @@ import {
       .optional()
   })
   
-  export const insertGroceryListSchema = createInsertSchema(groceryLists)
+export const insertGroceryListSchema = createInsertSchema(groceryLists).extend({
+  title: z.string().min(1, "Title is required")
+})
   export const insertPantryItemSchema = createInsertSchema(pantryItems).extend({
     name: z.string().min(1, "Name is required"),
     quantity: z.string().min(1, "Quantity is required"),

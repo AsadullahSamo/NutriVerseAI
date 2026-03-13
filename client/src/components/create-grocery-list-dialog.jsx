@@ -88,53 +88,6 @@ export function CreateGroceryListDialog({ trigger }) {
                 </FormItem>
               )}
             />
-            <div className="space-y-4">
-              {/* Add dynamic item inputs here */}
-              <div className="flex items-center gap-2">
-                <Input
-                  placeholder="Add item..."
-                  onKeyPress={e => {
-                    if (e.key === "Enter") {
-                      e.preventDefault()
-                      const currentItems = form.getValues("items") || []
-                      form.setValue("items", [
-                        ...currentItems,
-                        {
-                          id: crypto.randomUUID(),
-                          name: e.target.value,
-                          completed: false,
-                          quantity: "1"
-                        }
-                      ])
-                      e.target.value = ""
-                    }
-                  }}
-                />
-              </div>
-              {/* Display added items */}
-              {form.watch("items")?.map((item, index) => (
-                <div
-                  key={item.id}
-                  className="flex items-center justify-between"
-                >
-                  <span>{item.name}</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      const items = form.getValues("items")
-                      form.setValue(
-                        "items",
-                        items.filter((_, i) => i !== index)
-                      )
-                    }}
-                  >
-                    Remove
-                  </Button>
-                </div>
-              ))}
-            </div>
             <Button
               type="submit"
               className="w-full"

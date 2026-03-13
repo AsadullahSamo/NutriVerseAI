@@ -103,6 +103,7 @@ async function setupDatabase(connectionString?: string) {
       CREATE TABLE IF NOT EXISTS "grocery_lists" (
         "id" serial PRIMARY KEY NOT NULL,
         "user_id" integer NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+        "title" text DEFAULT 'Shopping List' NOT NULL,
         "items" jsonb NOT NULL,
         "completed" boolean DEFAULT false NOT NULL,
         "expiry_dates" jsonb,

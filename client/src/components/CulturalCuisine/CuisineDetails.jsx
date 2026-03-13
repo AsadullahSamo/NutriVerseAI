@@ -28,45 +28,6 @@ const formatHeading = (text) => {
       .join(' ')
       .trim();
 };
-function EditImagesDialog({ open, onOpenChange, onSubmit, currentImages }) {
-  const [bannerUrl, setBannerUrl] = useState(currentImages.bannerUrl || '');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const handleSubmit = async (e) => {
-      e.preventDefault();
-      setIsSubmitting(true);
-      try {
-          await onSubmit({ bannerUrl });
-          onOpenChange(false);
-      }
-      catch (error) {
-          console.error('Failed to update images:', error);
-      }
-      finally {
-          setIsSubmitting(false);
-      }
-  };
-  return (<Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className="sm:max-w-[425px]">
-      <DialogHeader>
-        <DialogTitle>Edit Images</DialogTitle>
-      </DialogHeader>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Banner Image URL</label>
-          <Input value={bannerUrl} onChange={(e) => setBannerUrl(e.target.value)} placeholder="Enter banner image URL"/>
-        </div>
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </div>
-      </form>
-    </DialogContent>
-  </Dialog>);
-}
 function EditCulturalDetailsDialog({ open, onOpenChange, onSubmit, currentDetails }) {
   const [culturalContext, setCulturalContext] = useState(currentDetails.culturalContext || {});
   const [servingEtiquette, setServingEtiquette] = useState(currentDetails.servingEtiquette || {});
@@ -152,12 +113,10 @@ export function CuisineDetails({ cuisineId, onBack }) {
   const queryClient = useQueryClient();
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [isAddingRecipe, setIsAddingRecipe] = useState(false);
-  const [isEditingImages, setIsEditingImages] = useState(false);
   const [isEditingCulturalDetails, setIsEditingCulturalDetails] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
   const [isGeneratingDetails, setIsGeneratingDetails] = useState(false);
-  const [localImageUrl, setLocalImageUrl] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   // Add state for user ID
   const [currentUserId, setCurrentUserId] = useState(null);
@@ -245,38 +204,6 @@ export function CuisineDetails({ cuisineId, onBack }) {
       retry: false,
       staleTime: 0
   });
-  const handleUpdateImages = async (data) => {
-      if (!config) return;
-      try {
-          // Store banner URL in localStorage
-          localStorage.setItem(`cuisine-image-${cuisineId}`, data.bannerUrl);
-          setLocalImageUrl(data.bannerUrl);
-          const response = await fetch(`${config.apiBaseUrl}/api/cultural-cuisines/${cuisineId}`, {
-              method: 'PATCH',
-              headers: {
-                  'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(data),
-              credentials: 'include'
-          });
-          if (!response.ok) {
-              throw new Error('Failed to update images');
-          }
-          toast({
-              title: "Images Updated",
-              description: "The cuisine images have been updated successfully.",
-          });
-          refetch();
-          setIsEditingImages(false);
-      }
-      catch (error) {
-          toast({
-              title: "Error",
-              description: "Failed to update images. Please try again.",
-              variant: "destructive",
-          });
-      }
-  };
   const handleUpdateCulturalDetails = async (data) => {
       try {
           const response = await fetch(`${config.apiBaseUrl}/api/cultural-cuisines/${cuisineId}`, {
@@ -583,8 +510,8 @@ export function CuisineDetails({ cuisineId, onBack }) {
   const canEditCuisine = (cuisine === null || cuisine === void 0 ? void 0 : cuisine.createdBy) === currentUserId;
   return (<div className="container mx-auto px-4 md:px-6 lg:px-8 max-w-7xl">
     <div className="relative space-y-6 pb-12">
-      {(localImageUrl || (cuisine === null || cuisine === void 0 ? void 0 : cuisine.bannerUrl)) && (<div className="relative w-full h-[300px] rounded-lg overflow-hidden">
-          <img src={localImageUrl || cuisine.bannerUrl} alt={`${cuisine.name} banner`} className="absolute inset-0 w-full h-full object-cover" onError={(e) => {
+      {((cuisine === null || cuisine === void 0 ? void 0 : cuisine.bannerUrl)) && (<div className="relative w-full h-[300px] rounded-lg overflow-hidden">
+          <img src={cuisine.bannerUrl} alt={`${cuisine.name} banner`} className="absolute inset-0 w-full h-full object-cover" onError={(e) => {
               e.currentTarget.src = `https://source.unsplash.com/1200x400/?${encodeURIComponent(cuisine.name.toLowerCase() + ' food')}`;
           }}/>
           <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-background/20"/>
@@ -595,10 +522,6 @@ export function CuisineDetails({ cuisineId, onBack }) {
             </div>
           </div>
           <div className="absolute top-4 right-4 flex gap-2">
-            {canEditCuisine && (<Button size="sm" onClick={() => setIsEditingImages(true)}>
-                <Edit className="h-4 w-4 mr-2"/>
-                Edit Banner
-              </Button>)}
             {canEditCuisine && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -637,10 +560,6 @@ export function CuisineDetails({ cuisineId, onBack }) {
             {cuisine === null || cuisine === void 0 ? void 0 : cuisine.description}
           </p>
         </div>
-
-        <EditImagesDialog open={isEditingImages} onOpenChange={setIsEditingImages} onSubmit={handleUpdateImages} currentImages={{
-          bannerUrl: cuisine === null || cuisine === void 0 ? void 0 : cuisine.bannerUrl
-      }}/>
 
         <EditCulturalDetailsDialog open={isEditingCulturalDetails} onOpenChange={setIsEditingCulturalDetails} onSubmit={handleUpdateCulturalDetails} currentDetails={{
           culturalContext: cuisine === null || cuisine === void 0 ? void 0 : cuisine.culturalContext,
