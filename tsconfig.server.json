@@ -15,7 +15,6 @@
     "removeComments": false,
     "strict": false,
     "noImplicitAny": false,
-    "noImplicitReturns": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noImplicitReturns": false,
